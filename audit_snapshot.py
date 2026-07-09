@@ -31,6 +31,10 @@ Trailing-window refresh:
   --refresh-days (default 14 = 7d new + 7d buffer) and reuses the cached
   remainder, discarding rows older than --days. This queries ~15% of the data
   per run instead of 100%.
+
+  Rows that age out of the window are appended to a local-only archive
+  (--archive, default audit-pipeline/archive_snapshot.pkl, git-ignored) so they
+  can be retrieved later; use --no-archive to skip.
 """
 from __future__ import annotations
 
@@ -53,6 +57,8 @@ from papermill_scoring import author_display_name, email_similarity_score
 REPO = Path(__file__).resolve().parent
 OUT_DEFAULT = REPO / "audit-network" / "data" / "snapshot.json.gz"
 RAW_DEFAULT = REPO / "audit-pipeline" / "raw_snapshot.pkl"
+# Local-only append archive of rows aged out of the trailing window (never shipped).
+ARCHIVE_DEFAULT = REPO / "audit-pipeline" / "archive_snapshot.pkl"
 
 WORDDOC_INDICATOR = 75
 PAPERMILL_INDICATOR = 80
@@ -231,8 +237,10 @@ def fetch_incremental(cs: str, window_days: int, refresh_days: int, cache: pd.Da
     Rows older than the trailing window are discarded.
     """
     cache = cache.reindex(columns=RAW_COLS)
-    kept = _within_window(cache, window_days)
-    aged_out = len(cache) - len(kept)
+    created = _created_naive(cache)
+    cutoff = pd.Timestamp(datetime.now(timezone.utc).replace(tzinfo=None)) - pd.Timedelta(days=window_days)
+    in_win = created >= cutoff
+    kept, aged = cache[in_win].copy(), cache[~in_win].copy()
 
     fresh = fetch(cs, refresh_days)
     fresh_ids = set(fresh["ArticleId"].tolist())
@@ -245,10 +253,30 @@ def fetch_incremental(cs: str, window_days: int, refresh_days: int, cache: pd.Da
 
     print(
         f"[incremental] reused {len(remainder):,} cached · refreshed/added {len(fresh):,} "
-        f"(last {refresh_days}d) · aged out {aged_out:,} · total {len(merged):,}",
+        f"(last {refresh_days}d) · aged out {len(aged):,} · total {len(merged):,}",
         file=sys.stderr,
     )
-    return merged
+    return merged, aged
+
+
+def _archive_rows(aged: pd.DataFrame, archive_path: Path) -> None:
+    """Append rows that aged out of the window to a local-only archive (dedup by ArticleId)."""
+    if aged is None or aged.empty:
+        return
+    aged = aged.reindex(columns=RAW_COLS)
+    if archive_path.exists():
+        try:
+            prev = pickle.loads(archive_path.read_bytes()).reindex(columns=RAW_COLS)
+            combined = pd.concat([prev, aged], ignore_index=True)
+        except Exception as e:
+            print(f"[archive] could not read existing archive ({e}); starting fresh", file=sys.stderr)
+            combined = aged
+    else:
+        combined = aged
+    combined = combined.drop_duplicates("ArticleId", keep="last")
+    archive_path.parent.mkdir(parents=True, exist_ok=True)
+    archive_path.write_bytes(pickle.dumps(combined))
+    print(f"[archive] +{len(aged):,} aged-out rows -> {archive_path} ({len(combined):,} total retained)", file=sys.stderr)
 
 
 def _pick_author(amd: pd.DataFrame) -> pd.DataFrame:
@@ -555,6 +583,9 @@ def main() -> None:
     ap.add_argument("--refresh-days", type=int, default=14,
                     help="recent slice re-pulled in --incremental mode (new articles + buffer for late enrichment)")
     ap.add_argument("--full", action="store_true", help="force a complete --days pull even if a cache exists")
+    ap.add_argument("--archive", default=str(ARCHIVE_DEFAULT),
+                    help="local-only file where rows aged out of the window are appended for later retrieval")
+    ap.add_argument("--no-archive", action="store_true", help="do not archive aged-out rows during --incremental")
     args = ap.parse_args()
 
     raw_path = Path(args.raw)
@@ -568,7 +599,9 @@ def main() -> None:
             sys.exit("Provide --connection-string or AUDIT_DB_CS env var")
         if args.incremental and not args.full and raw_path.exists():
             cache = pickle.loads(raw_path.read_bytes())
-            df = fetch_incremental(args.connection_string, args.days, args.refresh_days, cache)
+            df, aged = fetch_incremental(args.connection_string, args.days, args.refresh_days, cache)
+            if not args.no_archive:
+                _archive_rows(aged, Path(args.archive))
         else:
             if args.incremental and not raw_path.exists():
                 print("[incremental] no cache found -> full pull this run", file=sys.stderr)

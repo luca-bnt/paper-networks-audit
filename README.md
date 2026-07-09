@@ -81,6 +81,11 @@ few days *after* an article's `Created` date. So `--incremental`:
 Net effect: each weekly run queries ~15% of the data instead of 100%. Run a full
 `--days 90` rebuild periodically (e.g. monthly) as a safety net.
 
+Rows that age out of the window are appended to a **local-only archive**
+(`--archive`, default `audit-pipeline/archive_snapshot.pkl`, git-ignored),
+deduplicated by article id, so you can retrieve older data later. Use
+`--no-archive` to skip it.
+
 ## Deploying
 
 Upload the `audit-network/` folder to the Frontiers static webapp storage under
