@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+dbenv/
+venv/
+
+# Pipeline cache (large DB pull — never commit)
+*.pkl
+raw_snapshot.pkl
+
+# Credentials / secrets
+.env
+*.creds
+get_creds.py
+
+# OS
+.DS_Store

@@ -1,0 +1,607 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Paper Connection Audit</title>
+<style>
+  :root {
+    --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2a2f3a;
+    --text: #e6e8ec; --muted: #9aa3b2; --accent: #3673f7;
+    --green: #65C161; --orange: #E87626; --red: #D51A2C; --grey: #6b7280;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  #app { display: grid; grid-template-columns: 330px 1fr 340px; height: 100vh; }
+  .col { overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+  #left { border-right: 1px solid var(--line); background: var(--panel); }
+  #right { border-left: 1px solid var(--line); background: var(--panel); }
+  #center { position: relative; }
+  header { padding: 12px 14px; border-bottom: 1px solid var(--line); }
+  header h1 { font-size: 14px; margin: 0 0 2px; letter-spacing: .2px; }
+  header .sub { color: var(--muted); font-size: 11px; }
+  .scroll { overflow-y: auto; flex: 1; min-height: 0; }
+  .section { padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  .section h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
+    color: var(--muted); margin: 0 0 8px; }
+  label.chk { display: flex; align-items: center; gap: 7px; padding: 3px 0; cursor: pointer; }
+  label.chk input { accent-color: var(--accent); }
+  .attrdot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+  .attrsq { width: 9px; height: 9px; flex: none; border-radius: 2px; }
+  .row { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+  .row label { color: var(--muted); flex: none; min-width: 92px; }
+  input[type=text], input[type=number], select {
+    background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 8px; width: 100%; font-size: 12px; }
+  .bucket { padding: 8px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .bucket:hover { background: var(--panel2); }
+  .bucket.sel { background: #232a3a; box-shadow: inset 3px 0 0 var(--accent); }
+  .bucket .b1 { display: flex; align-items: center; gap: 7px; }
+  .bucket .val { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bucket .b2 { color: var(--muted); font-size: 11px; margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .pill { font-size: 10px; padding: 1px 6px; border-radius: 10px; background: var(--panel2); border: 1px solid var(--line); }
+  .pill.warn { color: var(--orange); border-color: var(--orange); }
+  .pill.bad { color: var(--red); border-color: var(--red); }
+  canvas { display: block; width: 100%; height: 100%; }
+  #overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    text-align: center; color: var(--muted); pointer-events: none; padding: 24px; }
+  #topbar { position: absolute; top: 0; left: 0; right: 0; padding: 8px 12px; display: flex;
+    gap: 8px; align-items: center; background: linear-gradient(#0f1115ee, #0f111500);
+    pointer-events: none; font-size: 12px; }
+  #topbar .btn, #topbar .crumb { pointer-events: auto; }
+  .btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 12px; }
+  .btn:hover { border-color: var(--accent); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  .crumb { color: var(--muted); }
+  .crumb b { color: var(--text); }
+  .legend { position: absolute; bottom: 10px; left: 12px; display: flex; gap: 12px; flex-wrap: wrap;
+    font-size: 11px; color: var(--muted); background: #0f1115cc; padding: 6px 10px; border-radius: 8px; max-width: 70%; }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; }
+  .sq { width: 9px; height: 9px; border-radius: 2px; }
+  .dl { margin: 0; }
+  .dl div { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+  .dl dt { color: var(--muted); flex: none; width: 108px; }
+  .dl dd { margin: 0; word-break: break-word; }
+  .conn { padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .conn .ch { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+  .conn .cids { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 5px; }
+  .aid { font-family: ui-monospace, monospace; font-size: 11px; color: var(--accent); cursor: pointer; }
+  .aid:hover { text-decoration: underline; }
+  .muted { color: var(--muted); }
+  .empty { padding: 24px 14px; color: var(--muted); text-align: center; }
+  .count { color: var(--muted); font-size: 11px; }
+  /* modal */
+  #modal { position: fixed; inset: 0; background: #000a; display: none; align-items: center; justify-content: center; z-index: 50; }
+  #modal.open { display: flex; }
+  .modalbox { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    width: min(1200px, 94vw); height: min(80vh, 800px); display: flex; flex-direction: column; }
+  .modalhead { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; }
+  .modalhead h2 { margin: 0; font-size: 14px; }
+  .modalbody { overflow: auto; flex: 1; }
+  table.cmp { border-collapse: collapse; font-size: 12px; width: 100%; }
+  table.cmp th, table.cmp td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; white-space: nowrap;
+    max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+  table.cmp thead th { position: sticky; top: 0; background: var(--panel2); z-index: 1; }
+  table.cmp td.share { font-weight: 600; }
+  table.cmp tr:hover td { background: #ffffff08; }
+  .close { margin-left: auto; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="left" class="col">
+    <header>
+      <h1>Paper Connection Audit</h1>
+      <div class="sub" id="meta">loading…</div>
+    </header>
+    <div class="section">
+      <h2>Connection type</h2>
+      <div id="attrToggles"></div>
+    </div>
+    <div class="section">
+      <h2>Filters</h2>
+      <label class="chk"><input type="checkbox" id="fDiffAuthors"> Different submitting authors</label>
+      <label class="chk"><input type="checkbox" id="fDiffOrgs"> Different organisations</label>
+      <div class="row"><label>Min papers</label><input type="number" id="fMinSize" value="2" min="2" style="width:70px"></div>
+      <div class="row"><label>Sort by</label>
+        <select id="fSort">
+          <option value="size">Most papers</option>
+          <option value="authors">Most distinct authors</option>
+          <option value="orgs">Most distinct organisations</option>
+        </select>
+      </div>
+      <div class="row"><label>Search</label><input type="text" id="fSearch" placeholder="value or article id"></div>
+    </div>
+    <div class="section" style="padding-bottom:6px"><h2 style="margin:0">Connections <span class="count" id="bucketCount"></span></h2></div>
+    <div class="scroll" id="bucketList"></div>
+  </div>
+
+  <div id="center" class="col">
+    <canvas id="cv"></canvas>
+    <div id="topbar">
+      <button class="btn" id="btnOverview">◂ Overview</button>
+      <span class="crumb" id="crumb"></span>
+      <span style="flex:1"></span>
+      <button class="btn" id="btnCompare">Compare papers</button>
+      <button class="btn" id="btnRelayout">Re-layout</button>
+    </div>
+    <div id="overlay"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+
+  <div id="right" class="col">
+    <header><h1 id="detailTitle">Details</h1><div class="sub" id="detailSub">Click a cluster, then a paper.</div></header>
+    <div class="scroll" id="detail"><div class="empty">Nothing selected.</div></div>
+  </div>
+</div>
+
+<div id="modal">
+  <div class="modalbox">
+    <div class="modalhead">
+      <h2 id="modalTitle">Compare papers</h2>
+      <span class="muted" id="modalSub"></span>
+      <button class="btn close" id="modalClose">Close</button>
+    </div>
+    <div class="modalbody" id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+// -------- config (tune here) --------
+const NODE_CAP = 400;          // hard cap on rendered nodes (papers + hubs)
+const OVERVIEW_HUBS = 140;     // clusters shown in the high-level overview
+const SECONDARY_HUBS = 40;     // neighbouring clusters shown when drilling in
+const LAYOUT_ITERS = 170;
+
+// -------- attribute display config --------
+const ATTR_META = {
+  email:      { label: "Email",              pool: "emails",      color: "#22d3ee" },
+  ip:         { label: "IP address",         pool: "ips",         color: "#a78bfa" },
+  device:     { label: "Device fingerprint", pool: "devices",     color: "#f472b6" },
+  locale:     { label: "Language + timezone",pool: "locales",     color: "#60a5fa" },
+  wdAuthor:   { label: "Word: author",       pool: "wdAuthors",   color: "#f59e0b" },
+  wdEditedBy: { label: "Word: last edited by",pool: "wdEditedBys",color: "#fbbf24" },
+  wdCompany:  { label: "Word: company",      pool: "wdCompanies", color: "#fcd34d" },
+  authorIp:   { label: "Author-declared IP", pool: "authorIps",   color: "#c084fc" },
+};
+const ATTR_COL = { email: "authorEmail" };
+const col = (a) => ATTR_COL[a] || a;
+const BAND_COLORS = ["#6b7280", "#65C161", "#E87626", "#D51A2C"];
+const BAND_NAMES  = ["no score", "low", "medium", "high"];
+const STATUS_NAMES = ["", "green", "yellow", "red", "gold", "n/a", "unchecked"];
+const PATTERN_NAMES = ["", "all-digits", "name.surname", "all-alpha", "alpha+digits", "other"];
+const CMP_COLS = ["authorName","authorEmail","authorOrg","device","ip","locale","wdAuthor","wdEditedBy","wdCompany","authorIp"];
+
+// -------- state --------
+let D = null, attrs = [];
+let indexMap = new Map();     // "attr:ref" -> [rows]
+let keptSet = new Set();
+let bucketMeta = new Map();   // "attr:ref" -> {rows,nNames,nOrgs}
+let buckets = [];
+let mode = "overview";        // overview | focus
+let focusKey = null;
+let selectedBucketKey = null;
+let nodes = [], edges = [], adj = [];
+let selected = null;          // node index highlighted
+let view = { x: 0, y: 0, k: 1 };
+
+const $ = (id) => document.getElementById(id);
+const str = (pool, ref) => (ref == null || ref < 0) ? "" : (D.dict[pool] ? D.dict[pool][ref] : "");
+const A = (c, r) => D.articles[c][r];
+const POOLS = { title:"titles", authorName:"names", authorEmail:"emails", authorOrg:"orgs",
+  platform:"platforms", uaFamily:"uaFamilies", ip:"ips", device:"devices", locale:"locales",
+  wdAuthor:"wdAuthors", wdEditedBy:"wdEditedBys", wdCompany:"wdCompanies", authorIp:"authorIps" };
+const artStr = (f, r) => str(POOLS[f], A(f, r));
+const valOf = (key) => { const i = key.indexOf(":"), a = key.slice(0, i); return str(ATTR_META[a].pool, +key.slice(i + 1)); };
+const attrOf = (key) => key.slice(0, key.indexOf(":"));
+
+async function fetchSnapshot(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`${url}: ${res.status}`);
+  if (url.endsWith(".gz")) {
+    if (typeof DecompressionStream === "undefined") throw new Error("Browser lacks DecompressionStream");
+    return await new Response(res.body.pipeThrough(new DecompressionStream("gzip"))).json();
+  }
+  return await res.json();
+}
+
+async function boot() {
+  try { D = await fetchSnapshot("data/snapshot.json.gz"); }
+  catch (e) { $("meta").textContent = "Failed to load snapshot — serve over http (not file://). " + e.message; return; }
+  attrs = D.meta.attributes.slice();
+  for (const attr of attrs)
+    for (const [ref, rows, nN, nO] of (D.index[attr] || [])) {
+      const key = attr + ":" + ref;
+      indexMap.set(key, rows); keptSet.add(key);
+      bucketMeta.set(key, { rows, nNames: nN, nOrgs: nO });
+      buckets.push({ attr, ref, rows, nNames: nN, nOrgs: nO });
+    }
+  const m = D.meta;
+  $("meta").textContent = `${m.count.toLocaleString()} papers · ${m.buckets.toLocaleString()} connections · ${m.windowDays}-day window`;
+  buildAttrToggles(); bindUI(); renderBuckets(); setupCanvas(); buildLegend();
+  showOverview();
+  applyShareParams();
+}
+
+function buildAttrToggles() {
+  const box = $("attrToggles"); box.innerHTML = "";
+  for (const attr of attrs) {
+    const meta = ATTR_META[attr] || { label: attr, color: "#888" };
+    const l = document.createElement("label"); l.className = "chk";
+    l.innerHTML = `<input type="checkbox" data-attr="${attr}" checked>
+      <span class="attrsq" style="background:${meta.color}"></span>${meta.label}`;
+    box.appendChild(l);
+  }
+  box.addEventListener("change", () => { renderBuckets(); if (mode === "overview") showOverview(); else if (focusKey) focusHub(focusKey); });
+}
+const activeAttrs = () => [...document.querySelectorAll("#attrToggles input:checked")].map(i => i.dataset.attr);
+
+function bindUI() {
+  ["fDiffAuthors","fDiffOrgs","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", () => { renderBuckets(); if (mode === "overview") showOverview(); }));
+  $("btnOverview").addEventListener("click", showOverview);
+  $("btnRelayout").addEventListener("click", () => { if (nodes.length) runLayout(); });
+  $("btnCompare").addEventListener("click", openCompare);
+  $("modalClose").addEventListener("click", () => $("modal").classList.remove("open"));
+  $("modal").addEventListener("click", e => { if (e.target.id === "modal") $("modal").classList.remove("open"); });
+  window.addEventListener("keydown", e => { if (e.key === "Escape") $("modal").classList.remove("open"); });
+}
+
+function buildLegend() {
+  const parts = ['<span class="muted">papers:</span>'];
+  BAND_NAMES.forEach((n, i) => parts.push(`<span><i class="dot" style="background:${BAND_COLORS[i]}"></i>${n}</span>`));
+  parts.push('<span class="muted">| clusters:</span>');
+  for (const a of attrs) parts.push(`<span><i class="sq" style="background:${ATTR_META[a].color}"></i>${ATTR_META[a].label}</span>`);
+  $("legend").innerHTML = parts.join("");
+}
+
+// -------- bucket list --------
+function currentBuckets() {
+  const act = new Set(activeAttrs());
+  const diffA = $("fDiffAuthors").checked, diffO = $("fDiffOrgs").checked;
+  const minSize = Math.max(2, parseInt($("fMinSize").value) || 2);
+  const q = $("fSearch").value.trim().toLowerCase();
+  const qid = /^\d+$/.test(q) ? parseInt(q) : null;
+  const sort = $("fSort").value;
+  let list = buckets.filter(b => {
+    if (!act.has(b.attr)) return false;
+    if (b.rows.length < minSize) return false;
+    if (diffA && b.nNames < 2) return false;
+    if (diffO && b.nOrgs < 2) return false;
+    if (q) {
+      if (qid != null) return b.rows.some(r => A("id", r) === qid);
+      return str(ATTR_META[b.attr].pool, b.ref).toLowerCase().includes(q);
+    }
+    return true;
+  });
+  list.sort((a, b) => sort === "authors" ? b.nNames - a.nNames || b.rows.length - a.rows.length
+    : sort === "orgs" ? b.nOrgs - a.nOrgs || b.rows.length - a.rows.length
+    : b.rows.length - a.rows.length);
+  return list;
+}
+function renderBuckets() {
+  const list = currentBuckets();
+  $("bucketCount").textContent = `(${list.length.toLocaleString()})`;
+  const box = $("bucketList"); box.innerHTML = "";
+  if (!list.length) { box.innerHTML = `<div class="empty">No connections match the filters.</div>`; return; }
+  const frag = document.createDocumentFragment();
+  for (const b of list.slice(0, 600)) {
+    const meta = ATTR_META[b.attr], key = b.attr + ":" + b.ref, val = str(meta.pool, b.ref) || "(empty)";
+    const el = document.createElement("div");
+    el.className = "bucket" + (key === selectedBucketKey ? " sel" : "");
+    const authPill = b.nNames >= 2 ? `<span class="pill bad">${b.nNames} authors</span>` : (b.nNames ? `<span class="pill">1 author</span>` : "");
+    const orgPill = b.nOrgs >= 2 ? `<span class="pill warn">${b.nOrgs} orgs</span>` : "";
+    el.innerHTML = `<div class="b1"><span class="attrsq" style="background:${meta.color}"></span>
+        <span class="muted" style="font-size:11px">${meta.label}</span></div>
+      <div class="val" title="${val.replace(/"/g,'&quot;')}">${val}</div>
+      <div class="b2"><span class="pill">${b.rows.length} papers</span>${authPill}${orgPill}</div>`;
+    el.addEventListener("click", () => focusHub(key));
+    frag.appendChild(el);
+  }
+  box.appendChild(frag);
+}
+
+// -------- graph: overview (clusters + shared-paper links) --------
+function showOverview() {
+  mode = "overview"; focusKey = null; selectedBucketKey = null; selected = null;
+  renderBuckets();
+  $("btnOverview").disabled = true;
+  $("crumb").innerHTML = `<b>Overview</b> — clusters linked when they share papers. Click one to drill in.`;
+  const list = currentBuckets().slice(0, OVERVIEW_HUBS);
+  if (!list.length) { nodes = []; edges = []; adj = []; drawOverlay("No connections match the filters."); return; }
+  nodes = list.map(b => ({ type: "hub", key: b.attr + ":" + b.ref, attr: b.attr, ref: b.ref, n: b.rows.length, x: 0, y: 0 }));
+  const hubIdx = new Map(nodes.map((nd, i) => [nd.key, i]));
+  const paperHubs = new Map(); // r -> [hubIdx]
+  list.forEach((b, i) => { for (const r of b.rows) { let g = paperHubs.get(r); if (!g) { g = []; paperHubs.set(r, g); } g.push(i); } });
+  const em = new Map();
+  for (const hs of paperHubs.values()) for (let i = 0; i < hs.length; i++) for (let j = i + 1; j < hs.length; j++) {
+    const a = hs[i], b = hs[j], k = a < b ? a + "|" + b : b + "|" + a;
+    let e = em.get(k); if (!e) { e = { a, b, w: 0 }; em.set(k, e); } e.w++;
+  }
+  edges = [...em.values()];
+  finishGraph();
+}
+
+// -------- graph: focus on one cluster (hub-and-spoke) --------
+function focusHub(key) {
+  const meta0 = bucketMeta.get(key); if (!meta0) return;
+  mode = "focus"; focusKey = key; selectedBucketKey = key; selected = null;
+  renderBuckets(); showBucketDetail(key);
+  $("btnOverview").disabled = false;
+  const attr = attrOf(key);
+  $("crumb").innerHTML = `<b>${ATTR_META[attr].label}</b> · <span class="val">${valOf(key)}</span>`;
+
+  const papers = meta0.rows.slice(0, NODE_CAP - SECONDARY_HUBS - 1);
+  const paperSet = new Set(papers);
+  const act = new Set(activeAttrs());
+  // candidate neighbouring hubs: how many focus-papers each touches
+  const touch = new Map();
+  for (const r of papers) for (const a of attrs) {
+    if (!act.has(a)) continue;
+    const ref = D.articles[col(a)][r]; if (ref < 0) continue;
+    const k = a + ":" + ref; if (k === key || !keptSet.has(k)) continue;
+    touch.set(k, (touch.get(k) || 0) + 1);
+  }
+  const secondary = [...touch.entries()].filter(([, c]) => c >= 2)
+    .sort((x, y) => y[1] - x[1]).slice(0, SECONDARY_HUBS).map(([k]) => k);
+
+  const hubKeys = [key, ...secondary];
+  nodes = hubKeys.map(k => ({ type: "hub", key: k, attr: attrOf(k), ref: +k.slice(k.indexOf(":") + 1), n: (bucketMeta.get(k) || { rows: [] }).rows.length, x: 0, y: 0 }))
+    .concat(papers.map(r => ({ type: "paper", r, x: 0, y: 0 })));
+  const hubNodeIdx = new Map(); nodes.forEach((nd, i) => { if (nd.type === "hub") hubNodeIdx.set(nd.key, i); });
+  edges = [];
+  for (let i = 0; i < nodes.length; i++) {
+    const nd = nodes[i]; if (nd.type !== "paper") continue;
+    for (const hk of hubKeys) {
+      const a = attrOf(hk), ref = D.articles[col(a)][nd.r];
+      if (ref >= 0 && (a + ":" + ref) === hk) edges.push({ a: hubNodeIdx.get(hk), b: i, w: 1, attr: a });
+    }
+  }
+  finishGraph();
+  syncShare();
+}
+
+function finishGraph() {
+  if (nodes.length > NODE_CAP) { drawOverlay(`${nodes.length} nodes exceeds the ${NODE_CAP} cap — narrow the filters.`); nodes = []; edges = []; adj = []; return; }
+  adj = nodes.map(() => new Set());
+  for (const e of edges) { adj[e.a].add(e.b); adj[e.b].add(e.a); }
+  $("overlay").style.display = "none";
+  runLayout();
+}
+
+// -------- force layout --------
+function runLayout() {
+  const n = nodes.length; if (!n) { draw(); return; }
+  const k = Math.sqrt((900 * 700) / n);
+  nodes.forEach((nd, i) => { const a = (i / n) * 6.283; const rad = nd.type === "hub" ? 60 : 320; nd.x = Math.cos(a) * rad; nd.y = Math.sin(a) * rad; });
+  let temp = 320, iter = 0;
+  function step() {
+    const dx = new Float64Array(n), dy = new Float64Array(n);
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      let ex = nodes[i].x - nodes[j].x, ey = nodes[i].y - nodes[j].y, d = Math.hypot(ex, ey) || .01;
+      const rep = (k * k) / d, ux = ex / d, uy = ey / d;
+      dx[i] += ux * rep; dy[i] += uy * rep; dx[j] -= ux * rep; dy[j] -= uy * rep;
+    }
+    for (const e of edges) {
+      let ex = nodes[e.a].x - nodes[e.b].x, ey = nodes[e.a].y - nodes[e.b].y, d = Math.hypot(ex, ey) || .01;
+      const att = (d * d) / k * (1 + (e.w - 1) * 0.5), ux = ex / d, uy = ey / d;
+      dx[e.a] -= ux * att; dy[e.a] -= uy * att; dx[e.b] += ux * att; dy[e.b] += uy * att;
+    }
+    for (let i = 0; i < n; i++) { let d = Math.hypot(dx[i], dy[i]) || .01; nodes[i].x += (dx[i] / d) * Math.min(d, temp); nodes[i].y += (dy[i] / d) * Math.min(d, temp); }
+    temp *= 0.96; iter++;
+    if (iter < LAYOUT_ITERS && temp > 1) requestAnimationFrame(step); else fit();
+    draw();
+  }
+  step();
+}
+
+// -------- canvas --------
+let cv, ctx, DPR = 1;
+function setupCanvas() {
+  cv = $("cv"); ctx = cv.getContext("2d"); resize(); window.addEventListener("resize", resize);
+  let dragging = false, lx = 0, ly = 0, moved = 0;
+  cv.addEventListener("mousedown", e => { dragging = true; lx = e.offsetX; ly = e.offsetY; moved = 0; });
+  window.addEventListener("mouseup", () => dragging = false);
+  cv.addEventListener("mousemove", e => { if (!dragging) return; const ddx = e.offsetX - lx, ddy = e.offsetY - ly; moved += Math.abs(ddx) + Math.abs(ddy); view.x += ddx; view.y += ddy; lx = e.offsetX; ly = e.offsetY; draw(); });
+  cv.addEventListener("wheel", e => { e.preventDefault(); const f = e.deltaY < 0 ? 1.1 : 1 / 1.1; view.x = e.offsetX - (e.offsetX - view.x) * f; view.y = e.offsetY - (e.offsetY - view.y) * f; view.k *= f; draw(); }, { passive: false });
+  cv.addEventListener("click", e => { if (moved > 4) return; const h = hitTest(e.offsetX, e.offsetY); onPick(h); });
+  cv.addEventListener("dblclick", e => { const h = hitTest(e.offsetX, e.offsetY); if (h != null && nodes[h].type === "hub") focusHub(nodes[h].key); });
+}
+function onPick(h) {
+  if (h == null) { selected = null; draw(); return; }
+  selected = h;
+  const nd = nodes[h];
+  if (nd.type === "paper") showPaperDetail(nd.r);
+  else showBucketDetail(nd.key);
+  draw(); syncShare();
+}
+function resize() { const r = cv.getBoundingClientRect(); DPR = window.devicePixelRatio || 1; cv.width = r.width * DPR; cv.height = r.height * DPR; draw(); }
+const toScreen = (x, y) => [x * view.k + view.x, y * view.k + view.y];
+function fit() {
+  if (!nodes.length) return;
+  let a = Infinity, b = Infinity, c = -Infinity, d = -Infinity;
+  for (const n of nodes) { a = Math.min(a, n.x); b = Math.min(b, n.y); c = Math.max(c, n.x); d = Math.max(d, n.y); }
+  const w = cv.width / DPR, h = cv.height / DPR, pad = 80;
+  view.k = Math.min((w - pad) / (c - a || 1), (h - pad) / (d - b || 1), 2.2);
+  view.x = w / 2 - ((a + c) / 2) * view.k; view.y = h / 2 - ((b + d) / 2) * view.k;
+}
+const paperColor = (r) => BAND_COLORS[A("pmBand", r)] || BAND_COLORS[0];
+const paperRadius = (r) => 4 + (A("pmScore", r) ? Math.min(A("pmScore", r), 100) / 100 * 4 : 0);
+const hubRadius = (nd) => 6 + Math.sqrt(nd.n) * 1.8;
+function draw() {
+  if (!ctx) return;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const w = cv.width / DPR, h = cv.height / DPR; ctx.clearRect(0, 0, w, h);
+  const hl = selected != null ? adj[selected] : null;
+  // edges
+  for (const e of edges) {
+    const on = hl ? (e.a === selected || e.b === selected) : true;
+    if (!on && hl) continue;
+    const [ax, ay] = toScreen(nodes[e.a].x, nodes[e.a].y), [bx, by] = toScreen(nodes[e.b].x, nodes[e.b].y);
+    const hub = nodes[e.a].type === "hub" ? nodes[e.a] : (nodes[e.b].type === "hub" ? nodes[e.b] : null);
+    const cc = hub && ATTR_META[hub.attr] ? ATTR_META[hub.attr].color : "#667";
+    ctx.strokeStyle = cc + (hl ? "ee" : (e.w > 1 ? "aa" : "44"));
+    ctx.lineWidth = Math.min(0.8 + (e.w - 1) * 0.7, 4);
+    ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
+  }
+  // nodes
+  for (let i = 0; i < nodes.length; i++) {
+    const nd = nodes[i], dim = hl && !(i === selected || hl.has(i));
+    const [x, y] = toScreen(nd.x, nd.y);
+    ctx.globalAlpha = dim ? 0.15 : 1;
+    if (nd.type === "hub") {
+      const R = hubRadius(nd) * Math.min(Math.max(view.k, .6), 1.4);
+      ctx.fillStyle = ATTR_META[nd.attr] ? ATTR_META[nd.attr].color : "#889";
+      roundRect(x - R, y - R, R * 2, R * 2, 4); ctx.fill();
+      if (i === selected) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.stroke(); }
+    } else {
+      const R = paperRadius(nd.r) * Math.min(Math.max(view.k, .6), 1.6);
+      ctx.beginPath(); ctx.arc(x, y, R, 0, 6.283); ctx.fillStyle = paperColor(nd.r); ctx.fill();
+      if (A("wdMatch", nd.r) === 0) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.3; ctx.stroke(); }
+      if (i === selected) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.stroke(); }
+    }
+  }
+  ctx.globalAlpha = 1;
+  // labels
+  if (view.k > 0.75) {
+    ctx.font = "10px ui-monospace, monospace"; ctx.fillStyle = "#c8ccd4";
+    for (const nd of nodes) {
+      if (nd.type === "hub") { const [x, y] = toScreen(nd.x, nd.y); const t = valOf(nd.key); ctx.fillText(t.length > 22 ? t.slice(0, 22) + "…" : t, x + hubRadius(nd) + 3, y + 3); }
+      else if (view.k > 1.15) { const [x, y] = toScreen(nd.x, nd.y); ctx.fillText(A("id", nd.r), x + 7, y + 3); }
+    }
+  }
+}
+function roundRect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function drawOverlay(html) { const o = $("overlay"); o.style.display = "flex"; o.innerHTML = html; }
+function hitTest(px, py) {
+  for (let i = nodes.length - 1; i >= 0; i--) {
+    const nd = nodes[i], [x, y] = toScreen(nd.x, nd.y);
+    const R = (nd.type === "hub" ? hubRadius(nd) * Math.min(Math.max(view.k, .6), 1.4) : paperRadius(nd.r) * Math.min(Math.max(view.k, .6), 1.6)) + 3;
+    if ((px - x) ** 2 + (py - y) ** 2 <= R * R) return i;
+  }
+  return null;
+}
+
+// -------- detail --------
+const bandLabel = (r) => A("pmScore", r) != null ? `${A("pmScore", r)}% (${BAND_NAMES[A("pmBand", r)]})` : "—";
+function showBucketDetail(key) {
+  const b = bucketMeta.get(key), attr = attrOf(key), meta = ATTR_META[attr];
+  $("detailTitle").textContent = meta.label;
+  $("detailSub").innerHTML = `<span class="val" style="font-family:ui-monospace,monospace">${valOf(key)}</span>`;
+  $("detail").innerHTML = `<div class="section"><dl class="dl">
+      <div><dt>Papers</dt><dd>${b.rows.length}</dd></div>
+      <div><dt>Distinct authors</dt><dd>${b.nNames || "unknown (no author data)"}</dd></div>
+      <div><dt>Distinct orgs</dt><dd>${b.nOrgs || "unknown"}</dd></div>
+    </dl><div style="margin-top:8px"><button class="btn" onclick="openCompare()">Compare these papers</button></div></div>
+    <div class="section"><h2>Papers</h2>${b.rows.slice(0, 200).map(paperRowHtml).join("")}</div>`;
+  bindAidClicks();
+}
+function paperRowHtml(r) {
+  const nm = artStr("authorName", r), t = artStr("title", r);
+  return `<div class="conn"><span class="aid" data-r="${r}">${A("id", r)}</span><span class="muted"> · ${bandLabel(r)}</span>
+    ${nm ? `<div class="muted" style="font-size:11px">${escapeHtml(nm)}</div>` : ""}
+    ${t ? `<div style="font-size:11px">${escapeHtml(t.slice(0, 90))}</div>` : ""}</div>`;
+}
+function showPaperDetail(r) {
+  $("detailTitle").textContent = "Paper " + A("id", r);
+  $("detailSub").textContent = artStr("title", r) || "no title";
+  const rows = [
+    ["Submitted", A("date", r)], ["Author", artStr("authorName", r) || "—"], ["Email", artStr("authorEmail", r) || "—"],
+    ["Organisation", artStr("authorOrg", r) || "—"], ["Name/email sim", A("nameEmailSim", r) == null ? "—" : A("nameEmailSim", r) + "%"],
+    ["Email pattern", PATTERN_NAMES[A("emailPattern", r)] || "—"], ["Papermill score", bandLabel(r)],
+    ["Word-doc status", STATUS_NAMES[A("wdStatus", r)] || "—"],
+    ["Word-doc match", A("wdMatch", r) === 1 ? "matches author" : A("wdMatch", r) === 0 ? "does NOT match" : "—"],
+    ["Word author", artStr("wdAuthor", r) || "—"], ["Word edited by", artStr("wdEditedBy", r) || "—"], ["Word company", artStr("wdCompany", r) || "—"],
+    ["Device", artStr("device", r) || "—"], ["IP", artStr("ip", r) || "—"], ["Locale", artStr("locale", r) || "—"],
+    ["Platform / UA", [artStr("platform", r), artStr("uaFamily", r)].filter(Boolean).join(" / ") || "—"], ["Author-declared IP", artStr("authorIp", r) || "—"],
+  ];
+  $("detail").innerHTML = `<div class="section"><dl class="dl">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${escapeHtml(String(v))}</dd></div>`).join("")}</dl></div>
+    <div class="section"><h2>Shared connections</h2>${connectionsHtml(r)}</div>`;
+  bindAidClicks();
+}
+function connectionsHtml(r) {
+  const out = [];
+  for (const attr of attrs) {
+    const ref = D.articles[col(attr)][r]; if (ref < 0) continue;
+    const key = attr + ":" + ref, members = indexMap.get(key);
+    if (!members || members.length < 2) continue;
+    const meta = ATTR_META[attr], others = members.filter(x => x !== r);
+    out.push(`<div class="conn"><div class="ch" data-hub="${key}"><span class="attrsq" style="background:${meta.color}"></span>
+        <b>${meta.label}</b> <span class="muted">· ${members.length} papers · drill in</span></div>
+      <div class="muted val" style="margin-top:3px">${escapeHtml(str(meta.pool, ref))}</div>
+      <div class="cids">${others.slice(0, 40).map(x => `<span class="aid" data-r="${x}">${A("id", x)}</span>`).join("")}</div></div>`);
+  }
+  return out.length ? out.join("") : `<div class="muted">No shared attributes retained (all too common or unique).</div>`;
+}
+function bindAidClicks() {
+  document.querySelectorAll("#detail .aid").forEach(el => el.addEventListener("click", () => focusPaper(+el.dataset.r)));
+  document.querySelectorAll("#detail .ch[data-hub]").forEach(el => el.addEventListener("click", () => focusHub(el.dataset.hub)));
+}
+function focusPaper(r) {
+  let idx = nodes.findIndex(n => n.type === "paper" && n.r === r);
+  if (idx < 0) {
+    // drill into the paper's strongest connection so it appears on the graph
+    let best = null, bestN = -1;
+    for (const attr of activeAttrs()) { const ref = D.articles[col(attr)][r]; if (ref < 0) continue; const k = attr + ":" + ref; const mm = indexMap.get(k); if (mm && mm.length > bestN) { bestN = mm.length; best = k; } }
+    if (best) { focusHub(best); idx = nodes.findIndex(n => n.type === "paper" && n.r === r); }
+  }
+  if (idx >= 0) selected = idx;
+  showPaperDetail(r); draw(); syncShare();
+}
+const escapeHtml = (s) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// -------- compare modal --------
+function currentPapers() {
+  let rs = nodes.filter(n => n.type === "paper").map(n => n.r);
+  if (!rs.length && selectedBucketKey && bucketMeta.get(selectedBucketKey)) rs = bucketMeta.get(selectedBucketKey).rows.slice();
+  return [...new Set(rs)];
+}
+function openCompare() {
+  const rs = currentPapers();
+  if (!rs.length) { drawOverlay("Select a cluster first, then compare."); return; }
+  $("modalTitle").textContent = "Compare papers";
+  $("modalSub").textContent = `${rs.length} papers · shared values highlighted`;
+  // shared-value detection per column
+  const shared = {};
+  for (const f of CMP_COLS) {
+    const counts = new Map();
+    for (const r of rs) { const v = A(f, r); if (v >= 0) counts.set(v, (counts.get(v) || 0) + 1); }
+    shared[f] = counts;
+  }
+  const head = `<tr><th>Article</th><th>Score</th>${CMP_COLS.map(f => `<th>${ATTR_META[f] ? ATTR_META[f].label : cmpLabel(f)}</th>`).join("")}</tr>`;
+  const body = rs.slice(0, 300).map(r => {
+    const cells = CMP_COLS.map(f => {
+      const ref = A(f, r), v = ref >= 0 ? str(POOLS[f], ref) : "";
+      const sh = ref >= 0 && shared[f].get(ref) >= 2;
+      const cc = sh && ATTR_META[f] ? ATTR_META[f].color : (sh ? "#8ab4ff" : "");
+      return `<td class="${sh ? "share" : ""}" style="${sh ? `color:${cc}` : ""}" title="${escapeHtml(v)}">${escapeHtml(v) || '<span class="muted">—</span>'}</td>`;
+    }).join("");
+    return `<tr><td><span class="aid" data-r="${r}">${A("id", r)}</span></td><td>${bandLabel(r)}</td>${cells}</tr>`;
+  }).join("");
+  $("modalBody").innerHTML = `<table class="cmp"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  $("modalBody").querySelectorAll(".aid").forEach(el => el.addEventListener("click", () => { $("modal").classList.remove("open"); focusPaper(+el.dataset.r); }));
+  $("modal").classList.add("open");
+}
+function cmpLabel(f) { return ({ authorName: "Author", authorEmail: "Email", authorOrg: "Organisation" })[f] || f; }
+
+// -------- share url --------
+function syncShare() {
+  const p = new URLSearchParams();
+  if (mode === "focus" && focusKey) p.set("c", focusKey);
+  if (selected != null && nodes[selected] && nodes[selected].type === "paper") p.set("a", A("id", nodes[selected].r));
+  history.replaceState(null, "", "?" + p.toString());
+}
+function applyShareParams() {
+  const p = new URLSearchParams(location.search);
+  if (p.get("c") && bucketMeta.has(p.get("c"))) focusHub(p.get("c"));
+  if (p.get("a")) { const r = D.articles.id.indexOf(+p.get("a")); if (r >= 0) focusPaper(r); }
+}
+
+boot();
+</script>
+</body>
+</html>
