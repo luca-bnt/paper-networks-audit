@@ -81,7 +81,7 @@
   #modal { position: fixed; inset: 0; background: #000a; display: none; align-items: center; justify-content: center; z-index: 50; }
   #modal.open { display: flex; }
   .modalbox { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-    width: min(1200px, 94vw); height: min(80vh, 800px); display: flex; flex-direction: column; }
+    width: min(1800px, 97vw); height: min(94vh, 1200px); display: flex; flex-direction: column; }
   .modalhead { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; }
   .modalhead h2 { margin: 0; font-size: 14px; }
   .modalbody { overflow: auto; flex: 1; }
@@ -188,7 +188,7 @@ const BAND_COLORS = ["#6b7280", "#65C161", "#E87626", "#D51A2C"];
 const BAND_NAMES  = ["no score", "low", "medium", "high"];
 const STATUS_NAMES = ["", "green", "yellow", "red", "gold", "n/a", "unchecked"];
 const PATTERN_NAMES = ["", "all-digits", "name.surname", "all-alpha", "alpha+digits", "other"];
-const CMP_COLS = ["authorName","authorEmail","authorOrg","device","ip","locale","wdAuthor","wdEditedBy","wdCompany","authorIp"];
+const CMP_COLS = ["authorName","authorEmail","authorOrg","wdAuthor","wdEditedBy","wdCompany","device","ip","locale","authorIp"];
 
 // -------- state --------
 let D = null, attrs = [];
