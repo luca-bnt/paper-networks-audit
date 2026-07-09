@@ -84,7 +84,7 @@ def _empty(series: pd.Series) -> pd.Series:
 
 
 def _pick_author(cols: list[str | None]) -> tuple[str, str, str]:
-    """cols is the flat JSON_VALUE row (title + AUTHOR_INDICES * AUTHOR_FIELDS)."""
+    """cols is [title, then AUTHOR_INDICES × AUTHOR_FIELDS] — no leading version Id."""
     authors = []
     for i in range(AUTHOR_INDICES):
         base = 1 + i * len(AUTHOR_FIELDS)
@@ -200,7 +200,7 @@ def main() -> None:
                 if aid is None:
                     continue
                 title = _clean(row[1])[:TITLE_MAX]
-                name, email, org = _pick_author(list(row))
+                name, email, org = _pick_author(list(row)[1:])  # drop rv.Id — cols[0] must be title
                 if name or email or org or title:
                     filled[aid] = (name, email, org, title)
 
