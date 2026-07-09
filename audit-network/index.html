@@ -106,6 +106,7 @@
       <h2>Filters</h2>
       <label class="chk"><input type="checkbox" id="fDiffAuthors" checked> Different submitting authors</label>
       <label class="chk"><input type="checkbox" id="fDiffOrgs" checked> Different organisations</label>
+      <label class="chk"><input type="checkbox" id="fFlaggedOnly"> <span style="color:#D51A2C">⚑</span> Only clusters with a flagged paper</label>
       <div class="row"><label>Min papers</label><input type="number" id="fMinSize" value="2" min="2" style="width:70px"></div>
       <div class="row"><label>Sort by</label>
         <select id="fSort">
@@ -241,6 +242,7 @@ async function toggleFlag(id, after) {
   const ok = await setFlag(id, on, comment);
   if (!ok) { alert("Flag update failed — the write token may have expired. Ask for a refresh."); return; }
   updateFlagCount(); draw();
+  if ($("fFlaggedOnly").checked) { renderList(); if (mode === "overview") showOverview(); }
   if (after) after();
   if ($("modal").classList.contains("open")) renderCompareTable();
 }
@@ -252,6 +254,7 @@ async function saveComment(id, after) {
   if (after) after();
 }
 const isFlagged = (r) => flags.has(A("id", r));
+const hasFlagged = (rows) => rows.some(isFlagged);
 function updateFlagCount() { const el = $("flagCount"); if (el) el.textContent = flags.size; }
 function flagControlHtml(r) {
   if (!FC) return "";
@@ -340,13 +343,13 @@ function buildAttrToggles() {
 const activeAttrs = () => [...document.querySelectorAll("#attrToggles input:checked")].map(i => i.dataset.attr);
 
 function bindUI() {
-  ["fDiffAuthors","fDiffOrgs","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", () => { renderList(); if (mode === "overview") showOverview(); }));
+  ["fDiffAuthors","fDiffOrgs","fFlaggedOnly","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", () => { renderList(); if (mode === "overview") showOverview(); }));
   $("fEmailRegex").addEventListener("input", renderList);
   $("btnOverview").addEventListener("click", showOverview);
   $("btnRelayout").addEventListener("click", () => { if (nodes.length) runLayout(); });
   $("btnCompare").addEventListener("click", openCompare);
   $("btnFlagged").addEventListener("click", showFlaggedList);
-  $("btnFlagRefresh").addEventListener("click", async () => { await loadFlags(); draw(); });
+  $("btnFlagRefresh").addEventListener("click", async () => { await loadFlags(); renderList(); if (mode === "overview") showOverview(); draw(); });
   if ($("fReviewer")) $("fReviewer").addEventListener("input", () => localStorage.setItem("auditReviewer", $("fReviewer").value.trim()));
   $("modalClose").addEventListener("click", () => $("modal").classList.remove("open"));
   $("modal").addEventListener("click", e => { if (e.target.id === "modal") $("modal").classList.remove("open"); });
@@ -367,6 +370,7 @@ function buildLegend() {
 function currentBuckets() {
   const act = new Set(activeAttrs());
   const diffA = $("fDiffAuthors").checked, diffO = $("fDiffOrgs").checked;
+  const onlyFlagged = $("fFlaggedOnly").checked;
   const minSize = Math.max(2, parseInt($("fMinSize").value) || 2);
   const q = $("fSearch").value.trim().toLowerCase();
   const qid = /^\d+$/.test(q) ? parseInt(q) : null;
@@ -376,6 +380,7 @@ function currentBuckets() {
     if (b.rows.length < minSize) return false;
     if (diffA && b.nNames < 2) return false;
     if (diffO && b.nOrgs < 2) return false;
+    if (onlyFlagged && !hasFlagged(b.rows)) return false;
     if (q) {
       if (qid != null) return b.rows.some(r => A("id", r) === qid);
       return str(ATTR_META[b.attr].pool, b.ref).toLowerCase().includes(q);
@@ -457,6 +462,7 @@ function currentUnits() {
   if (act.length === 1)
     return currentBuckets().map(b => ({ kind: "single", key: b.attr + ":" + b.ref, attr: b.attr, ref: b.ref, rows: b.rows, nNames: b.nNames, nOrgs: b.nOrgs }));
   const diffA = $("fDiffAuthors").checked, diffO = $("fDiffOrgs").checked;
+  const onlyFlagged = $("fFlaggedOnly").checked;
   const minSize = Math.max(2, parseInt($("fMinSize").value) || 2);
   const q = $("fSearch").value.trim().toLowerCase();
   const qid = /^\d+$/.test(q) ? parseInt(q) : null;
@@ -465,6 +471,7 @@ function currentUnits() {
     if (u.rows.length < minSize) return false;
     if (diffA && u.nNames < 2) return false;
     if (diffO && u.nOrgs < 2) return false;
+    if (onlyFlagged && !hasFlagged(u.rows)) return false;
     if (q) return qid != null ? u.rows.some(r => A("id", r) === qid)
       : u.parts.some(p => (str(ATTR_META[p.attr].pool, p.ref) || "").toLowerCase().includes(q));
     return true;
