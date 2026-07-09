@@ -47,6 +47,9 @@
   canvas { display: block; width: 100%; height: 100%; }
   #overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     text-align: center; color: var(--muted); pointer-events: none; padding: 24px; }
+  #cvTip { position: absolute; display: none; z-index: 20; pointer-events: none; max-width: 260px;
+    background: #0f1115f2; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
+    font-size: 11px; color: var(--text); box-shadow: 0 4px 14px #000a; }
   #topbar { position: absolute; top: 0; left: 0; right: 0; padding: 8px 12px; display: flex;
     gap: 8px; align-items: center; background: linear-gradient(#0f1115ee, #0f111500);
     pointer-events: none; font-size: 12px; }
@@ -136,6 +139,7 @@
       <button class="btn" id="btnRelayout">Re-layout</button>
     </div>
     <div id="overlay"></div>
+    <div id="cvTip"></div>
     <div class="legend" id="legend"></div>
   </div>
 
@@ -239,6 +243,10 @@ async function toggleFlag(id, after) {
   const on = !flags.has(id);
   const el = document.getElementById("flagComment");
   const comment = on && el ? el.value.trim() : null;
+  const msg = on
+    ? `Flag paper #${id} as manufactured (papermill)?` + (comment ? `\n\nComment: ${comment}` : "")
+    : `Remove the manufactured flag from paper #${id}?`;
+  if (!confirm(msg)) return;
   const ok = await setFlag(id, on, comment);
   if (!ok) { alert("Flag update failed — the write token may have expired. Ask for a refresh."); return; }
   updateFlagCount(); draw();
@@ -260,8 +268,15 @@ function flagControlHtml(r) {
   if (!FC) return "";
   const id = A("id", r), on = flags.has(id), f = flags.get(id);
   const cmt = escapeHtml((f && f.comment) || "");
-  return `<div class="section"><button class="btn" id="flagBtn" style="width:100%;font-weight:600;${on ? "background:#D51A2C;border-color:#D51A2C;color:#fff" : ""}">${on ? "⚑ Flagged as manufactured — click to unflag" : "⚐ Flag as manufactured (papermill)"}</button>
-    <textarea id="flagComment" placeholder="Comment (optional)" style="width:100%;box-sizing:border-box;margin-top:6px;min-height:42px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px;resize:vertical">${cmt}</textarea>
+  const btnTip = on ? (cmt ? "Comment: " + cmt : "No comment") : "Add an optional comment below";
+  const commentBlock = on
+    ? `<div class="muted" style="font-size:11px;margin-top:6px">Comment</div>` +
+      (cmt ? `<div style="font-size:12px;font-style:italic;margin-top:2px">“${cmt}”</div>`
+           : `<div class="muted" style="font-size:11px;font-style:italic;margin-top:2px">(none yet)</div>`)
+    : `<div class="muted" style="font-size:11px;margin-top:6px">Comment (optional)</div>`;
+  return `<div class="section"><button class="btn" id="flagBtn" title="${btnTip}" style="width:100%;font-weight:600;${on ? "background:#D51A2C;border-color:#D51A2C;color:#fff" : ""}">${on ? "⚑ Flagged as manufactured — click to unflag" : "⚐ Flag as manufactured (papermill)"}</button>
+    ${commentBlock}
+    <textarea id="flagComment" placeholder="Comment (optional)" style="width:100%;box-sizing:border-box;margin-top:4px;min-height:42px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px;resize:vertical">${cmt}</textarea>
     <button class="btn" id="flagCommentBtn" style="margin-top:4px;width:100%;${on ? "" : "display:none"}">Save comment</button>
     ${on && f ? `<div class="muted" style="font-size:11px;margin-top:5px">by ${escapeHtml(f.by || "?")} · ${(f.utc || "").slice(0, 10)}</div>` : ""}</div>`;
 }
@@ -274,7 +289,7 @@ function showFlaggedList() {
   if (!rows.length) { box.innerHTML = `<div class="empty">No papers flagged yet.<br><span class="muted">Open a paper and use “Flag as manufactured”.</span></div>`; return; }
   box.innerHTML = rows.slice(0, 600).map(r => {
     const f = flags.get(A("id", r)), t = artStr("title", r), nm = artStr("authorName", r);
-    return `<div class="bucket"><div class="b1"><span style="color:#D51A2C">⚑</span>
+    return `<div class="bucket"><div class="b1"><span style="color:#D51A2C" title="${f && f.comment ? escapeHtml(f.comment) : "flagged manufactured"}">⚑</span>
         <span class="aid" data-r="${r}">${A("id", r)}</span><span class="muted" style="font-size:11px"> · ${bandLabel(r)}</span></div>
       ${t ? `<div class="val" title="${escapeHtml(t)}">${escapeHtml(t.slice(0, 80))}</div>` : (nm ? `<div class="val">${escapeHtml(nm)}</div>` : "")}
       ${f && f.comment ? `<div class="muted" style="font-size:11px;font-style:italic">“${escapeHtml(f.comment)}”</div>` : ""}
@@ -650,10 +665,33 @@ function setupCanvas() {
   let dragging = false, lx = 0, ly = 0, moved = 0;
   cv.addEventListener("mousedown", e => { dragging = true; lx = e.offsetX; ly = e.offsetY; moved = 0; });
   window.addEventListener("mouseup", () => dragging = false);
-  cv.addEventListener("mousemove", e => { if (!dragging) return; const ddx = e.offsetX - lx, ddy = e.offsetY - ly; moved += Math.abs(ddx) + Math.abs(ddy); view.x += ddx; view.y += ddy; lx = e.offsetX; ly = e.offsetY; draw(); });
+  cv.addEventListener("mousemove", e => {
+    if (dragging) { const ddx = e.offsetX - lx, ddy = e.offsetY - ly; moved += Math.abs(ddx) + Math.abs(ddy); view.x += ddx; view.y += ddy; lx = e.offsetX; ly = e.offsetY; draw(); return; }
+    hoverTip(e.offsetX, e.offsetY);
+  });
+  cv.addEventListener("mouseleave", () => { $("cvTip").style.display = "none"; cv.style.cursor = "default"; });
   cv.addEventListener("wheel", e => { e.preventDefault(); const f = e.deltaY < 0 ? 1.1 : 1 / 1.1; view.x = e.offsetX - (e.offsetX - view.x) * f; view.y = e.offsetY - (e.offsetY - view.y) * f; view.k *= f; draw(); }, { passive: false });
   cv.addEventListener("click", e => { if (moved > 4) return; const h = hitTest(e.offsetX, e.offsetY); onPick(h); });
   cv.addEventListener("dblclick", e => { const h = hitTest(e.offsetX, e.offsetY); if (h != null && nodes[h].type === "hub") { const nd = nodes[h]; nd.unit ? focusUnit(nd.unit) : focusHub(nd.key); } });
+}
+function hoverTip(px, py) {
+  const tip = $("cvTip"), h = hitTest(px, py);
+  if (h == null) { tip.style.display = "none"; cv.style.cursor = "grab"; return; }
+  cv.style.cursor = "pointer";
+  const nd = nodes[h]; let html = "";
+  if (nd.type === "paper") {
+    const id = A("id", nd.r), fl = flags.get(id), t = artStr("title", nd.r);
+    html = `<b>#${id}</b>${t ? " · " + escapeHtml(t.slice(0, 60)) : ""}`;
+    if (fl) html += `<div style="color:#ff8a8a;margin-top:3px">⚑ ${fl.comment ? escapeHtml(fl.comment) : "flagged manufactured"}</div>`
+      + `<div class="muted">by ${escapeHtml(fl.by || "?")}${fl.utc ? " · " + fl.utc.slice(0, 10) : ""}</div>`;
+  } else if (nd.type === "hub" && ATTR_META[nd.attr]) {
+    html = `<b>${ATTR_META[nd.attr].label}</b><div class="muted">${escapeHtml((str(ATTR_META[nd.attr].pool, nd.ref) || "").slice(0, 60))}</div>`;
+  }
+  if (!html) { tip.style.display = "none"; return; }
+  tip.innerHTML = html; tip.style.display = "block";
+  const w = tip.offsetWidth, cw = cv.clientWidth;
+  tip.style.left = Math.min(px + 14, cw - w - 8) + "px";
+  tip.style.top = (py + 14) + "px";
 }
 function onPick(h) {
   if (h == null) { selected = null; draw(); return; }
