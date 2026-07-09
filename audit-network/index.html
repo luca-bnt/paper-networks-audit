@@ -340,7 +340,6 @@ async function boot() {
     $("fReviewer").value = localStorage.getItem("auditReviewer") || "";
     await loadFlags();
   }
-  showOverview();
   applyShareParams();
 }
 
@@ -358,8 +357,8 @@ function buildAttrToggles() {
 const activeAttrs = () => [...document.querySelectorAll("#attrToggles input:checked")].map(i => i.dataset.attr);
 
 function bindUI() {
-  ["fDiffAuthors","fDiffOrgs","fFlaggedOnly","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", () => { renderList(); if (mode === "overview") showOverview(); }));
-  $("fEmailRegex").addEventListener("input", renderList);
+  ["fDiffAuthors","fDiffOrgs","fFlaggedOnly","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", () => { renderList(); if (mode === "overview") showOverview(); else syncShare(); }));
+  $("fEmailRegex").addEventListener("input", () => { renderList(); syncShare(); });
   $("btnOverview").addEventListener("click", showOverview);
   $("btnRelayout").addEventListener("click", () => { if (nodes.length) runLayout(); });
   $("btnCompare").addEventListener("click", openCompare);
@@ -914,14 +913,36 @@ function cmpLabel(f) { return ({ authorName: "Author", authorEmail: "Email", aut
 // -------- share url --------
 function syncShare() {
   const p = new URLSearchParams();
+  const act = activeAttrs();
+  if (act.slice().sort().join(",") !== [...DEFAULT_ACTIVE_ATTRS].sort().join(",")) p.set("at", act.join(","));
+  if (!$("fDiffAuthors").checked) p.set("da", "0");
+  if (!$("fDiffOrgs").checked) p.set("do", "0");
+  if ($("fFlaggedOnly").checked) p.set("fl", "1");
+  const ms = $("fMinSize").value; if (ms && ms !== "2") p.set("ms", ms);
+  const st = $("fSort").value; if (st && st !== "size") p.set("st", st);
+  const q = $("fSearch").value.trim(); if (q) p.set("q", q);
+  const re = $("fEmailRegex").value.trim(); if (re) p.set("re", re);
   if (mode === "focus" && focusKey) p.set("c", focusKey);
   if (selected != null && nodes[selected] && nodes[selected].type === "paper") p.set("a", A("id", nodes[selected].r));
-  history.replaceState(null, "", "?" + p.toString());
+  const qs = p.toString();
+  history.replaceState(null, "", qs ? "?" + qs : location.pathname);
 }
 function applyShareParams() {
   const p = new URLSearchParams(location.search);
-  if (p.get("c") && bucketMeta.has(p.get("c"))) focusHub(p.get("c"));
-  if (p.get("a")) { const r = D.articles.id.indexOf(+p.get("a")); if (r >= 0) focusPaper(r); }
+  if (p.has("at")) {
+    const want = new Set(p.get("at") ? p.get("at").split(",") : []);
+    document.querySelectorAll("#attrToggles input").forEach(i => i.checked = want.has(i.dataset.attr));
+  }
+  if (p.has("da")) $("fDiffAuthors").checked = p.get("da") !== "0";
+  if (p.has("do")) $("fDiffOrgs").checked = p.get("do") !== "0";
+  if (p.has("fl")) $("fFlaggedOnly").checked = p.get("fl") === "1";
+  if (p.get("ms")) $("fMinSize").value = p.get("ms");
+  if (p.get("st")) $("fSort").value = p.get("st");
+  if (p.get("q")) $("fSearch").value = p.get("q");
+  if (p.get("re")) $("fEmailRegex").value = p.get("re");
+  if (p.get("c") && bucketMeta.has(p.get("c"))) { focusHub(p.get("c")); return; }
+  if (p.get("a")) { const r = D.articles.id.indexOf(+p.get("a")); if (r >= 0) { focusPaper(r); return; } }
+  showOverview();
 }
 
 boot();
