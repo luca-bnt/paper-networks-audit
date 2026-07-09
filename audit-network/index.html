@@ -115,8 +115,10 @@
         </select>
       </div>
       <div class="row"><label>Search</label><input type="text" id="fSearch" placeholder="value or article id"></div>
+      <div class="row"><label>Email regex</label><input type="text" id="fEmailRegex" placeholder="e.g. \d{4,}@  or  @(163|qq|126)\."></div>
+      <div id="emailErr" style="color:var(--red);font-size:11px;min-height:14px"></div>
     </div>
-    <div class="section" style="padding-bottom:6px"><h2 style="margin:0">Connections <span class="count" id="bucketCount"></span></h2></div>
+    <div class="section" style="padding-bottom:6px"><h2 style="margin:0"><span id="listTitle">Connections</span> <span class="count" id="bucketCount"></span></h2></div>
     <div class="scroll" id="bucketList"></div>
   </div>
 
@@ -223,7 +225,7 @@ async function boot() {
     }
   const m = D.meta;
   $("meta").textContent = `${m.count.toLocaleString()} papers · ${m.buckets.toLocaleString()} connections · ${m.windowDays}-day window`;
-  buildAttrToggles(); bindUI(); renderBuckets(); setupCanvas(); buildLegend();
+  buildAttrToggles(); bindUI(); renderList(); setupCanvas(); buildLegend();
   showOverview();
   applyShareParams();
 }
@@ -237,12 +239,13 @@ function buildAttrToggles() {
       <span class="attrsq" style="background:${meta.color}"></span>${meta.label}`;
     box.appendChild(l);
   }
-  box.addEventListener("change", () => { renderBuckets(); if (mode === "overview") showOverview(); else if (focusKey) focusHub(focusKey); });
+  box.addEventListener("change", () => { renderList(); if (mode === "overview") showOverview(); else if (focusKey) focusHub(focusKey); });
 }
 const activeAttrs = () => [...document.querySelectorAll("#attrToggles input:checked")].map(i => i.dataset.attr);
 
 function bindUI() {
-  ["fDiffAuthors","fDiffOrgs","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", () => { renderBuckets(); if (mode === "overview") showOverview(); }));
+  ["fDiffAuthors","fDiffOrgs","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", () => { renderList(); if (mode === "overview") showOverview(); }));
+  $("fEmailRegex").addEventListener("input", renderList);
   $("btnOverview").addEventListener("click", showOverview);
   $("btnRelayout").addEventListener("click", () => { if (nodes.length) runLayout(); });
   $("btnCompare").addEventListener("click", openCompare);
@@ -283,6 +286,42 @@ function currentBuckets() {
     : b.rows.length - a.rows.length);
   return list;
 }
+function activeEmailRegex() {
+  const raw = $("fEmailRegex").value.trim();
+  if (!raw) { $("emailErr").textContent = ""; return null; }
+  try { const re = new RegExp(raw, "i"); $("emailErr").textContent = ""; return re; }
+  catch (e) { $("emailErr").textContent = "Invalid regex: " + e.message; return "ERR"; }
+}
+function renderList() {
+  const re = activeEmailRegex();
+  if (re && re !== "ERR") renderEmailMatches(re);
+  else { $("listTitle").textContent = "Connections"; renderBuckets(); }
+}
+function renderEmailMatches(re) {
+  const emails = D.dict.emails || [];
+  const match = new Set();
+  for (let i = 0; i < emails.length; i++) if (re.test(emails[i])) match.add(i);
+  const c = D.articles.authorEmail, rows = [];
+  for (let r = 0; r < c.length; r++) { const ref = c[r]; if (ref >= 0 && match.has(ref)) rows.push(r); }
+  rows.sort((a, b) => (A("pmScore", b) || 0) - (A("pmScore", a) || 0));
+  $("listTitle").textContent = "Email matches";
+  $("bucketCount").textContent = `(${rows.length.toLocaleString()})`;
+  const box = $("bucketList");
+  if (!rows.length) {
+    box.innerHTML = `<div class="empty">No emails match <code>${escapeHtml(re.source)}</code>.<br>
+      <span class="muted">Only ${emails.length.toLocaleString()} papers (~12%) carry email data.</span></div>`;
+    return;
+  }
+  box.innerHTML = rows.slice(0, 600).map(emailRowHtml).join("");
+  box.querySelectorAll(".aid").forEach(el => el.addEventListener("click", () => focusPaper(+el.dataset.r)));
+}
+function emailRowHtml(r) {
+  const em = artStr("authorEmail", r), nm = artStr("authorName", r);
+  return `<div class="bucket"><div class="b1"><span class="attrsq" style="background:${ATTR_META.email.color}"></span>
+      <span class="aid" data-r="${r}">${A("id", r)}</span><span class="muted" style="font-size:11px"> · ${bandLabel(r)}</span></div>
+    <div class="val" title="${escapeHtml(em)}">${escapeHtml(em)}</div>
+    ${nm ? `<div class="b2"><span class="muted">${escapeHtml(nm)}</span></div>` : ""}</div>`;
+}
 function renderBuckets() {
   const list = currentBuckets();
   $("bucketCount").textContent = `(${list.length.toLocaleString()})`;
@@ -308,7 +347,7 @@ function renderBuckets() {
 // -------- graph: overview (clusters + shared-paper links) --------
 function showOverview() {
   mode = "overview"; focusKey = null; selectedBucketKey = null; selected = null;
-  renderBuckets();
+  renderList();
   $("btnOverview").disabled = true;
   $("crumb").innerHTML = `<b>Overview</b> — clusters linked when they share papers. Click one to drill in.`;
   const list = currentBuckets().slice(0, OVERVIEW_HUBS);
@@ -330,7 +369,7 @@ function showOverview() {
 function focusHub(key) {
   const meta0 = bucketMeta.get(key); if (!meta0) return;
   mode = "focus"; focusKey = key; selectedBucketKey = key; selected = null;
-  renderBuckets(); showBucketDetail(key);
+  renderList(); showBucketDetail(key);
   $("btnOverview").disabled = false;
   const attr = attrOf(key);
   $("crumb").innerHTML = `<b>${ATTR_META[attr].label}</b> · <span class="val">${valOf(key)}</span>`;
