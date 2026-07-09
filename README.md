@@ -86,6 +86,40 @@ Rows that age out of the window are appended to a **local-only archive**
 deduplicated by article id, so you can retrieve older data later. Use
 `--no-archive` to skip it.
 
+## Manufactured-article flags (papermill)
+
+Reviewers can flag/unflag articles as manufactured. Because the app is static
+(served from Azure blob storage), flags are stored in **Azure Table Storage** on
+the same account and written directly from the browser via a SAS — no backend
+compute required.
+
+- **Storage:** table `pmflags`, one entity per flag (`PartitionKey="flag"`,
+  `RowKey=<articleId>`, `flaggedBy`, `flaggedUtc`).
+- **Config:** the app reads `flags-config.js` (git-ignored) which sets
+  `window.FLAGS_CONFIG = { account, table, sas }`. If absent, the flag UI is
+  hidden and any baked flags show read-only. Regenerate the SAS periodically:
+
+  ```bash
+  az storage table generate-sas --name pmflags --permissions raud \
+    --expiry <ISO8601> --https-only \
+    --account-name staticsitesops10798 --account-key <key> -o tsv
+  ```
+
+  Table CORS must allow the site origin (set once with the account key via
+  `az storage cors add --services t ...`).
+- **Access model:** the site is IP-restricted, so the embedded write SAS is only
+  reachable from allowed networks.
+- **Baking into the snapshot:** set `AUDIT_TABLE_CONN` (a storage connection
+  string) when running the pipeline to materialise flags into a `pmFlag` column
+  so they persist in the versioned snapshot:
+
+  ```bash
+  AUDIT_DB_CS='...' AUDIT_TABLE_CONN='DefaultEndpointsProtocol=...' \
+    python audit_snapshot.py --incremental
+  ```
+
+  Requires `azure-data-tables`. Use `--no-flags` to skip.
+
 ## Deploying
 
 Upload the `audit-network/` folder to the Frontiers static webapp storage under

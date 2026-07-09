@@ -117,6 +117,7 @@
       <div class="row"><label>Search</label><input type="text" id="fSearch" placeholder="value or article id"></div>
       <div class="row"><label>Email regex</label><input type="text" id="fEmailRegex" placeholder="e.g. \d{4,}@  or  @(163|qq|126)\."></div>
       <div id="emailErr" style="color:var(--red);font-size:11px;min-height:14px"></div>
+      <div class="row" id="reviewerRow" style="display:none"><label>Reviewer</label><input type="text" id="fReviewer" placeholder="your name (for flags)"></div>
     </div>
     <div class="section" style="padding-bottom:6px"><h2 style="margin:0"><span id="listTitle">Connections</span> <span class="count" id="bucketCount"></span></h2></div>
     <div class="scroll" id="bucketList"></div>
@@ -128,6 +129,8 @@
       <button class="btn" id="btnOverview">◂ Overview</button>
       <span class="crumb" id="crumb"></span>
       <span style="flex:1"></span>
+      <button class="btn" id="btnFlagged" title="Show flagged papers" style="display:none">⚑ <span id="flagCount">0</span></button>
+      <button class="btn" id="btnFlagRefresh" title="Reload flags from server" style="display:none">⟳</button>
       <button class="btn" id="btnCompare">Compare papers</button>
       <button class="btn" id="btnRelayout">Re-layout</button>
     </div>
@@ -152,6 +155,7 @@
   </div>
 </div>
 
+<script src="flags-config.js"></script>
 <script>
 "use strict";
 // -------- config (tune here) --------
@@ -192,6 +196,69 @@ let selectedBucketKey = null;
 let nodes = [], edges = [], adj = [];
 let selected = null;          // node index highlighted
 let view = { x: 0, y: 0, k: 1 };
+// -------- papermill flags (Azure Table Storage backend) --------
+const FC = (typeof window !== "undefined" && window.FLAGS_CONFIG) ? window.FLAGS_CONFIG : null;
+let flags = new Map();        // articleId -> { by, utc }
+const tableUrl = (suffix = "") => `https://${FC.account}.table.core.windows.net/${FC.table}${suffix}`;
+const reviewer = () => (($("fReviewer") && $("fReviewer").value.trim()) || "anon");
+async function loadFlags() {
+  if (!FC) return;
+  try {
+    const res = await fetch(tableUrl(`()?$filter=PartitionKey%20eq%20'flag'&${FC.sas}`), { headers: { Accept: "application/json;odata=nometadata" } });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const j = await res.json();
+    flags = new Map(j.value.map(e => [+e.RowKey, { by: e.flaggedBy || "", utc: e.flaggedUtc || e.Timestamp || "" }]));
+  } catch (e) { console.warn("[flags] load failed:", e); }
+  updateFlagCount();
+}
+async function setFlag(id, on) {
+  if (!FC) return false;
+  const rk = String(id), ent = tableUrl(`(PartitionKey='flag',RowKey='${rk}')?${FC.sas}`);
+  try {
+    if (on) {
+      const body = JSON.stringify({ PartitionKey: "flag", RowKey: rk, flaggedBy: reviewer(), flaggedUtc: new Date().toISOString() });
+      const res = await fetch(ent, { method: "PUT", headers: { "Content-Type": "application/json", Accept: "application/json;odata=nometadata" }, body });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      flags.set(id, { by: reviewer(), utc: new Date().toISOString() });
+    } else {
+      const res = await fetch(ent, { method: "DELETE", headers: { "If-Match": "*" } });
+      if (!res.ok && res.status !== 404) throw new Error("HTTP " + res.status);
+      flags.delete(id);
+    }
+    return true;
+  } catch (e) { console.warn("[flags] write failed:", e); return false; }
+}
+async function toggleFlag(id, after) {
+  if (!FC) { alert("Flagging is not configured for this deployment."); return; }
+  const ok = await setFlag(id, !flags.has(id));
+  if (!ok) { alert("Flag update failed — the write token may have expired. Ask for a refresh."); return; }
+  updateFlagCount(); draw();
+  if (after) after();
+  if ($("modal").classList.contains("open")) renderCompareTable();
+}
+const isFlagged = (r) => flags.has(A("id", r));
+function updateFlagCount() { const el = $("flagCount"); if (el) el.textContent = flags.size; }
+function flagControlHtml(r) {
+  if (!FC) return "";
+  const id = A("id", r), on = flags.has(id), f = flags.get(id);
+  return `<div class="section"><button class="btn" id="flagBtn" style="width:100%;font-weight:600;${on ? "background:#D51A2C;border-color:#D51A2C;color:#fff" : ""}">${on ? "⚑ Flagged as manufactured — click to unflag" : "⚐ Flag as manufactured (papermill)"}</button>${on && f ? `<div class="muted" style="font-size:11px;margin-top:5px">by ${escapeHtml(f.by || "?")} · ${(f.utc || "").slice(0, 10)}</div>` : ""}</div>`;
+}
+function showFlaggedList() {
+  const rows = [...flags.keys()].map(id => D.articles.id.indexOf(id)).filter(r => r >= 0);
+  rows.sort((a, b) => (A("pmScore", b) || 0) - (A("pmScore", a) || 0));
+  $("listTitle").textContent = "Flagged papers";
+  $("bucketCount").textContent = `(${flags.size.toLocaleString()})`;
+  const box = $("bucketList");
+  if (!rows.length) { box.innerHTML = `<div class="empty">No papers flagged yet.<br><span class="muted">Open a paper and use “Flag as manufactured”.</span></div>`; return; }
+  box.innerHTML = rows.slice(0, 600).map(r => {
+    const f = flags.get(A("id", r)), t = artStr("title", r), nm = artStr("authorName", r);
+    return `<div class="bucket"><div class="b1"><span style="color:#D51A2C">⚑</span>
+        <span class="aid" data-r="${r}">${A("id", r)}</span><span class="muted" style="font-size:11px"> · ${bandLabel(r)}</span></div>
+      ${t ? `<div class="val" title="${escapeHtml(t)}">${escapeHtml(t.slice(0, 80))}</div>` : (nm ? `<div class="val">${escapeHtml(nm)}</div>` : "")}
+      <div class="b2"><span class="muted" style="font-size:11px">by ${escapeHtml((f && f.by) || "?")}</span></div></div>`;
+  }).join("");
+  box.querySelectorAll(".aid").forEach(el => el.addEventListener("click", () => focusPaper(+el.dataset.r)));
+}
 
 const $ = (id) => document.getElementById(id);
 const str = (pool, ref) => (ref == null || ref < 0) ? "" : (D.dict[pool] ? D.dict[pool][ref] : "");
@@ -227,6 +294,14 @@ async function boot() {
   const m = D.meta;
   $("meta").textContent = `${m.count.toLocaleString()} papers · ${m.buckets.toLocaleString()} connections · ${m.windowDays}-day window`;
   buildAttrToggles(); bindUI(); renderList(); setupCanvas(); buildLegend();
+  if (D.articles.pmFlag) for (let r = 0; r < D.articles.pmFlag.length; r++) if (D.articles.pmFlag[r]) flags.set(A("id", r), { by: "baked", utc: "" });
+  updateFlagCount();
+  if (FC) {
+    ["btnFlagged", "btnFlagRefresh"].forEach(id => $(id).style.display = "");
+    $("reviewerRow").style.display = "";
+    $("fReviewer").value = localStorage.getItem("auditReviewer") || "";
+    await loadFlags();
+  }
   showOverview();
   applyShareParams();
 }
@@ -250,6 +325,9 @@ function bindUI() {
   $("btnOverview").addEventListener("click", showOverview);
   $("btnRelayout").addEventListener("click", () => { if (nodes.length) runLayout(); });
   $("btnCompare").addEventListener("click", openCompare);
+  $("btnFlagged").addEventListener("click", showFlaggedList);
+  $("btnFlagRefresh").addEventListener("click", async () => { await loadFlags(); draw(); });
+  if ($("fReviewer")) $("fReviewer").addEventListener("input", () => localStorage.setItem("auditReviewer", $("fReviewer").value.trim()));
   $("modalClose").addEventListener("click", () => $("modal").classList.remove("open"));
   $("modal").addEventListener("click", e => { if (e.target.id === "modal") $("modal").classList.remove("open"); });
   window.addEventListener("keydown", e => { if (e.key === "Escape") $("modal").classList.remove("open"); });
@@ -261,6 +339,7 @@ function buildLegend() {
   parts.push('<span class="muted">| clusters:</span>');
   for (const a of attrs) parts.push(`<span><i class="sq" style="background:${ATTR_META[a].color}"></i>${ATTR_META[a].label}</span>`);
   parts.push(`<span><i class="sq" style="background:${COMBO_COLOR}"></i>multi-type (AND)</span>`);
+  if (FC) parts.push(`<span><i class="dot" style="background:transparent;border:2px solid #D51A2C"></i>flagged manufactured</span>`);
   $("legend").innerHTML = parts.join("");
 }
 
@@ -601,6 +680,7 @@ function draw() {
       const R = paperRadius(nd.r) * Math.min(Math.max(view.k, .6), 1.6);
       ctx.beginPath(); ctx.arc(x, y, R, 0, 6.283); ctx.fillStyle = paperColor(nd.r); ctx.fill();
       if (A("wdMatch", nd.r) === 0) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.3; ctx.stroke(); }
+      if (flags.has(A("id", nd.r))) { ctx.beginPath(); ctx.arc(x, y, R + 2.6, 0, 6.283); ctx.strokeStyle = "#D51A2C"; ctx.lineWidth = 2.2; ctx.stroke(); }
       if (i === selected) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.stroke(); }
     }
   }
@@ -660,9 +740,11 @@ function showPaperDetail(r) {
     ["Device", artStr("device", r) || "—"], ["IP", artStr("ip", r) || "—"], ["Locale", artStr("locale", r) || "—"],
     ["Platform / UA", [artStr("platform", r), artStr("uaFamily", r)].filter(Boolean).join(" / ") || "—"], ["Submission IP (author record)", artStr("authorIp", r) || "—"],
   ];
-  $("detail").innerHTML = `<div class="section"><dl class="dl">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${escapeHtml(String(v))}</dd></div>`).join("")}</dl></div>
+  $("detail").innerHTML = flagControlHtml(r) + `<div class="section"><dl class="dl">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${escapeHtml(String(v))}</dd></div>`).join("")}</dl></div>
     <div class="section"><h2>Shared connections</h2>${connectionsHtml(r)}</div>`;
   bindAidClicks();
+  const fb = document.getElementById("flagBtn");
+  if (fb) fb.addEventListener("click", () => toggleFlag(A("id", r), () => showPaperDetail(r)));
 }
 function connectionsHtml(r) {
   const out = [];
@@ -737,7 +819,8 @@ function renderCompareTable() {
   });
   const arrow = k => cmpSort.key === k ? (cmpSort.dir < 0 ? " ▼" : " ▲") : "";
   const cols = [["id", "Article"], ["pmScore", "Score"], ...CMP_COLS.map(f => [f, ATTR_META[f] ? ATTR_META[f].label : cmpLabel(f)])];
-  const head = "<tr>" + cols.map(([k, lbl]) => `<th data-sort="${k}" style="cursor:pointer;user-select:none" title="Sort by ${lbl}">${lbl}${arrow(k)}</th>`).join("") + "</tr>";
+  const flagTh = FC ? "<th>⚑</th>" : "";
+  const head = "<tr>" + flagTh + cols.map(([k, lbl]) => `<th data-sort="${k}" style="cursor:pointer;user-select:none" title="Sort by ${lbl}">${lbl}${arrow(k)}</th>`).join("") + "</tr>";
   const body = sorted.slice(0, 300).map(r => {
     const cells = CMP_COLS.map(f => {
       const ref = A(f, r), v = ref >= 0 ? str(POOLS[f], ref) : "";
@@ -745,7 +828,8 @@ function renderCompareTable() {
       const cc = sh && ATTR_META[f] ? ATTR_META[f].color : (sh ? "#8ab4ff" : "");
       return `<td class="${sh ? "share" : ""}" style="${sh ? `color:${cc}` : ""}" title="${escapeHtml(v)}">${escapeHtml(v) || '<span class="muted">—</span>'}</td>`;
     }).join("");
-    return `<tr><td><span class="aid" data-r="${r}">${A("id", r)}</span></td><td>${bandLabel(r)}</td>${cells}</tr>`;
+    const flagTd = FC ? `<td class="flagcell" data-fr="${r}" style="cursor:pointer;text-align:center" title="Toggle manufactured flag">${flags.has(A("id", r)) ? '<span style="color:#D51A2C">⚑</span>' : '<span class="muted">⚐</span>'}</td>` : "";
+    return `<tr>${flagTd}<td><span class="aid" data-r="${r}">${A("id", r)}</span></td><td>${bandLabel(r)}</td>${cells}</tr>`;
   }).join("");
   const box = $("modalBody");
   box.innerHTML = `<table class="cmp"><thead>${head}</thead><tbody>${body}</tbody></table>`;
@@ -754,6 +838,7 @@ function renderCompareTable() {
     if (cmpSort.key === k) cmpSort.dir *= -1; else cmpSort = { key: k, dir: k === "id" ? 1 : -1 };
     renderCompareTable();
   }));
+  box.querySelectorAll(".flagcell").forEach(td => td.addEventListener("click", () => toggleFlag(A("id", +td.dataset.fr))));
   box.querySelectorAll(".aid").forEach(el => el.addEventListener("click", () => { $("modal").classList.remove("open"); focusPaper(+el.dataset.r); }));
 }
 function cmpLabel(f) { return ({ authorName: "Author", authorEmail: "Email", authorOrg: "Organisation" })[f] || f; }

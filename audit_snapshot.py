@@ -395,7 +395,30 @@ GENERIC_WD = {
 }
 
 
-def build(df: pd.DataFrame, cap: int, days: int) -> dict:
+def fetch_flags(conn_str: str, table: str = "pmflags") -> set:
+    """Read manufactured-article flags from Azure Table Storage (RowKey = articleId)."""
+    try:
+        from azure.data.tables import TableClient
+    except ImportError:
+        print("[flags] azure-data-tables not installed; skipping bake (pip install azure-data-tables)", file=sys.stderr)
+        return set()
+    try:
+        tc = TableClient.from_connection_string(conn_str, table_name=table)
+        ids = set()
+        for e in tc.list_entities(select=["RowKey"]):
+            try:
+                ids.add(int(e["RowKey"]))
+            except (ValueError, TypeError):
+                pass
+        print(f"[flags] baked {len(ids):,} manufactured flags from table '{table}'", file=sys.stderr)
+        return ids
+    except Exception as ex:
+        print(f"[flags] could not read table: {ex}", file=sys.stderr)
+        return set()
+
+
+def build(df: pd.DataFrame, cap: int, days: int, flag_ids: set | None = None) -> dict:
+    flag_ids = flag_ids or set()
     n = len(df)
     rows = df.to_dict("records")
 
@@ -472,7 +495,7 @@ def build(df: pd.DataFrame, cap: int, days: int) -> dict:
         f"(dropped {n-len(keep):,} singletons) · {n_buckets:,} shared-value buckets",
         file=sys.stderr,
     )
-    return _encode(recs, keep, old_to_new, kept_index, caps, days)
+    return _encode(recs, keep, old_to_new, kept_index, caps, days, flag_ids)
 
 
 def _date(v) -> str:
@@ -484,7 +507,8 @@ def _date(v) -> str:
         return ""
 
 
-def _encode(recs, keep, old_to_new, kept_index, caps, days) -> dict:
+def _encode(recs, keep, old_to_new, kept_index, caps, days, flag_ids=None) -> dict:
+    flag_ids = flag_ids or set()
     # string dictionaries (dedupe repeated values, reference by int; -1 = none)
     pools: dict[str, list[str]] = {}
     pool_idx: dict[str, dict[str, int]] = {}
@@ -519,7 +543,7 @@ def _encode(recs, keep, old_to_new, kept_index, caps, days) -> dict:
 
     cols: dict[str, list] = {k: [] for k in (
         "id", "date", *STR_COLS.keys(), "pmScore", "pmBand", "wdStatus", "wdMatch",
-        "nameEmailSim", "emailPattern",
+        "nameEmailSim", "emailPattern", "pmFlag",
     )}
     for old in keep:
         r = recs[old]
@@ -533,6 +557,7 @@ def _encode(recs, keep, old_to_new, kept_index, caps, days) -> dict:
         cols["wdMatch"].append(-1 if r["wdMatch"] is None else (1 if r["wdMatch"] else 0))
         cols["nameEmailSim"].append(r["nameEmailSim"])
         cols["emailPattern"].append(PATTERN.get(r["emailPattern"], 0))
+        cols["pmFlag"].append(1 if r["id"] in flag_ids else 0)
 
     # inverted index remapped to kept rows.
     # entry = [valueRef(into ATTR_POOL[attr]), [rowIdxs], nDistinctAuthors, nDistinctOrgs]
@@ -591,6 +616,8 @@ def main() -> None:
     ap.add_argument("--archive", default=str(ARCHIVE_DEFAULT),
                     help="local-only file where rows aged out of the window are appended for later retrieval")
     ap.add_argument("--no-archive", action="store_true", help="do not archive aged-out rows during --incremental")
+    ap.add_argument("--flags-table", default="pmflags", help="Azure Table with manufactured flags to bake into the snapshot")
+    ap.add_argument("--no-flags", action="store_true", help="do not bake manufactured flags (set AUDIT_TABLE_CONN to enable)")
     args = ap.parse_args()
 
     raw_path = Path(args.raw)
@@ -615,7 +642,13 @@ def main() -> None:
         raw_path.write_bytes(pickle.dumps(df))
         print(f"[raw] cached {len(df):,} rows -> {raw_path}", file=sys.stderr)
 
-    snapshot = build(df, cap=args.cap, days=args.days)
+    flag_ids = set()
+    table_conn = os.environ.get("AUDIT_TABLE_CONN")
+    if table_conn and not args.no_flags:
+        flag_ids = fetch_flags(table_conn, args.flags_table)
+
+    snapshot = build(df, cap=args.cap, days=args.days, flag_ids=flag_ids)
+    snapshot["meta"]["flags"] = len(flag_ids)
 
     out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)

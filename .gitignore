@@ -13,6 +13,8 @@ raw_snapshot.pkl
 .env
 *.creds
 get_creds.py
+# Flags backend SAS token (deployed to blob only, never committed)
+flags-config.js
 
 # OS
 .DS_Store
