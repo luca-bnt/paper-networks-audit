@@ -366,9 +366,9 @@ function bindUI() {
   $("btnFlagged").addEventListener("click", showFlaggedList);
   $("btnFlagRefresh").addEventListener("click", async () => { await loadFlags(); updateHubFlags(); renderList(); if (mode === "overview") showOverview(); draw(); });
   if ($("fReviewer")) $("fReviewer").addEventListener("input", () => localStorage.setItem("auditReviewer", $("fReviewer").value.trim()));
-  $("modalClose").addEventListener("click", () => $("modal").classList.remove("open"));
-  $("modal").addEventListener("click", e => { if (e.target.id === "modal") $("modal").classList.remove("open"); });
-  window.addEventListener("keydown", e => { if (e.key === "Escape") $("modal").classList.remove("open"); });
+  $("modalClose").addEventListener("click", closeModal);
+  $("modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); });
+  window.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
 }
 
 function buildLegend() {
@@ -992,6 +992,12 @@ function openCompare() {
   $("modalSub").textContent = `${rs.length} papers · shared values highlighted · click a header to sort`;
   renderCompareTable();
   $("modal").classList.add("open");
+  syncShare();
+}
+function closeModal() {
+  if (!$("modal").classList.contains("open")) return;
+  $("modal").classList.remove("open");
+  syncShare();
 }
 function cmpValue(r, key) {
   if (key === "id") return A("id", r);
@@ -1051,6 +1057,7 @@ function syncShare() {
   const re = $("fEmailRegex").value.trim(); if (re) p.set("re", re);
   if (mode === "focus" && focusKey) p.set("c", focusKey);
   if (selected != null && nodes[selected] && nodes[selected].type === "paper") p.set("a", A("id", nodes[selected].r));
+  if ($("modal").classList.contains("open")) p.set("cmp", "1");
   const qs = p.toString();
   history.replaceState(null, "", qs ? "?" + qs : location.pathname);
 }
@@ -1068,9 +1075,10 @@ function applyShareParams() {
   if (p.get("q")) $("fSearch").value = p.get("q");
   if (p.get("re")) $("fEmailRegex").value = p.get("re");
   rebuildEmailFilter();
-  if (p.get("c") && bucketMeta.has(p.get("c"))) { focusHub(p.get("c")); return; }
-  if (p.get("a")) { const r = D.articles.id.indexOf(+p.get("a")); if (r >= 0) { focusPaper(r); return; } }
-  showOverview();
+  if (p.get("c") && bucketMeta.has(p.get("c"))) focusHub(p.get("c"));
+  else if (p.get("a") && D.articles.id.indexOf(+p.get("a")) >= 0) focusPaper(D.articles.id.indexOf(+p.get("a")));
+  else showOverview();
+  if (p.get("cmp")) openCompare();
 }
 
 boot();
