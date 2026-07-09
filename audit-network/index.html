@@ -632,8 +632,21 @@ function finishGraph() {
 }
 
 // -------- force layout --------
+const nodeDrawR = (nd) => nd.type === "hub" ? hubRadius(nd) : paperRadius(nd.r);
+const nodeWeight = (nd) => nd.type === "hub" ? nd.n : (A("pmScore", nd.r) || 0);
+// Sunflower packing for edgeless graphs (e.g. multi-type overview): biggest
+// clusters centred, sized by paper count — readable instead of a repelled ring.
+function packLayout() {
+  const n = nodes.length; if (!n) { draw(); return; }
+  const order = [...Array(n).keys()].sort((a, b) => nodeWeight(nodes[b]) - nodeWeight(nodes[a]));
+  let sum = 0, mx = 0; for (const nd of nodes) { const r = nodeDrawR(nd); sum += r; mx = Math.max(mx, r); }
+  const c = Math.max(2 * (sum / n) + 16, mx + 12), GA = Math.PI * (3 - Math.sqrt(5));
+  order.forEach((idx, rank) => { const rr = c * Math.sqrt(rank + 0.6), a = rank * GA; nodes[idx].x = Math.cos(a) * rr; nodes[idx].y = Math.sin(a) * rr; });
+  fit(); draw();
+}
 function runLayout() {
   const n = nodes.length; if (!n) { draw(); return; }
+  if (!edges.length) { packLayout(); return; }
   const k = Math.sqrt((900 * 700) / n);
   nodes.forEach((nd, i) => { const a = (i / n) * 6.283; const rad = nd.type === "hub" ? 60 : 320; nd.x = Math.cos(a) * rad; nd.y = Math.sin(a) * rad; });
   let temp = 320, iter = 0;
@@ -683,8 +696,12 @@ function hoverTip(px, py) {
     html = `<b>#${id}</b>${t ? " · " + escapeHtml(t.slice(0, 60)) : ""}`;
     if (fl) html += `<div style="color:#ff8a8a;margin-top:3px">⚑ ${fl.comment ? escapeHtml(fl.comment) : "flagged manufactured"}</div>`
       + `<div class="muted">by ${escapeHtml(fl.by || "?")}${fl.utc ? " · " + fl.utc.slice(0, 10) : ""}</div>`;
+  } else if (nd.type === "hub" && nd.unit && nd.unit.kind === "combo") {
+    html = `<b>Multi-type cluster</b><div class="muted">${escapeHtml(nd.label || "")}</div>`
+      + `<div class="muted">${nd.n} papers · shares ${nd.unit.parts.length} types</div><div class="muted">click to drill in</div>`;
   } else if (nd.type === "hub" && ATTR_META[nd.attr]) {
-    html = `<b>${ATTR_META[nd.attr].label}</b><div class="muted">${escapeHtml((str(ATTR_META[nd.attr].pool, nd.ref) || "").slice(0, 60))}</div>`;
+    html = `<b>${ATTR_META[nd.attr].label}</b><div class="muted">${escapeHtml((str(ATTR_META[nd.attr].pool, nd.ref) || "").slice(0, 60))}</div>`
+      + `<div class="muted">${nd.n} papers · click to drill in</div>`;
   }
   if (!html) { tip.style.display = "none"; return; }
   tip.innerHTML = html; tip.style.display = "block";
@@ -750,10 +767,11 @@ function draw() {
   }
   ctx.globalAlpha = 1;
   // labels
-  if (view.k > 0.75) {
+  if (view.k > 0.45) {
     ctx.font = "10px ui-monospace, monospace"; ctx.fillStyle = "#c8ccd4";
+    const labelHubs = nodes.filter(nd => nd.type === "hub").length <= 90;
     for (const nd of nodes) {
-      if (nd.type === "hub") { const [x, y] = toScreen(nd.x, nd.y); const t = nd.label != null ? nd.label : valOf(nd.key); ctx.fillText(t.length > 22 ? t.slice(0, 22) + "…" : t, x + hubRadius(nd) + 3, y + 3); }
+      if (nd.type === "hub") { if (!labelHubs && view.k <= 0.75) continue; const [x, y] = toScreen(nd.x, nd.y); const t = nd.label != null ? nd.label : valOf(nd.key); ctx.fillText(t.length > 22 ? t.slice(0, 22) + "…" : t, x + hubRadius(nd) + 3, y + 3); }
       else if (view.k > 1.15) { const [x, y] = toScreen(nd.x, nd.y); ctx.fillText(A("id", nd.r), x + 7, y + 3); }
     }
   }
