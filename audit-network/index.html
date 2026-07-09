@@ -72,7 +72,7 @@
   .conn { padding: 7px 0; border-bottom: 1px solid var(--line); }
   .conn .ch { display: flex; align-items: center; gap: 7px; cursor: pointer; }
   .conn .cids { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 5px; }
-  .aid { font-family: ui-monospace, monospace; font-size: 11px; color: var(--accent); cursor: pointer; }
+  .aid { font-family: ui-monospace, monospace; font-size: 11px; color: var(--accent); cursor: pointer; text-decoration: none; }
   .aid:hover { text-decoration: underline; }
   .muted { color: var(--muted); }
   .empty { padding: 24px 14px; color: var(--muted); text-align: center; }
@@ -914,7 +914,8 @@ function renderCompareTable() {
     }).join("");
     const ff = flags.get(A("id", r));
     const flagTd = FC ? `<td class="flagcell" data-fr="${r}" style="cursor:pointer;text-align:center" title="${ff && ff.comment ? escapeHtml(ff.comment) : "Toggle manufactured flag"}">${ff ? '<span style="color:#D51A2C">⚑</span>' : '<span class="muted">⚐</span>'}</td>` : "";
-    return `<tr>${flagTd}<td><span class="aid" data-r="${r}">${A("id", r)}</span></td><td>${bandLabel(r)}</td>${cells}</tr>`;
+    const aid = A("id", r);
+    return `<tr>${flagTd}<td><a class="aid" href="${reviewUrl(aid)}" target="_blank" rel="noopener" title="Open in Frontiers review">${aid}</a></td><td>${bandLabel(r)}</td>${cells}</tr>`;
   }).join("");
   const box = $("modalBody");
   box.innerHTML = `<table class="cmp"><thead>${head}</thead><tbody>${body}</tbody></table>`;
@@ -924,9 +925,9 @@ function renderCompareTable() {
     renderCompareTable();
   }));
   box.querySelectorAll(".flagcell").forEach(td => td.addEventListener("click", () => toggleFlag(A("id", +td.dataset.fr))));
-  box.querySelectorAll(".aid").forEach(el => el.addEventListener("click", () => { $("modal").classList.remove("open"); focusPaper(+el.dataset.r); }));
 }
 function cmpLabel(f) { return ({ authorName: "Author", authorEmail: "Email", authorOrg: "Organisation" })[f] || f; }
+const reviewUrl = (id) => `https://review.frontiersin.org/review/${id}/0/0`;
 
 // -------- share url --------
 function syncShare() {
