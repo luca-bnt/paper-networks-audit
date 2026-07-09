@@ -427,8 +427,7 @@ function rebuildEmailFilter() {
 const regexOn = () => !!emailMatch;
 const emailLabel = () => { const re = activeEmailRegex(); return re && re !== "ERR" ? "Email ~ /" + re.source + "/" : "Email pattern"; };
 function renderList() {
-  if (regexOn() && activeAttrs().length === 0) renderEmailMatches(activeEmailRegex());
-  else renderUnits();
+  renderUnits();
 }
 function renderEmailMatches(re) {
   const emails = D.dict.emails || [];
@@ -488,12 +487,23 @@ function currentUnits() {
   const act = activeAttrs(), rx = regexOn();
   if (act.length === 0) {
     if (!rx) return [];
-    const rows = [...emailMatch];
-    const minSize = Math.max(2, parseInt($("fMinSize").value) || 2);
-    if (rows.length < minSize) return [];
-    if ($("fFlaggedOnly").checked && !hasFlagged(rows)) return [];
-    const dc = distinctCounts(rows);
-    return [{ kind: "emailrx", key: "emailrx", rows, label: emailLabel(), nNames: dc.nNames, nOrgs: dc.nOrgs }];
+    // Regex on its own = a cluster per distinct matching email (one node per email).
+    const byEmail = new Map();
+    for (const r of emailMatch) { const ref = D.articles.authorEmail[r]; if (ref < 0) continue; let g = byEmail.get(ref); if (!g) { g = []; byEmail.set(ref, g); } g.push(r); }
+    const onlyFlagged = $("fFlaggedOnly").checked;
+    const q = $("fSearch").value.trim().toLowerCase(), qid = /^\d+$/.test(q) ? parseInt(q) : null;
+    const sort = $("fSort").value;
+    let units = [];
+    for (const [ref, rows] of byEmail) {
+      if (onlyFlagged && !hasFlagged(rows)) continue;
+      if (q) { if (qid != null) { if (!rows.some(r => A("id", r) === qid)) continue; } else if (!(str("emails", ref) || "").toLowerCase().includes(q)) continue; }
+      const dc = distinctCounts(rows);
+      units.push({ kind: "single", key: "email:" + ref, attr: "email", ref, rows, nNames: dc.nNames, nOrgs: dc.nOrgs });
+    }
+    units.sort((a, b) => sort === "authors" ? b.nNames - a.nNames || b.rows.length - a.rows.length
+      : sort === "orgs" ? b.nOrgs - a.nOrgs || b.rows.length - a.rows.length
+      : b.rows.length - a.rows.length);
+    return units;
   }
   if (act.length === 1 && !rx)
     return currentBuckets().map(b => ({ kind: "single", key: b.attr + ":" + b.ref, attr: b.attr, ref: b.ref, rows: b.rows, nNames: b.nNames, nOrgs: b.nOrgs }));
@@ -520,13 +530,16 @@ function currentUnits() {
 
 function renderUnits() {
   const list = currentUnits();
-  $("listTitle").textContent = andMode() ? "Multi-type clusters" : "Connections";
+  const rxOnly = regexOn() && activeAttrs().length === 0;
+  $("listTitle").textContent = rxOnly ? "Emails matching pattern" : andMode() ? "Multi-type clusters" : "Connections";
   $("bucketCount").textContent = `(${list.length.toLocaleString()})`;
   const box = $("bucketList"); box.innerHTML = "";
   if (!list.length) {
-    box.innerHTML = andMode()
-      ? `<div class="empty">No papers share all ${activeAttrs().length} selected types.<br><span class="muted">Try fewer types — not every paper carries every attribute.</span></div>`
-      : (activeAttrs().length ? `<div class="empty">No connections match the filters.</div>` : `<div class="empty">Select at least one connection type.</div>`);
+    box.innerHTML = rxOnly
+      ? `<div class="empty">No emails match this pattern.</div>`
+      : andMode()
+      ? `<div class="empty">No papers share all ${activeAttrs().length + (regexOn() ? 1 : 0)} selected types.<br><span class="muted">Try fewer types — not every paper carries every attribute.</span></div>`
+      : (activeAttrs().length ? `<div class="empty">No connections match the filters.</div>` : `<div class="empty">Select at least one connection type or enter an email pattern.</div>`);
     return;
   }
   const frag = document.createDocumentFragment();
@@ -561,7 +574,7 @@ function unitRowInner(u) {
     ${lines}
     <div class="b2"><span class="pill bad">${u.rows.length} papers</span>${authPill}${orgPill}</div>`;
 }
-function focusUnit(u) { if (u.kind === "single") focusHub(u.key); else if (u.kind === "emailrx") focusEmailrx(u); else focusCombo(u); }
+function focusUnit(u) { if (u.kind === "single") focusHub(u.key, u.rows); else if (u.kind === "emailrx") focusEmailrx(u); else focusCombo(u); }
 function focusEmailrx(u) {
   mode = "focus"; focusKey = u.key; selectedBucketKey = u.key; selected = null;
   renderList(); showEmailrxDetail(u);
@@ -619,7 +632,7 @@ function showOverview() {
   renderList();
   $("btnOverview").disabled = true;
   $("crumb").innerHTML = (regexOn() && activeAttrs().length === 0)
-    ? `<b>Overview</b> — papers matching the email pattern. Click the cluster to drill in.`
+    ? `<b>Overview</b> — one cluster per email matching the pattern. Click one to drill in.`
     : andMode()
     ? `<b>Overview</b> — each cluster = papers sharing all ${activeAttrs().length + (regexOn() ? 1 : 0)} selected types. Click to drill in.`
     : `<b>Overview</b> — clusters linked when they share papers. Click one to drill in.`;
@@ -644,17 +657,19 @@ function showOverview() {
 }
 
 // -------- graph: focus on one cluster (hub-and-spoke) --------
-function focusHub(key) {
-  const meta0 = bucketMeta.get(key); if (!meta0) return;
+function focusHub(key, rowsOverride) {
+  const meta0 = bucketMeta.get(key) || (rowsOverride ? { rows: rowsOverride } : null); if (!meta0) return;
   mode = "focus"; focusKey = key; selectedBucketKey = key; selected = null;
-  renderList(); showBucketDetail(key);
+  renderList(); showBucketDetail(key, rowsOverride);
   $("btnOverview").disabled = false;
   const attr = attrOf(key);
   $("crumb").innerHTML = `<b>${ATTR_META[attr].label}</b> · <span class="val">${valOf(key)}</span>`;
 
   const papers = meta0.rows.slice(0, NODE_CAP - SECONDARY_HUBS - 1);
   const paperSet = new Set(papers);
-  const act = new Set(activeAttrs());
+  // when drilling in with no connection type selected (e.g. from an email
+  // pattern), surface neighbouring hubs across ALL attributes.
+  const act = new Set(activeAttrs().length ? activeAttrs() : attrs);
   // candidate neighbouring hubs: how many focus-papers each touches
   const touch = new Map();
   for (const r of papers) for (const a of attrs) {
@@ -882,10 +897,10 @@ function hitTest(px, py) {
 
 // -------- detail --------
 const bandLabel = (r) => A("pmScore", r) != null ? `${A("pmScore", r)}% (${BAND_NAMES[A("pmBand", r)]})` : "—";
-function showBucketDetail(key) {
+function showBucketDetail(key, rowsOverride) {
   const attr = attrOf(key), meta = ATTR_META[attr];
   let b = bucketMeta.get(key);
-  if (!b) { const rows = indexMap.get(key) || []; const dc = distinctCounts(rows); b = { rows, nNames: dc.nNames, nOrgs: dc.nOrgs }; }
+  if (!b) { const rows = rowsOverride || indexMap.get(key) || []; const dc = distinctCounts(rows); b = { rows, nNames: dc.nNames, nOrgs: dc.nOrgs }; }
   $("detailTitle").textContent = meta.label;
   $("detailSub").innerHTML = `<span class="val" style="font-family:ui-monospace,monospace">${valOf(key)}</span>`;
   $("detail").innerHTML = `<div class="section"><dl class="dl">
