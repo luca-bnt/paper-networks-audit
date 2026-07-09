@@ -54,15 +54,32 @@ Requires read access to the `service-aira` Azure SQL managed instance.
 ```bash
 python3 -m venv .dbenv && .dbenv/bin/pip install -r requirements.txt
 
-# full pull (last 90 days) + build
+# first run / periodic full rebuild (pulls the whole 90-day window)
 AUDIT_DB_CS='Server=...;Database=service-aira;User Id=...;Password=...' \
   .dbenv/bin/python audit_snapshot.py --days 90
+
+# weekly refresh (cheap) — reuse cache, pull only the recent slice, drop aged-out
+AUDIT_DB_CS='...' .dbenv/bin/python audit_snapshot.py --incremental --refresh-days 14
 
 # re-encode from the cached raw pull only (no DB)
 .dbenv/bin/python audit_snapshot.py --from-raw --cap 50
 ```
 
 The raw DB pull is cached to `audit-pipeline/raw_snapshot.pkl` (git-ignored — large).
+
+### Trailing-window refresh
+
+The 90-day window slides forward. On a weekly cadence only ~1 week of articles
+is new, but enrichment (fingerprints / indicators / author metadata) can land a
+few days *after* an article's `Created` date. So `--incremental`:
+
+1. Drops cached rows older than `--days` (aged out of the window).
+2. Re-pulls only the last `--refresh-days` (default 14 = ~7d new + ~7d buffer for
+   late enrichment) and splices them over the cached rows.
+3. Reuses the untouched cached remainder.
+
+Net effect: each weekly run queries ~15% of the data instead of 100%. Run a full
+`--days 90` rebuild periodically (e.g. monthly) as a safety net.
 
 ## Deploying
 

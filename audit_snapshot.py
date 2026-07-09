@@ -16,10 +16,21 @@ Data sources (see repo notes):
 ResourceModel is intentionally NOT read (avg ~145 KB/row -> ~11 GB for 76k).
 
 Usage:
+  # first run / periodic full rebuild (pulls the whole 90-day window):
   AUDIT_DB_CS='Server=...;Database=service-aira;User Id=...;Password=...' \
     .dbenv/bin/python audit_snapshot.py --days 90
+  # weekly refresh (cheap): reuse cache, pull only the recent slice, drop aged-out:
+  AUDIT_DB_CS='...' .dbenv/bin/python audit_snapshot.py --incremental --refresh-days 14
   # rebuild encoding only, no DB:
   .dbenv/bin/python audit_snapshot.py --from-raw --cap 50
+
+Trailing-window refresh:
+  The 90-day window slides forward. On a weekly cadence only ~1 week of
+  articles is new, but enrichment (fingerprints / indicators / author metadata)
+  can land a few days after Created, so --incremental re-pulls the last
+  --refresh-days (default 14 = 7d new + 7d buffer) and reuses the cached
+  remainder, discarding rows older than --days. This queries ~15% of the data
+  per run instead of 100%.
 """
 from __future__ import annotations
 
@@ -48,6 +59,16 @@ PAPERMILL_INDICATOR = 80
 STATUS_NAME = {1: "green", 2: "yellow", 3: "red", 4: "n/a", 7: "gold", 9: "unchecked"}
 
 PLACEHOLDERS = {"", "na", "n/a", "none", "nan", "null", "unknown", "-"}
+
+# Canonical raw-cache schema. fetch() always returns exactly these columns so
+# incremental slices and the cached remainder concat without misalignment.
+RAW_COLS = [
+    "ArticleId", "Created",
+    "IpHash", "AsnHash", "DeviceId", "CanvasHash", "WebglHash", "HwIdHash", "UaFamilyHash",
+    "Platform", "ScreenWidth", "ScreenHeight", "DevicePixelRatio", "Languages", "Timezone", "UaFamily",
+    "wdStatus", "wdMessage", "pmStatus", "pmMessage",
+    "authorName", "authorEmail", "authorOrg", "authorIp", "ArticleTitle",
+]
 
 # ---------------------------------------------------------------------------
 # connection
@@ -184,7 +205,50 @@ def fetch(cs: str, days: int) -> pd.DataFrame:
     for extra in (wd, pm, author, tt):
         if not extra.empty:
             df = df.merge(extra, on="ArticleId", how="left")
-    return df
+    return df.reindex(columns=RAW_COLS)
+
+
+def _created_naive(df: pd.DataFrame) -> pd.Series:
+    """Article Created as tz-naive UTC (DB uses GETUTCDATE())."""
+    created = pd.to_datetime(df["Created"], errors="coerce")
+    if getattr(created.dt, "tz", None) is not None:
+        created = created.dt.tz_convert("UTC").dt.tz_localize(None)
+    return created
+
+
+def _within_window(df: pd.DataFrame, days: int) -> pd.DataFrame:
+    """Keep only rows whose article Created is within the trailing `days` window."""
+    now = pd.Timestamp(datetime.now(timezone.utc).replace(tzinfo=None))
+    cutoff = now - pd.Timedelta(days=days)
+    return df[_created_naive(df) >= cutoff].copy()
+
+
+def fetch_incremental(cs: str, window_days: int, refresh_days: int, cache: pd.DataFrame) -> pd.DataFrame:
+    """Reuse the cached in-window rows; re-pull only the recent `refresh_days` slice.
+
+    The recent slice covers brand-new articles plus a buffer for late-arriving
+    enrichment (fingerprints / indicators / author metadata land after Created).
+    Rows older than the trailing window are discarded.
+    """
+    cache = cache.reindex(columns=RAW_COLS)
+    kept = _within_window(cache, window_days)
+    aged_out = len(cache) - len(kept)
+
+    fresh = fetch(cs, refresh_days)
+    fresh_ids = set(fresh["ArticleId"].tolist())
+
+    # Drop refreshed articles from the cached remainder, then splice the fresh slice in.
+    remainder = kept[~kept["ArticleId"].isin(fresh_ids)]
+    merged = pd.concat([fresh, remainder], ignore_index=True)
+    merged = merged.drop_duplicates("ArticleId", keep="first")
+    merged = _within_window(merged, window_days)
+
+    print(
+        f"[incremental] reused {len(remainder):,} cached · refreshed/added {len(fresh):,} "
+        f"(last {refresh_days}d) · aged out {aged_out:,} · total {len(merged):,}",
+        file=sys.stderr,
+    )
+    return merged
 
 
 def _pick_author(amd: pd.DataFrame) -> pd.DataFrame:
@@ -486,18 +550,29 @@ def main() -> None:
     ap.add_argument("--out", default=str(OUT_DEFAULT))
     ap.add_argument("--raw", default=str(RAW_DEFAULT))
     ap.add_argument("--from-raw", action="store_true", help="skip DB, rebuild encoding from cached raw pull")
+    ap.add_argument("--incremental", action="store_true",
+                    help="weekly refresh: reuse cache, pull only the recent --refresh-days slice, drop aged-out rows")
+    ap.add_argument("--refresh-days", type=int, default=14,
+                    help="recent slice re-pulled in --incremental mode (new articles + buffer for late enrichment)")
+    ap.add_argument("--full", action="store_true", help="force a complete --days pull even if a cache exists")
     args = ap.parse_args()
 
     raw_path = Path(args.raw)
     if args.from_raw:
         if not raw_path.exists():
             sys.exit(f"No raw cache at {raw_path}; run once without --from-raw")
-        df = pickle.loads(raw_path.read_bytes())
-        print(f"[raw] loaded {len(df):,} rows from cache", file=sys.stderr)
+        df = _within_window(pickle.loads(raw_path.read_bytes()), args.days)
+        print(f"[raw] loaded {len(df):,} in-window rows from cache", file=sys.stderr)
     else:
         if not args.connection_string:
             sys.exit("Provide --connection-string or AUDIT_DB_CS env var")
-        df = fetch(args.connection_string, args.days)
+        if args.incremental and not args.full and raw_path.exists():
+            cache = pickle.loads(raw_path.read_bytes())
+            df = fetch_incremental(args.connection_string, args.days, args.refresh_days, cache)
+        else:
+            if args.incremental and not raw_path.exists():
+                print("[incremental] no cache found -> full pull this run", file=sys.stderr)
+            df = fetch(args.connection_string, args.days)
         raw_path.parent.mkdir(parents=True, exist_ok=True)
         raw_path.write_bytes(pickle.dumps(df))
         print(f"[raw] cached {len(df):,} rows -> {raw_path}", file=sys.stderr)
