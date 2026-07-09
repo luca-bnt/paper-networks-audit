@@ -104,8 +104,8 @@
     </div>
     <div class="section">
       <h2>Filters</h2>
-      <label class="chk"><input type="checkbox" id="fDiffAuthors"> Different submitting authors</label>
-      <label class="chk"><input type="checkbox" id="fDiffOrgs"> Different organisations</label>
+      <label class="chk"><input type="checkbox" id="fDiffAuthors" checked> Different submitting authors</label>
+      <label class="chk"><input type="checkbox" id="fDiffOrgs" checked> Different organisations</label>
       <div class="row"><label>Min papers</label><input type="number" id="fMinSize" value="2" min="2" style="width:70px"></div>
       <div class="row"><label>Sort by</label>
         <select id="fSort">
@@ -163,6 +163,7 @@ const NODE_CAP = 400;          // hard cap on rendered nodes (papers + hubs)
 const OVERVIEW_HUBS = 140;     // clusters shown in the high-level overview
 const SECONDARY_HUBS = 40;     // neighbouring clusters shown when drilling in
 const LAYOUT_ITERS = 170;
+const DEFAULT_ACTIVE_ATTRS = new Set(["ip", "device", "locale", "wdAuthor"]);
 
 // -------- attribute display config --------
 const ATTR_META = {
@@ -311,7 +312,7 @@ function buildAttrToggles() {
   for (const attr of attrs) {
     const meta = ATTR_META[attr] || { label: attr, color: "#888" };
     const l = document.createElement("label"); l.className = "chk";
-    l.innerHTML = `<input type="checkbox" data-attr="${attr}" checked>
+    l.innerHTML = `<input type="checkbox" data-attr="${attr}"${DEFAULT_ACTIVE_ATTRS.has(attr) ? " checked" : ""}>
       <span class="attrsq" style="background:${meta.color}"></span>${meta.label}`;
     box.appendChild(l);
   }
