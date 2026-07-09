@@ -66,6 +66,11 @@ STATUS_NAME = {1: "green", 2: "yellow", 3: "red", 4: "n/a", 7: "gold", 9: "unche
 
 PLACEHOLDERS = {"", "na", "n/a", "none", "nan", "null", "unknown", "-"}
 
+# Titles are display-only (never connective). A short preview keeps the gzipped
+# snapshot under the 8 MB budget once author/email/org are backfilled for the
+# full set (full titles alone add ~3 MB gz).
+TITLE_MAX = 60
+
 # Canonical raw-cache schema. fetch() always returns exactly these columns so
 # incremental slices and the cached remainder concat without misalignment.
 RAW_COLS = [
@@ -411,7 +416,7 @@ def build(df: pd.DataFrame, cap: int, days: int) -> dict:
         rec = {
             "id": int(r["ArticleId"]),
             "date": _date(r.get("Created")),
-            "title": clean(r.get("ArticleTitle")),
+            "title": clean(r.get("ArticleTitle"))[:TITLE_MAX],
             "authorName": name,
             "authorEmail": email,
             "authorOrg": clean(r.get("authorOrg")),

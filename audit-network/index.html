@@ -311,7 +311,7 @@ function renderEmailMatches(re) {
   const box = $("bucketList");
   if (!rows.length) {
     box.innerHTML = `<div class="empty">No emails match <code>${escapeHtml(re.source)}</code>.<br>
-      <span class="muted">Only ${emails.length.toLocaleString()} papers (~12%) carry email data.</span></div>`;
+      <span class="muted">${emails.length.toLocaleString()} distinct author emails in this snapshot.</span></div>`;
     return;
   }
   box.innerHTML = rows.slice(0, 600).map(emailRowHtml).join("");
@@ -383,7 +383,7 @@ function renderUnits() {
   const box = $("bucketList"); box.innerHTML = "";
   if (!list.length) {
     box.innerHTML = andMode()
-      ? `<div class="empty">No papers share all ${activeAttrs().length} selected types.<br><span class="muted">Try fewer types — e.g. email covers only ~12% of papers.</span></div>`
+      ? `<div class="empty">No papers share all ${activeAttrs().length} selected types.<br><span class="muted">Try fewer types — not every paper carries every attribute.</span></div>`
       : (activeAttrs().length ? `<div class="empty">No connections match the filters.</div>` : `<div class="empty">Select at least one connection type.</div>`);
     return;
   }
