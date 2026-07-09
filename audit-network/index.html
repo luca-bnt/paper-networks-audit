@@ -701,20 +701,44 @@ function currentPapers() {
   if (!rs.length && selectedBucketKey && bucketMeta.get(selectedBucketKey)) rs = bucketMeta.get(selectedBucketKey).rows.slice();
   return [...new Set(rs)];
 }
+let cmpState = null;                        // { rs, shared }
+let cmpSort = { key: "pmScore", dir: -1 };  // dir: 1 asc, -1 desc
 function openCompare() {
   const rs = currentPapers();
   if (!rs.length) { drawOverlay("Select a cluster first, then compare."); return; }
-  $("modalTitle").textContent = "Compare papers";
-  $("modalSub").textContent = `${rs.length} papers · shared values highlighted`;
-  // shared-value detection per column
   const shared = {};
   for (const f of CMP_COLS) {
     const counts = new Map();
     for (const r of rs) { const v = A(f, r); if (v >= 0) counts.set(v, (counts.get(v) || 0) + 1); }
     shared[f] = counts;
   }
-  const head = `<tr><th>Article</th><th>Score</th>${CMP_COLS.map(f => `<th>${ATTR_META[f] ? ATTR_META[f].label : cmpLabel(f)}</th>`).join("")}</tr>`;
-  const body = rs.slice(0, 300).map(r => {
+  cmpState = { rs, shared };
+  cmpSort = { key: "pmScore", dir: -1 };
+  $("modalTitle").textContent = "Compare papers";
+  $("modalSub").textContent = `${rs.length} papers · shared values highlighted · click a header to sort`;
+  renderCompareTable();
+  $("modal").classList.add("open");
+}
+function cmpValue(r, key) {
+  if (key === "id") return A("id", r);
+  if (key === "pmScore") return A("pmScore", r) == null ? -1 : A("pmScore", r);
+  const ref = A(key, r); return ref >= 0 ? (str(POOLS[key], ref) || "") : "";
+}
+function renderCompareTable() {
+  if (!cmpState) return;
+  const { rs, shared } = cmpState, { key, dir } = cmpSort;
+  const numeric = key === "id" || key === "pmScore";
+  const sorted = rs.slice().sort((a, b) => {
+    const va = cmpValue(a, key), vb = cmpValue(b, key);
+    let c;
+    if (numeric) c = va - vb;
+    else { const ea = va === "", eb = vb === ""; c = (ea && eb) ? 0 : ea ? 1 : eb ? -1 : va.localeCompare(vb); }
+    return (c * dir) || (A("id", a) - A("id", b));
+  });
+  const arrow = k => cmpSort.key === k ? (cmpSort.dir < 0 ? " ▼" : " ▲") : "";
+  const cols = [["id", "Article"], ["pmScore", "Score"], ...CMP_COLS.map(f => [f, ATTR_META[f] ? ATTR_META[f].label : cmpLabel(f)])];
+  const head = "<tr>" + cols.map(([k, lbl]) => `<th data-sort="${k}" style="cursor:pointer;user-select:none" title="Sort by ${lbl}">${lbl}${arrow(k)}</th>`).join("") + "</tr>";
+  const body = sorted.slice(0, 300).map(r => {
     const cells = CMP_COLS.map(f => {
       const ref = A(f, r), v = ref >= 0 ? str(POOLS[f], ref) : "";
       const sh = ref >= 0 && shared[f].get(ref) >= 2;
@@ -723,9 +747,14 @@ function openCompare() {
     }).join("");
     return `<tr><td><span class="aid" data-r="${r}">${A("id", r)}</span></td><td>${bandLabel(r)}</td>${cells}</tr>`;
   }).join("");
-  $("modalBody").innerHTML = `<table class="cmp"><thead>${head}</thead><tbody>${body}</tbody></table>`;
-  $("modalBody").querySelectorAll(".aid").forEach(el => el.addEventListener("click", () => { $("modal").classList.remove("open"); focusPaper(+el.dataset.r); }));
-  $("modal").classList.add("open");
+  const box = $("modalBody");
+  box.innerHTML = `<table class="cmp"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  box.querySelectorAll("th[data-sort]").forEach(th => th.addEventListener("click", () => {
+    const k = th.dataset.sort;
+    if (cmpSort.key === k) cmpSort.dir *= -1; else cmpSort = { key: k, dir: k === "id" ? 1 : -1 };
+    renderCompareTable();
+  }));
+  box.querySelectorAll(".aid").forEach(el => el.addEventListener("click", () => { $("modal").classList.remove("open"); focusPaper(+el.dataset.r); }));
 }
 function cmpLabel(f) { return ({ authorName: "Author", authorEmail: "Email", authorOrg: "Organisation" })[f] || f; }
 
