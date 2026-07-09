@@ -200,6 +200,7 @@ let mode = "overview";        // overview | focus
 let focusKey = null;
 let selectedBucketKey = null;
 let nodes = [], edges = [], adj = [], simEdges = [];
+let emailMatch = null;        // Set<rowIdx> whose author email matches the active regex, or null
 let selected = null;          // node index highlighted
 let view = { x: 0, y: 0, k: 1 };
 // -------- papermill flags (Azure Table Storage backend) --------
@@ -358,7 +359,7 @@ const activeAttrs = () => [...document.querySelectorAll("#attrToggles input:chec
 
 function bindUI() {
   ["fDiffAuthors","fDiffOrgs","fFlaggedOnly","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", () => { renderList(); if (mode === "overview") showOverview(); else syncShare(); }));
-  $("fEmailRegex").addEventListener("input", () => { renderList(); syncShare(); });
+  $("fEmailRegex").addEventListener("input", () => { rebuildEmailFilter(); renderList(); if (mode === "overview") showOverview(); else syncShare(); });
   $("btnOverview").addEventListener("click", showOverview);
   $("btnRelayout").addEventListener("click", () => { if (nodes.length) runLayout(); });
   $("btnCompare").addEventListener("click", openCompare);
@@ -412,9 +413,21 @@ function activeEmailRegex() {
   try { const re = new RegExp(raw, "i"); $("emailErr").textContent = ""; return re; }
   catch (e) { $("emailErr").textContent = "Invalid regex: " + e.message; return "ERR"; }
 }
-function renderList() {
+// The email regex is treated as its own connection type: it selects the set of
+// papers whose author email matches, which then AND-combines with the chosen
+// connection types (or, on its own, forms one email-pattern cluster).
+function rebuildEmailFilter() {
   const re = activeEmailRegex();
-  if (re && re !== "ERR") renderEmailMatches(re);
+  if (!re || re === "ERR") { emailMatch = null; return; }
+  const emails = D.dict.emails || [], ok = new Uint8Array(emails.length);
+  for (let i = 0; i < emails.length; i++) if (re.test(emails[i])) ok[i] = 1;
+  const c = D.articles.authorEmail; emailMatch = new Set();
+  for (let r = 0; r < c.length; r++) { const ref = c[r]; if (ref >= 0 && ok[ref]) emailMatch.add(r); }
+}
+const regexOn = () => !!emailMatch;
+const emailLabel = () => { const re = activeEmailRegex(); return re && re !== "ERR" ? "Email ~ /" + re.source + "/" : "Email pattern"; };
+function renderList() {
+  if (regexOn() && activeAttrs().length === 0) renderEmailMatches(activeEmailRegex());
   else renderUnits();
 }
 function renderEmailMatches(re) {
@@ -447,7 +460,7 @@ function distinctCounts(rows) {
   for (const r of rows) { const a = A("authorName", r); if (a >= 0) nm.add(a); const o = A("authorOrg", r); if (o >= 0) og.add(o); }
   return { nNames: nm.size, nOrgs: og.size };
 }
-const andMode = () => activeAttrs().length >= 2;
+const andMode = () => (activeAttrs().length + (regexOn() ? 1 : 0)) >= 2;
 const comboLabel = (u) => { const v = str(ATTR_META[u.parts[0].attr].pool, u.parts[0].ref) || ""; return (v.length > 16 ? v.slice(0, 16) + "…" : v) + (u.parts.length > 1 ? ` +${u.parts.length - 1}` : ""); };
 
 // AND: group papers that share the SAME value on EVERY selected attribute.
@@ -455,6 +468,7 @@ function computeCombos() {
   const act = activeAttrs(), cols = act.map(a => D.articles[col(a)]), n = D.articles.id.length;
   const groups = new Map();
   for (let r = 0; r < n; r++) {
+    if (emailMatch && !emailMatch.has(r)) continue; // email regex acts as an AND filter
     let key = "", ok = true;
     for (let i = 0; i < act.length; i++) { const ref = cols[i][r]; if (ref < 0) { ok = false; break; } key += act[i] + "#" + ref + "|"; }
     if (!ok) continue;
@@ -471,9 +485,17 @@ function computeCombos() {
 }
 
 function currentUnits() {
-  const act = activeAttrs();
-  if (act.length === 0) return [];
-  if (act.length === 1)
+  const act = activeAttrs(), rx = regexOn();
+  if (act.length === 0) {
+    if (!rx) return [];
+    const rows = [...emailMatch];
+    const minSize = Math.max(2, parseInt($("fMinSize").value) || 2);
+    if (rows.length < minSize) return [];
+    if ($("fFlaggedOnly").checked && !hasFlagged(rows)) return [];
+    const dc = distinctCounts(rows);
+    return [{ kind: "emailrx", key: "emailrx", rows, label: emailLabel(), nNames: dc.nNames, nOrgs: dc.nOrgs }];
+  }
+  if (act.length === 1 && !rx)
     return currentBuckets().map(b => ({ kind: "single", key: b.attr + ":" + b.ref, attr: b.attr, ref: b.ref, rows: b.rows, nNames: b.nNames, nOrgs: b.nOrgs }));
   const diffA = $("fDiffAuthors").checked, diffO = $("fDiffOrgs").checked;
   const onlyFlagged = $("fFlaggedOnly").checked;
@@ -520,6 +542,12 @@ function renderUnits() {
 function unitRowInner(u) {
   const authPill = u.nNames >= 2 ? `<span class="pill bad">${u.nNames} authors</span>` : (u.nNames ? `<span class="pill">1 author</span>` : "");
   const orgPill = u.nOrgs >= 2 ? `<span class="pill warn">${u.nOrgs} orgs</span>` : "";
+  if (u.kind === "emailrx") {
+    return `<div class="b1"><span class="attrsq" style="background:${ATTR_META.email.color}"></span>
+        <span class="muted" style="font-size:11px">Email pattern</span></div>
+      <div class="val" title="${escapeHtml(u.label)}">${escapeHtml(u.label)}</div>
+      <div class="b2"><span class="pill">${u.rows.length} papers</span>${authPill}${orgPill}</div>`;
+  }
   if (u.kind === "single") {
     const meta = ATTR_META[u.attr], val = str(meta.pool, u.ref) || "(empty)";
     return `<div class="b1"><span class="attrsq" style="background:${meta.color}"></span>
@@ -533,7 +561,31 @@ function unitRowInner(u) {
     ${lines}
     <div class="b2"><span class="pill bad">${u.rows.length} papers</span>${authPill}${orgPill}</div>`;
 }
-function focusUnit(u) { if (u.kind === "single") focusHub(u.key); else focusCombo(u); }
+function focusUnit(u) { if (u.kind === "single") focusHub(u.key); else if (u.kind === "emailrx") focusEmailrx(u); else focusCombo(u); }
+function focusEmailrx(u) {
+  mode = "focus"; focusKey = u.key; selectedBucketKey = u.key; selected = null;
+  renderList(); showEmailrxDetail(u);
+  $("btnOverview").disabled = false;
+  $("crumb").innerHTML = `<b>Email pattern</b> · <span class="val">${escapeHtml(u.label)}</span> · ${u.rows.length} papers`;
+  const papers = u.rows.slice(0, NODE_CAP - 2);
+  nodes = [{ type: "hub", key: "emailrx", attr: null, color: ATTR_META.email.color, label: u.label, n: papers.length, _rows: u.rows, x: 0, y: 0 }]
+    .concat(papers.map(r => ({ type: "paper", r, x: 0, y: 0 })));
+  edges = [];
+  for (let i = 1; i < nodes.length; i++) edges.push({ a: 0, b: i, w: 1, attr: "email" });
+  buildSimEdges(); updateHubFlags();
+  finishGraph(); syncShare();
+}
+function showEmailrxDetail(u) {
+  $("detailTitle").textContent = "Email pattern";
+  $("detailSub").innerHTML = `<span class="val" style="font-family:ui-monospace,monospace">${escapeHtml(u.label)}</span>`;
+  $("detail").innerHTML = `<div class="section"><dl class="dl">
+      <div><dt>Papers</dt><dd>${u.rows.length}</dd></div>
+      <div><dt>Distinct authors</dt><dd>${u.nNames || "unknown"}</dd></div>
+      <div><dt>Distinct orgs</dt><dd>${u.nOrgs || "unknown"}</dd></div>
+    </dl><div style="margin-top:8px"><button class="btn" onclick="openCompare()">Compare these papers</button></div></div>
+    <div class="section"><h2>Papers</h2>${u.rows.slice(0, 200).map(paperRowHtml).join("")}</div>`;
+  bindAidClicks();
+}
 function focusCombo(u) {
   mode = "focus"; focusKey = u.key; selectedBucketKey = u.key; selected = null;
   renderList(); showComboDetail(u);
@@ -566,13 +618,17 @@ function showOverview() {
   mode = "overview"; focusKey = null; selectedBucketKey = null; selected = null;
   renderList();
   $("btnOverview").disabled = true;
-  $("crumb").innerHTML = andMode()
-    ? `<b>Overview</b> — each cluster = papers sharing all ${activeAttrs().length} selected types. Click to drill in.`
+  $("crumb").innerHTML = (regexOn() && activeAttrs().length === 0)
+    ? `<b>Overview</b> — papers matching the email pattern. Click the cluster to drill in.`
+    : andMode()
+    ? `<b>Overview</b> — each cluster = papers sharing all ${activeAttrs().length + (regexOn() ? 1 : 0)} selected types. Click to drill in.`
     : `<b>Overview</b> — clusters linked when they share papers. Click one to drill in.`;
   const list = currentUnits().slice(0, OVERVIEW_HUBS);
-  if (!list.length) { nodes = []; edges = []; adj = []; drawOverlay(activeAttrs().length ? "No connections match the filters." : "Select at least one connection type."); return; }
+  if (!list.length) { nodes = []; edges = []; adj = []; drawOverlay((activeAttrs().length || regexOn()) ? "No connections match the filters." : "Select at least one connection type."); return; }
   nodes = list.map(u => u.kind === "single"
     ? { type: "hub", unit: u, key: u.key, attr: u.attr, ref: u.ref, n: u.rows.length, x: 0, y: 0 }
+    : u.kind === "emailrx"
+    ? { type: "hub", unit: u, key: u.key, attr: null, color: ATTR_META.email.color, label: u.label, n: u.rows.length, x: 0, y: 0 }
     : { type: "hub", unit: u, key: u.key, attr: null, color: COMBO_COLOR, label: comboLabel(u), n: u.rows.length, x: 0, y: 0 });
   const paperHubs = new Map(); // r -> [hubIdx]
   list.forEach((u, i) => { for (const r of u.rows) { let g = paperHubs.get(r); if (!g) { g = []; paperHubs.set(r, g); } g.push(i); } });
@@ -996,6 +1052,7 @@ function applyShareParams() {
   if (p.get("st")) $("fSort").value = p.get("st");
   if (p.get("q")) $("fSearch").value = p.get("q");
   if (p.get("re")) $("fEmailRegex").value = p.get("re");
+  rebuildEmailFilter();
   if (p.get("c") && bucketMeta.has(p.get("c"))) { focusHub(p.get("c")); return; }
   if (p.get("a")) { const r = D.articles.id.indexOf(+p.get("a")); if (r >= 0) { focusPaper(r); return; } }
   showOverview();
