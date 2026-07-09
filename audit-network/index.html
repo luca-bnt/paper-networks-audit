@@ -208,19 +208,23 @@ async function loadFlags() {
     const res = await fetch(tableUrl(`()?$filter=PartitionKey%20eq%20'flag'&${FC.sas}`), { headers: { Accept: "application/json;odata=nometadata" } });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const j = await res.json();
-    flags = new Map(j.value.map(e => [+e.RowKey, { by: e.flaggedBy || "", utc: e.flaggedUtc || e.Timestamp || "" }]));
+    flags = new Map(j.value.map(e => [+e.RowKey, { by: e.flaggedBy || "", utc: e.flaggedUtc || e.Timestamp || "", comment: e.comment || "" }]));
   } catch (e) { console.warn("[flags] load failed:", e); }
   updateFlagCount();
 }
-async function setFlag(id, on) {
+async function setFlag(id, on, comment) {
   if (!FC) return false;
   const rk = String(id), ent = tableUrl(`(PartitionKey='flag',RowKey='${rk}')?${FC.sas}`);
   try {
     if (on) {
-      const body = JSON.stringify({ PartitionKey: "flag", RowKey: rk, flaggedBy: reviewer(), flaggedUtc: new Date().toISOString() });
+      const existing = flags.get(id);
+      const by = existing ? existing.by : reviewer();
+      const utc = existing ? existing.utc : new Date().toISOString();
+      const cmt = comment != null ? comment : (existing ? existing.comment || "" : "");
+      const body = JSON.stringify({ PartitionKey: "flag", RowKey: rk, flaggedBy: by, flaggedUtc: utc, comment: cmt });
       const res = await fetch(ent, { method: "PUT", headers: { "Content-Type": "application/json", Accept: "application/json;odata=nometadata" }, body });
       if (!res.ok) throw new Error("HTTP " + res.status);
-      flags.set(id, { by: reviewer(), utc: new Date().toISOString() });
+      flags.set(id, { by, utc, comment: cmt });
     } else {
       const res = await fetch(ent, { method: "DELETE", headers: { "If-Match": "*" } });
       if (!res.ok && res.status !== 404) throw new Error("HTTP " + res.status);
@@ -231,18 +235,32 @@ async function setFlag(id, on) {
 }
 async function toggleFlag(id, after) {
   if (!FC) { alert("Flagging is not configured for this deployment."); return; }
-  const ok = await setFlag(id, !flags.has(id));
+  const on = !flags.has(id);
+  const el = document.getElementById("flagComment");
+  const comment = on && el ? el.value.trim() : null;
+  const ok = await setFlag(id, on, comment);
   if (!ok) { alert("Flag update failed — the write token may have expired. Ask for a refresh."); return; }
   updateFlagCount(); draw();
   if (after) after();
   if ($("modal").classList.contains("open")) renderCompareTable();
+}
+async function saveComment(id, after) {
+  if (!FC || !flags.has(id)) return;
+  const el = document.getElementById("flagComment");
+  const ok = await setFlag(id, true, el ? el.value.trim() : "");
+  if (!ok) { alert("Comment update failed — the write token may have expired."); return; }
+  if (after) after();
 }
 const isFlagged = (r) => flags.has(A("id", r));
 function updateFlagCount() { const el = $("flagCount"); if (el) el.textContent = flags.size; }
 function flagControlHtml(r) {
   if (!FC) return "";
   const id = A("id", r), on = flags.has(id), f = flags.get(id);
-  return `<div class="section"><button class="btn" id="flagBtn" style="width:100%;font-weight:600;${on ? "background:#D51A2C;border-color:#D51A2C;color:#fff" : ""}">${on ? "⚑ Flagged as manufactured — click to unflag" : "⚐ Flag as manufactured (papermill)"}</button>${on && f ? `<div class="muted" style="font-size:11px;margin-top:5px">by ${escapeHtml(f.by || "?")} · ${(f.utc || "").slice(0, 10)}</div>` : ""}</div>`;
+  const cmt = escapeHtml((f && f.comment) || "");
+  return `<div class="section"><button class="btn" id="flagBtn" style="width:100%;font-weight:600;${on ? "background:#D51A2C;border-color:#D51A2C;color:#fff" : ""}">${on ? "⚑ Flagged as manufactured — click to unflag" : "⚐ Flag as manufactured (papermill)"}</button>
+    <textarea id="flagComment" placeholder="Comment (optional)" style="width:100%;box-sizing:border-box;margin-top:6px;min-height:42px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px;resize:vertical">${cmt}</textarea>
+    <button class="btn" id="flagCommentBtn" style="margin-top:4px;width:100%;${on ? "" : "display:none"}">Save comment</button>
+    ${on && f ? `<div class="muted" style="font-size:11px;margin-top:5px">by ${escapeHtml(f.by || "?")} · ${(f.utc || "").slice(0, 10)}</div>` : ""}</div>`;
 }
 function showFlaggedList() {
   const rows = [...flags.keys()].map(id => D.articles.id.indexOf(id)).filter(r => r >= 0);
@@ -256,6 +274,7 @@ function showFlaggedList() {
     return `<div class="bucket"><div class="b1"><span style="color:#D51A2C">⚑</span>
         <span class="aid" data-r="${r}">${A("id", r)}</span><span class="muted" style="font-size:11px"> · ${bandLabel(r)}</span></div>
       ${t ? `<div class="val" title="${escapeHtml(t)}">${escapeHtml(t.slice(0, 80))}</div>` : (nm ? `<div class="val">${escapeHtml(nm)}</div>` : "")}
+      ${f && f.comment ? `<div class="muted" style="font-size:11px;font-style:italic">“${escapeHtml(f.comment)}”</div>` : ""}
       <div class="b2"><span class="muted" style="font-size:11px">by ${escapeHtml((f && f.by) || "?")}</span></div></div>`;
   }).join("");
   box.querySelectorAll(".aid").forEach(el => el.addEventListener("click", () => focusPaper(+el.dataset.r)));
@@ -746,6 +765,8 @@ function showPaperDetail(r) {
   bindAidClicks();
   const fb = document.getElementById("flagBtn");
   if (fb) fb.addEventListener("click", () => toggleFlag(A("id", r), () => showPaperDetail(r)));
+  const fcb = document.getElementById("flagCommentBtn");
+  if (fcb) fcb.addEventListener("click", () => saveComment(A("id", r), () => showPaperDetail(r)));
 }
 function connectionsHtml(r) {
   const out = [];
@@ -829,7 +850,8 @@ function renderCompareTable() {
       const cc = sh && ATTR_META[f] ? ATTR_META[f].color : (sh ? "#8ab4ff" : "");
       return `<td class="${sh ? "share" : ""}" style="${sh ? `color:${cc}` : ""}" title="${escapeHtml(v)}">${escapeHtml(v) || '<span class="muted">—</span>'}</td>`;
     }).join("");
-    const flagTd = FC ? `<td class="flagcell" data-fr="${r}" style="cursor:pointer;text-align:center" title="Toggle manufactured flag">${flags.has(A("id", r)) ? '<span style="color:#D51A2C">⚑</span>' : '<span class="muted">⚐</span>'}</td>` : "";
+    const ff = flags.get(A("id", r));
+    const flagTd = FC ? `<td class="flagcell" data-fr="${r}" style="cursor:pointer;text-align:center" title="${ff && ff.comment ? escapeHtml(ff.comment) : "Toggle manufactured flag"}">${ff ? '<span style="color:#D51A2C">⚑</span>' : '<span class="muted">⚐</span>'}</td>` : "";
     return `<tr>${flagTd}<td><span class="aid" data-r="${r}">${A("id", r)}</span></td><td>${bandLabel(r)}</td>${cells}</tr>`;
   }).join("");
   const box = $("modalBody");
