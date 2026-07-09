@@ -173,6 +173,7 @@ const ATTR_META = {
 };
 const ATTR_COL = { email: "authorEmail" };
 const col = (a) => ATTR_COL[a] || a;
+const COMBO_COLOR = "#a3e635";
 const BAND_COLORS = ["#6b7280", "#65C161", "#E87626", "#D51A2C"];
 const BAND_NAMES  = ["no score", "low", "medium", "high"];
 const STATUS_NAMES = ["", "green", "yellow", "red", "gold", "n/a", "unchecked"];
@@ -215,7 +216,7 @@ async function fetchSnapshot(url) {
 async function boot() {
   try { D = await fetchSnapshot("data/snapshot.json.gz"); }
   catch (e) { $("meta").textContent = "Failed to load snapshot — serve over http (not file://). " + e.message; return; }
-  attrs = D.meta.attributes.slice();
+  attrs = D.meta.attributes.filter(a => a !== "authorIp");
   for (const attr of attrs)
     for (const [ref, rows, nN, nO] of (D.index[attr] || [])) {
       const key = attr + ":" + ref;
@@ -239,7 +240,7 @@ function buildAttrToggles() {
       <span class="attrsq" style="background:${meta.color}"></span>${meta.label}`;
     box.appendChild(l);
   }
-  box.addEventListener("change", () => { renderList(); if (mode === "overview") showOverview(); else if (focusKey) focusHub(focusKey); });
+  box.addEventListener("change", () => { showOverview(); });
 }
 const activeAttrs = () => [...document.querySelectorAll("#attrToggles input:checked")].map(i => i.dataset.attr);
 
@@ -259,6 +260,7 @@ function buildLegend() {
   BAND_NAMES.forEach((n, i) => parts.push(`<span><i class="dot" style="background:${BAND_COLORS[i]}"></i>${n}</span>`));
   parts.push('<span class="muted">| clusters:</span>');
   for (const a of attrs) parts.push(`<span><i class="sq" style="background:${ATTR_META[a].color}"></i>${ATTR_META[a].label}</span>`);
+  parts.push(`<span><i class="sq" style="background:${COMBO_COLOR}"></i>multi-type (AND)</span>`);
   $("legend").innerHTML = parts.join("");
 }
 
@@ -295,7 +297,7 @@ function activeEmailRegex() {
 function renderList() {
   const re = activeEmailRegex();
   if (re && re !== "ERR") renderEmailMatches(re);
-  else { $("listTitle").textContent = "Connections"; renderBuckets(); }
+  else renderUnits();
 }
 function renderEmailMatches(re) {
   const emails = D.dict.emails || [];
@@ -322,26 +324,120 @@ function emailRowHtml(r) {
     <div class="val" title="${escapeHtml(em)}">${escapeHtml(em)}</div>
     ${nm ? `<div class="b2"><span class="muted">${escapeHtml(nm)}</span></div>` : ""}</div>`;
 }
-function renderBuckets() {
-  const list = currentBuckets();
+function distinctCounts(rows) {
+  const nm = new Set(), og = new Set();
+  for (const r of rows) { const a = A("authorName", r); if (a >= 0) nm.add(a); const o = A("authorOrg", r); if (o >= 0) og.add(o); }
+  return { nNames: nm.size, nOrgs: og.size };
+}
+const andMode = () => activeAttrs().length >= 2;
+const comboLabel = (u) => { const v = str(ATTR_META[u.parts[0].attr].pool, u.parts[0].ref) || ""; return (v.length > 16 ? v.slice(0, 16) + "…" : v) + (u.parts.length > 1 ? ` +${u.parts.length - 1}` : ""); };
+
+// AND: group papers that share the SAME value on EVERY selected attribute.
+function computeCombos() {
+  const act = activeAttrs(), cols = act.map(a => D.articles[col(a)]), n = D.articles.id.length;
+  const groups = new Map();
+  for (let r = 0; r < n; r++) {
+    let key = "", ok = true;
+    for (let i = 0; i < act.length; i++) { const ref = cols[i][r]; if (ref < 0) { ok = false; break; } key += act[i] + "#" + ref + "|"; }
+    if (!ok) continue;
+    let g = groups.get(key); if (!g) { g = []; groups.set(key, g); } g.push(r);
+  }
+  const units = [];
+  for (const [key, rows] of groups) {
+    if (rows.length < 2) continue;
+    const parts = act.map(a => ({ attr: a, ref: D.articles[col(a)][rows[0]] }));
+    const dc = distinctCounts(rows);
+    units.push({ kind: "combo", key: "combo|" + key, parts, rows, nNames: dc.nNames, nOrgs: dc.nOrgs });
+  }
+  return units;
+}
+
+function currentUnits() {
+  const act = activeAttrs();
+  if (act.length === 0) return [];
+  if (act.length === 1)
+    return currentBuckets().map(b => ({ kind: "single", key: b.attr + ":" + b.ref, attr: b.attr, ref: b.ref, rows: b.rows, nNames: b.nNames, nOrgs: b.nOrgs }));
+  const diffA = $("fDiffAuthors").checked, diffO = $("fDiffOrgs").checked;
+  const minSize = Math.max(2, parseInt($("fMinSize").value) || 2);
+  const q = $("fSearch").value.trim().toLowerCase();
+  const qid = /^\d+$/.test(q) ? parseInt(q) : null;
+  const sort = $("fSort").value;
+  let units = computeCombos().filter(u => {
+    if (u.rows.length < minSize) return false;
+    if (diffA && u.nNames < 2) return false;
+    if (diffO && u.nOrgs < 2) return false;
+    if (q) return qid != null ? u.rows.some(r => A("id", r) === qid)
+      : u.parts.some(p => (str(ATTR_META[p.attr].pool, p.ref) || "").toLowerCase().includes(q));
+    return true;
+  });
+  units.sort((a, b) => sort === "authors" ? b.nNames - a.nNames || b.rows.length - a.rows.length
+    : sort === "orgs" ? b.nOrgs - a.nOrgs || b.rows.length - a.rows.length
+    : b.rows.length - a.rows.length);
+  return units;
+}
+
+function renderUnits() {
+  const list = currentUnits();
+  $("listTitle").textContent = andMode() ? "Multi-type clusters" : "Connections";
   $("bucketCount").textContent = `(${list.length.toLocaleString()})`;
   const box = $("bucketList"); box.innerHTML = "";
-  if (!list.length) { box.innerHTML = `<div class="empty">No connections match the filters.</div>`; return; }
+  if (!list.length) {
+    box.innerHTML = andMode()
+      ? `<div class="empty">No papers share all ${activeAttrs().length} selected types.<br><span class="muted">Try fewer types — e.g. email covers only ~12% of papers.</span></div>`
+      : (activeAttrs().length ? `<div class="empty">No connections match the filters.</div>` : `<div class="empty">Select at least one connection type.</div>`);
+    return;
+  }
   const frag = document.createDocumentFragment();
-  for (const b of list.slice(0, 600)) {
-    const meta = ATTR_META[b.attr], key = b.attr + ":" + b.ref, val = str(meta.pool, b.ref) || "(empty)";
+  for (const u of list.slice(0, 600)) {
     const el = document.createElement("div");
-    el.className = "bucket" + (key === selectedBucketKey ? " sel" : "");
-    const authPill = b.nNames >= 2 ? `<span class="pill bad">${b.nNames} authors</span>` : (b.nNames ? `<span class="pill">1 author</span>` : "");
-    const orgPill = b.nOrgs >= 2 ? `<span class="pill warn">${b.nOrgs} orgs</span>` : "";
-    el.innerHTML = `<div class="b1"><span class="attrsq" style="background:${meta.color}"></span>
-        <span class="muted" style="font-size:11px">${meta.label}</span></div>
-      <div class="val" title="${val.replace(/"/g,'&quot;')}">${val}</div>
-      <div class="b2"><span class="pill">${b.rows.length} papers</span>${authPill}${orgPill}</div>`;
-    el.addEventListener("click", () => focusHub(key));
+    el.className = "bucket" + (u.key === selectedBucketKey ? " sel" : "");
+    el.innerHTML = unitRowInner(u);
+    el.addEventListener("click", () => focusUnit(u));
     frag.appendChild(el);
   }
   box.appendChild(frag);
+}
+function unitRowInner(u) {
+  const authPill = u.nNames >= 2 ? `<span class="pill bad">${u.nNames} authors</span>` : (u.nNames ? `<span class="pill">1 author</span>` : "");
+  const orgPill = u.nOrgs >= 2 ? `<span class="pill warn">${u.nOrgs} orgs</span>` : "";
+  if (u.kind === "single") {
+    const meta = ATTR_META[u.attr], val = str(meta.pool, u.ref) || "(empty)";
+    return `<div class="b1"><span class="attrsq" style="background:${meta.color}"></span>
+        <span class="muted" style="font-size:11px">${meta.label}</span></div>
+      <div class="val" title="${val.replace(/"/g,'&quot;')}">${val}</div>
+      <div class="b2"><span class="pill">${u.rows.length} papers</span>${authPill}${orgPill}</div>`;
+  }
+  const dots = u.parts.map(p => `<span class="attrsq" style="background:${ATTR_META[p.attr].color}" title="${ATTR_META[p.attr].label}"></span>`).join("");
+  const lines = u.parts.map(p => `<div class="val" title="${(str(ATTR_META[p.attr].pool, p.ref) || '').replace(/"/g,'&quot;')}"><span class="muted" style="font-size:10px">${ATTR_META[p.attr].label}:</span> ${str(ATTR_META[p.attr].pool, p.ref) || "(empty)"}</div>`).join("");
+  return `<div class="b1">${dots}<span class="muted" style="font-size:11px">${u.parts.length} types shared</span></div>
+    ${lines}
+    <div class="b2"><span class="pill bad">${u.rows.length} papers</span>${authPill}${orgPill}</div>`;
+}
+function focusUnit(u) { if (u.kind === "single") focusHub(u.key); else focusCombo(u); }
+function focusCombo(u) {
+  mode = "focus"; focusKey = u.key; selectedBucketKey = u.key; selected = null;
+  renderList(); showComboDetail(u);
+  $("btnOverview").disabled = false;
+  $("crumb").innerHTML = `<b>${u.parts.length} shared types</b> · ` + u.parts.map(p => `<span class="attrsq" style="display:inline-block;background:${ATTR_META[p.attr].color}"></span>`).join(" ") + ` · ${u.rows.length} papers`;
+  const papers = u.rows.slice(0, NODE_CAP - u.parts.length - 1);
+  nodes = u.parts.map(p => ({ type: "hub", key: p.attr + ":" + p.ref, attr: p.attr, ref: p.ref, n: papers.length, x: 0, y: 0 }))
+    .concat(papers.map(r => ({ type: "paper", r, x: 0, y: 0 })));
+  const hubIdx = new Map(); nodes.forEach((nd, i) => { if (nd.type === "hub") hubIdx.set(nd.key, i); });
+  edges = [];
+  for (let i = 0; i < nodes.length; i++) { const nd = nodes[i]; if (nd.type !== "paper") continue; for (const p of u.parts) edges.push({ a: hubIdx.get(p.attr + ":" + p.ref), b: i, w: 1, attr: p.attr }); }
+  finishGraph(); syncShare();
+}
+function showComboDetail(u) {
+  $("detailTitle").textContent = `${u.parts.length}-type connection`;
+  $("detailSub").textContent = `${u.rows.length} papers share all selected values`;
+  const partRows = u.parts.map(p => `<div><dt>${ATTR_META[p.attr].label}</dt><dd class="val">${escapeHtml(str(ATTR_META[p.attr].pool, p.ref) || "—")}</dd></div>`).join("");
+  $("detail").innerHTML = `<div class="section"><dl class="dl">${partRows}
+      <div><dt>Papers</dt><dd>${u.rows.length}</dd></div>
+      <div><dt>Distinct authors</dt><dd>${u.nNames || "unknown"}</dd></div>
+      <div><dt>Distinct orgs</dt><dd>${u.nOrgs || "unknown"}</dd></div>
+    </dl><div style="margin-top:8px"><button class="btn" onclick="openCompare()">Compare these papers</button></div></div>
+    <div class="section"><h2>Papers</h2>${u.rows.slice(0, 200).map(paperRowHtml).join("")}</div>`;
+  bindAidClicks();
 }
 
 // -------- graph: overview (clusters + shared-paper links) --------
@@ -349,13 +445,16 @@ function showOverview() {
   mode = "overview"; focusKey = null; selectedBucketKey = null; selected = null;
   renderList();
   $("btnOverview").disabled = true;
-  $("crumb").innerHTML = `<b>Overview</b> — clusters linked when they share papers. Click one to drill in.`;
-  const list = currentBuckets().slice(0, OVERVIEW_HUBS);
-  if (!list.length) { nodes = []; edges = []; adj = []; drawOverlay("No connections match the filters."); return; }
-  nodes = list.map(b => ({ type: "hub", key: b.attr + ":" + b.ref, attr: b.attr, ref: b.ref, n: b.rows.length, x: 0, y: 0 }));
-  const hubIdx = new Map(nodes.map((nd, i) => [nd.key, i]));
+  $("crumb").innerHTML = andMode()
+    ? `<b>Overview</b> — each cluster = papers sharing all ${activeAttrs().length} selected types. Click to drill in.`
+    : `<b>Overview</b> — clusters linked when they share papers. Click one to drill in.`;
+  const list = currentUnits().slice(0, OVERVIEW_HUBS);
+  if (!list.length) { nodes = []; edges = []; adj = []; drawOverlay(activeAttrs().length ? "No connections match the filters." : "Select at least one connection type."); return; }
+  nodes = list.map(u => u.kind === "single"
+    ? { type: "hub", unit: u, key: u.key, attr: u.attr, ref: u.ref, n: u.rows.length, x: 0, y: 0 }
+    : { type: "hub", unit: u, key: u.key, attr: null, color: COMBO_COLOR, label: comboLabel(u), n: u.rows.length, x: 0, y: 0 });
   const paperHubs = new Map(); // r -> [hubIdx]
-  list.forEach((b, i) => { for (const r of b.rows) { let g = paperHubs.get(r); if (!g) { g = []; paperHubs.set(r, g); } g.push(i); } });
+  list.forEach((u, i) => { for (const r of u.rows) { let g = paperHubs.get(r); if (!g) { g = []; paperHubs.set(r, g); } g.push(i); } });
   const em = new Map();
   for (const hs of paperHubs.values()) for (let i = 0; i < hs.length; i++) for (let j = i + 1; j < hs.length; j++) {
     const a = hs[i], b = hs[j], k = a < b ? a + "|" + b : b + "|" + a;
@@ -448,13 +547,14 @@ function setupCanvas() {
   cv.addEventListener("mousemove", e => { if (!dragging) return; const ddx = e.offsetX - lx, ddy = e.offsetY - ly; moved += Math.abs(ddx) + Math.abs(ddy); view.x += ddx; view.y += ddy; lx = e.offsetX; ly = e.offsetY; draw(); });
   cv.addEventListener("wheel", e => { e.preventDefault(); const f = e.deltaY < 0 ? 1.1 : 1 / 1.1; view.x = e.offsetX - (e.offsetX - view.x) * f; view.y = e.offsetY - (e.offsetY - view.y) * f; view.k *= f; draw(); }, { passive: false });
   cv.addEventListener("click", e => { if (moved > 4) return; const h = hitTest(e.offsetX, e.offsetY); onPick(h); });
-  cv.addEventListener("dblclick", e => { const h = hitTest(e.offsetX, e.offsetY); if (h != null && nodes[h].type === "hub") focusHub(nodes[h].key); });
+  cv.addEventListener("dblclick", e => { const h = hitTest(e.offsetX, e.offsetY); if (h != null && nodes[h].type === "hub") { const nd = nodes[h]; nd.unit ? focusUnit(nd.unit) : focusHub(nd.key); } });
 }
 function onPick(h) {
   if (h == null) { selected = null; draw(); return; }
   selected = h;
   const nd = nodes[h];
   if (nd.type === "paper") showPaperDetail(nd.r);
+  else if (nd.unit && nd.unit.kind === "combo") showComboDetail(nd.unit);
   else showBucketDetail(nd.key);
   draw(); syncShare();
 }
@@ -482,7 +582,7 @@ function draw() {
     if (!on && hl) continue;
     const [ax, ay] = toScreen(nodes[e.a].x, nodes[e.a].y), [bx, by] = toScreen(nodes[e.b].x, nodes[e.b].y);
     const hub = nodes[e.a].type === "hub" ? nodes[e.a] : (nodes[e.b].type === "hub" ? nodes[e.b] : null);
-    const cc = hub && ATTR_META[hub.attr] ? ATTR_META[hub.attr].color : "#667";
+    const cc = hub ? (hub.color || (ATTR_META[hub.attr] ? ATTR_META[hub.attr].color : "#667")) : "#667";
     ctx.strokeStyle = cc + (hl ? "ee" : (e.w > 1 ? "aa" : "44"));
     ctx.lineWidth = Math.min(0.8 + (e.w - 1) * 0.7, 4);
     ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx, by); ctx.stroke();
@@ -494,7 +594,7 @@ function draw() {
     ctx.globalAlpha = dim ? 0.15 : 1;
     if (nd.type === "hub") {
       const R = hubRadius(nd) * Math.min(Math.max(view.k, .6), 1.4);
-      ctx.fillStyle = ATTR_META[nd.attr] ? ATTR_META[nd.attr].color : "#889";
+      ctx.fillStyle = nd.color || (ATTR_META[nd.attr] ? ATTR_META[nd.attr].color : "#889");
       roundRect(x - R, y - R, R * 2, R * 2, 4); ctx.fill();
       if (i === selected) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.stroke(); }
     } else {
@@ -509,7 +609,7 @@ function draw() {
   if (view.k > 0.75) {
     ctx.font = "10px ui-monospace, monospace"; ctx.fillStyle = "#c8ccd4";
     for (const nd of nodes) {
-      if (nd.type === "hub") { const [x, y] = toScreen(nd.x, nd.y); const t = valOf(nd.key); ctx.fillText(t.length > 22 ? t.slice(0, 22) + "…" : t, x + hubRadius(nd) + 3, y + 3); }
+      if (nd.type === "hub") { const [x, y] = toScreen(nd.x, nd.y); const t = nd.label != null ? nd.label : valOf(nd.key); ctx.fillText(t.length > 22 ? t.slice(0, 22) + "…" : t, x + hubRadius(nd) + 3, y + 3); }
       else if (view.k > 1.15) { const [x, y] = toScreen(nd.x, nd.y); ctx.fillText(A("id", nd.r), x + 7, y + 3); }
     }
   }
@@ -528,7 +628,9 @@ function hitTest(px, py) {
 // -------- detail --------
 const bandLabel = (r) => A("pmScore", r) != null ? `${A("pmScore", r)}% (${BAND_NAMES[A("pmBand", r)]})` : "—";
 function showBucketDetail(key) {
-  const b = bucketMeta.get(key), attr = attrOf(key), meta = ATTR_META[attr];
+  const attr = attrOf(key), meta = ATTR_META[attr];
+  let b = bucketMeta.get(key);
+  if (!b) { const rows = indexMap.get(key) || []; const dc = distinctCounts(rows); b = { rows, nNames: dc.nNames, nOrgs: dc.nOrgs }; }
   $("detailTitle").textContent = meta.label;
   $("detailSub").innerHTML = `<span class="val" style="font-family:ui-monospace,monospace">${valOf(key)}</span>`;
   $("detail").innerHTML = `<div class="section"><dl class="dl">
@@ -556,7 +658,7 @@ function showPaperDetail(r) {
     ["Word-doc match", A("wdMatch", r) === 1 ? "matches author" : A("wdMatch", r) === 0 ? "does NOT match" : "—"],
     ["Word author", artStr("wdAuthor", r) || "—"], ["Word edited by", artStr("wdEditedBy", r) || "—"], ["Word company", artStr("wdCompany", r) || "—"],
     ["Device", artStr("device", r) || "—"], ["IP", artStr("ip", r) || "—"], ["Locale", artStr("locale", r) || "—"],
-    ["Platform / UA", [artStr("platform", r), artStr("uaFamily", r)].filter(Boolean).join(" / ") || "—"], ["Author-declared IP", artStr("authorIp", r) || "—"],
+    ["Platform / UA", [artStr("platform", r), artStr("uaFamily", r)].filter(Boolean).join(" / ") || "—"], ["Submission IP (author record)", artStr("authorIp", r) || "—"],
   ];
   $("detail").innerHTML = `<div class="section"><dl class="dl">${rows.map(([k, v]) => `<div><dt>${k}</dt><dd>${escapeHtml(String(v))}</dd></div>`).join("")}</dl></div>
     <div class="section"><h2>Shared connections</h2>${connectionsHtml(r)}</div>`;
