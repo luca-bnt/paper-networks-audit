@@ -199,7 +199,7 @@ let buckets = [];
 let mode = "overview";        // overview | focus
 let focusKey = null;
 let selectedBucketKey = null;
-let nodes = [], edges = [], adj = [];
+let nodes = [], edges = [], adj = [], simEdges = [];
 let selected = null;          // node index highlighted
 let view = { x: 0, y: 0, k: 1 };
 // -------- papermill flags (Azure Table Storage backend) --------
@@ -249,7 +249,7 @@ async function toggleFlag(id, after) {
   if (!confirm(msg)) return;
   const ok = await setFlag(id, on, comment);
   if (!ok) { alert("Flag update failed — the write token may have expired. Ask for a refresh."); return; }
-  updateFlagCount(); draw();
+  updateFlagCount(); updateHubFlags(); draw();
   if ($("fFlaggedOnly").checked) { renderList(); if (mode === "overview") showOverview(); }
   if (after) after();
   if ($("modal").classList.contains("open")) renderCompareTable();
@@ -363,7 +363,7 @@ function bindUI() {
   $("btnRelayout").addEventListener("click", () => { if (nodes.length) runLayout(); });
   $("btnCompare").addEventListener("click", openCompare);
   $("btnFlagged").addEventListener("click", showFlaggedList);
-  $("btnFlagRefresh").addEventListener("click", async () => { await loadFlags(); renderList(); if (mode === "overview") showOverview(); draw(); });
+  $("btnFlagRefresh").addEventListener("click", async () => { await loadFlags(); updateHubFlags(); renderList(); if (mode === "overview") showOverview(); draw(); });
   if ($("fReviewer")) $("fReviewer").addEventListener("input", () => localStorage.setItem("auditReviewer", $("fReviewer").value.trim()));
   $("modalClose").addEventListener("click", () => $("modal").classList.remove("open"));
   $("modal").addEventListener("click", e => { if (e.target.id === "modal") $("modal").classList.remove("open"); });
@@ -540,11 +540,12 @@ function focusCombo(u) {
   $("btnOverview").disabled = false;
   $("crumb").innerHTML = `<b>${u.parts.length} shared types</b> · ` + u.parts.map(p => `<span class="attrsq" style="display:inline-block;background:${ATTR_META[p.attr].color}"></span>`).join(" ") + ` · ${u.rows.length} papers`;
   const papers = u.rows.slice(0, NODE_CAP - u.parts.length - 1);
-  nodes = u.parts.map(p => ({ type: "hub", key: p.attr + ":" + p.ref, attr: p.attr, ref: p.ref, n: papers.length, x: 0, y: 0 }))
+  nodes = u.parts.map(p => ({ type: "hub", key: p.attr + ":" + p.ref, attr: p.attr, ref: p.ref, n: papers.length, _rows: u.rows, x: 0, y: 0 }))
     .concat(papers.map(r => ({ type: "paper", r, x: 0, y: 0 })));
   const hubIdx = new Map(); nodes.forEach((nd, i) => { if (nd.type === "hub") hubIdx.set(nd.key, i); });
   edges = [];
   for (let i = 0; i < nodes.length; i++) { const nd = nodes[i]; if (nd.type !== "paper") continue; for (const p of u.parts) edges.push({ a: hubIdx.get(p.attr + ":" + p.ref), b: i, w: 1, attr: p.attr }); }
+  buildSimEdges(); updateHubFlags();
   finishGraph(); syncShare();
 }
 function showComboDetail(u) {
@@ -581,6 +582,8 @@ function showOverview() {
     let e = em.get(k); if (!e) { e = { a, b, w: 0 }; em.set(k, e); } e.w++;
   }
   edges = [...em.values()];
+  simEdges = [];
+  updateHubFlags();
   finishGraph();
 }
 
@@ -619,10 +622,32 @@ function focusHub(key) {
       if (ref >= 0 && (a + ":" + ref) === hk) edges.push({ a: hubNodeIdx.get(hk), b: i, w: 1, attr: a });
     }
   }
+  buildSimEdges(); updateHubFlags();
   finishGraph();
   syncShare();
 }
 
+// Shared-attribute similarity between the current paper nodes, across ALL
+// attributes. Used only for layout (positioning), never drawn, to avoid clutter.
+function buildSimEdges() {
+  simEdges = [];
+  const ps = [];
+  for (let i = 0; i < nodes.length; i++) if (nodes[i].type === "paper") ps.push(i);
+  if (ps.length < 2) return;
+  const vecs = ps.map(i => attrs.map(a => D.articles[col(a)][nodes[i].r]));
+  for (let x = 0; x < ps.length; x++) for (let y = x + 1; y < ps.length; y++) {
+    const vx = vecs[x], vy = vecs[y]; let s = 0;
+    for (let z = 0; z < vx.length; z++) { const rx = vx[z]; if (rx >= 0 && rx === vy[z]) s++; }
+    if (s >= 2) simEdges.push({ a: ps[x], b: ps[y], w: s });
+  }
+}
+function updateHubFlags() {
+  for (const nd of nodes) {
+    if (nd.type !== "hub") continue;
+    const rows = nd.unit ? nd.unit.rows : (nd._rows || (nd.key && bucketMeta.get(nd.key) ? bucketMeta.get(nd.key).rows : null));
+    if (rows) { nd.flagged = rows.some(isFlagged); nd.nFlagged = rows.reduce((c, r) => c + (isFlagged(r) ? 1 : 0), 0); }
+  }
+}
 function finishGraph() {
   if (nodes.length > NODE_CAP) { drawOverlay(`${nodes.length} nodes exceeds the ${NODE_CAP} cap — narrow the filters.`); nodes = []; edges = []; adj = []; return; }
   adj = nodes.map(() => new Set());
@@ -662,6 +687,13 @@ function runLayout() {
       const att = (d * d) / k * (1 + (e.w - 1) * 0.5), ux = ex / d, uy = ey / d;
       dx[e.a] -= ux * att; dy[e.a] -= uy * att; dx[e.b] += ux * att; dy[e.b] += uy * att;
     }
+    // similarity attraction: pull papers together by how many attributes they
+    // share across ALL types (not just the filtered ones). Not drawn as edges.
+    for (const e of simEdges) {
+      let ex = nodes[e.a].x - nodes[e.b].x, ey = nodes[e.a].y - nodes[e.b].y, d = Math.hypot(ex, ey) || .01;
+      const att = (d * d) / k * 0.05 * e.w, ux = ex / d, uy = ey / d;
+      dx[e.a] -= ux * att; dy[e.a] -= uy * att; dx[e.b] += ux * att; dy[e.b] += uy * att;
+    }
     for (let i = 0; i < n; i++) { let d = Math.hypot(dx[i], dy[i]) || .01; nodes[i].x += (dx[i] / d) * Math.min(d, temp); nodes[i].y += (dy[i] / d) * Math.min(d, temp); }
     temp *= 0.96; iter++;
     if (iter < LAYOUT_ITERS && temp > 1) requestAnimationFrame(step); else fit();
@@ -698,10 +730,14 @@ function hoverTip(px, py) {
       + `<div class="muted">by ${escapeHtml(fl.by || "?")}${fl.utc ? " · " + fl.utc.slice(0, 10) : ""}</div>`;
   } else if (nd.type === "hub" && nd.unit && nd.unit.kind === "combo") {
     html = `<b>Multi-type cluster</b><div class="muted">${escapeHtml(nd.label || "")}</div>`
-      + `<div class="muted">${nd.n} papers · shares ${nd.unit.parts.length} types</div><div class="muted">click to drill in</div>`;
+      + `<div class="muted">${nd.n} papers · shares ${nd.unit.parts.length} types</div>`
+      + (nd.nFlagged ? `<div style="color:#ff8a8a">⚑ ${nd.nFlagged} flagged</div>` : "")
+      + `<div class="muted">click to drill in</div>`;
   } else if (nd.type === "hub" && ATTR_META[nd.attr]) {
     html = `<b>${ATTR_META[nd.attr].label}</b><div class="muted">${escapeHtml((str(ATTR_META[nd.attr].pool, nd.ref) || "").slice(0, 60))}</div>`
-      + `<div class="muted">${nd.n} papers · click to drill in</div>`;
+      + `<div class="muted">${nd.n} papers</div>`
+      + (nd.nFlagged ? `<div style="color:#ff8a8a">⚑ ${nd.nFlagged} flagged</div>` : "")
+      + `<div class="muted">click to drill in</div>`;
   }
   if (!html) { tip.style.display = "none"; return; }
   tip.innerHTML = html; tip.style.display = "block";
@@ -756,7 +792,8 @@ function draw() {
       const R = hubRadius(nd) * Math.min(Math.max(view.k, .6), 1.4);
       ctx.fillStyle = nd.color || (ATTR_META[nd.attr] ? ATTR_META[nd.attr].color : "#889");
       roundRect(x - R, y - R, R * 2, R * 2, 4); ctx.fill();
-      if (i === selected) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; ctx.stroke(); }
+      if (nd.flagged) { ctx.strokeStyle = "#D51A2C"; ctx.lineWidth = 2.6; roundRect(x - R - 3, y - R - 3, (R + 3) * 2, (R + 3) * 2, 6); ctx.stroke(); }
+      if (i === selected) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; roundRect(x - R, y - R, R * 2, R * 2, 4); ctx.stroke(); }
     } else {
       const R = paperRadius(nd.r) * Math.min(Math.max(view.k, .6), 1.6);
       ctx.beginPath(); ctx.arc(x, y, R, 0, 6.283); ctx.fillStyle = paperColor(nd.r); ctx.fill();
