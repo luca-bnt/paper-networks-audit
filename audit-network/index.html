@@ -142,6 +142,7 @@
       <label class="chk"><input type="checkbox" id="fDiffOrgs" checked> Different organisations</label>
       <label class="chk"><input type="checkbox" id="fFlaggedOnly"> <span style="color:#D51A2C">⚑</span> Only clusters with a flagged paper</label>
       <label class="chk"><input type="checkbox" id="fHideAllRejected" checked> Hide all-rejected clusters</label>
+      <label class="chk" id="lowNameEmailRow" style="display:none"><input type="checkbox" id="fLowNameEmailSim"> Low name/email similarity (&lt;20%)</label>
       <div class="row" id="journalRow"><label>Journal</label><select id="fJournal" disabled><option value="">All journals</option></select></div>
       <div class="row" id="statusRow"><label>Status</label>
         <select id="fStatus" disabled>
@@ -212,6 +213,8 @@ const OVERVIEW_HUBS = 140;     // clusters shown in the high-level overview
 const SECONDARY_HUBS = 40;     // neighbouring clusters shown when drilling in
 const LAYOUT_ITERS = 170;
 const DEFAULT_ACTIVE_ATTRS = new Set(["ip", "device", "locale", "wdAuthor"]);
+// Name vs email local-part similarity below this % is treated as suspicious (optional filter).
+const NAME_EMAIL_SIM_THRESHOLD = 20;
 // Bump when snapshot.json.gz is rebuilt — busts browser/CDN caches for the data file.
 const SNAPSHOT_REV = "20260710T083104";
 
@@ -506,6 +509,9 @@ function buildMetaFilters() {
     note.style.display = "";
     note.textContent = "This snapshot has no status/journal metadata — rebuild and redeploy snapshot.json.gz.";
   } else note.style.display = "none";
+  const hasSim = !!(D.articles && D.articles.nameEmailSim);
+  $("lowNameEmailRow").style.display = hasSim ? "" : "none";
+  if (!hasSim && $("fLowNameEmailSim")) $("fLowNameEmailSim").checked = false;
 }
 
 const COLLAPSE_KEY = "auditSectionCollapse";
@@ -538,7 +544,7 @@ function bindUI() {
       else syncShare();
     }, typingId ? 350 : 0);
   };
-  ["fDiffAuthors","fDiffOrgs","fFlaggedOnly","fHideAllRejected","fJournal","fStatus","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", onFilterChange));
+  ["fDiffAuthors","fDiffOrgs","fFlaggedOnly","fHideAllRejected","fLowNameEmailSim","fJournal","fStatus","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", onFilterChange));
   $("fEmailRegex").addEventListener("input", () => { rebuildEmailFilter(); onFilterChange(); });
   $("btnOverview").addEventListener("click", showOverview);
   $("btnRelayout").addEventListener("click", () => { if (nodes.length) runLayout(); });
@@ -580,6 +586,10 @@ function paperMatchesMetaFilter(r) {
   const sta = $("fStatus") ? $("fStatus").value : "";
   if (sta === "rej") return isRejected(r);
   if (sta === "not") return !!artStatus(r) && !isRejected(r);
+  if ($("fLowNameEmailSim")?.checked) {
+    const sim = A("nameEmailSim", r);
+    if (sim == null || sim >= NAME_EMAIL_SIM_THRESHOLD) return false;
+  }
   return true;
 }
 function metaFilteredRows(rows) {
@@ -1499,6 +1509,7 @@ function syncShare() {
   if (!$("fDiffOrgs").checked) p.set("do", "0");
   if ($("fFlaggedOnly").checked) p.set("fl", "1");
   if (!$("fHideAllRejected").checked) p.set("har", "0");
+  if ($("fLowNameEmailSim")?.checked) p.set("nes", "1");
   const jn = $("fJournal") ? $("fJournal").value : ""; if (jn) p.set("jn", jn);
   const sta = $("fStatus") ? $("fStatus").value : ""; if (sta) p.set("sta", sta);
   const ms = $("fMinSize").value; if (ms && ms !== "2") p.set("ms", ms);
@@ -1521,6 +1532,7 @@ function applyShareParams() {
   if (p.has("do")) $("fDiffOrgs").checked = p.get("do") !== "0";
   if (p.has("fl")) $("fFlaggedOnly").checked = p.get("fl") === "1";
   if (p.has("har")) $("fHideAllRejected").checked = p.get("har") !== "0";
+  if (p.get("nes") === "1" && $("fLowNameEmailSim")) $("fLowNameEmailSim").checked = true;
   if (p.get("jn") && $("fJournal")) $("fJournal").value = p.get("jn");
   if (p.get("sta") && $("fStatus")) $("fStatus").value = p.get("sta");
   if (p.get("ms")) $("fMinSize").value = p.get("ms");
