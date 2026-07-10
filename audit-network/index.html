@@ -117,6 +117,7 @@
       <label class="chk"><input type="checkbox" id="fDiffAuthors" checked> Different submitting authors</label>
       <label class="chk"><input type="checkbox" id="fDiffOrgs" checked> Different organisations</label>
       <label class="chk"><input type="checkbox" id="fFlaggedOnly"> <span style="color:#D51A2C">⚑</span> Only clusters with a flagged paper</label>
+      <label class="chk"><input type="checkbox" id="fHideAllRejected" checked> Hide all-rejected clusters</label>
       <div class="row" id="journalRow"><label>Journal</label><select id="fJournal" disabled><option value="">All journals</option></select></div>
       <div class="row" id="statusRow"><label>Status</label>
         <select id="fStatus" disabled>
@@ -381,6 +382,8 @@ const cmpShareKey = (r, key) => {
 const artStatus = (r) => (D.articles.status ? artStr("status", r) : "");
 const artJournal = (r) => (D.articles.journal ? artStr("journal", r) : "");
 const isRejected = (r) => artStatus(r).toLowerCase() === "rejected";
+const clusterAllRejected = (rows) => rows.length > 0 && rows.every(isRejected);
+const hideAllRejectedClusters = () => !$("fHideAllRejected") || $("fHideAllRejected").checked;
 function clusterMetaPills(rows) {
   if (!D.articles.status && !D.articles.journal) return "";
   const statuses = new Map(), journals = new Map();
@@ -485,7 +488,7 @@ function bindUI() {
       else syncShare();
     }, typingId ? 350 : 0);
   };
-  ["fDiffAuthors","fDiffOrgs","fFlaggedOnly","fJournal","fStatus","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", onFilterChange));
+  ["fDiffAuthors","fDiffOrgs","fFlaggedOnly","fHideAllRejected","fJournal","fStatus","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", onFilterChange));
   $("fEmailRegex").addEventListener("input", () => { rebuildEmailFilter(); onFilterChange(); });
   $("btnOverview").addEventListener("click", showOverview);
   $("btnRelayout").addEventListener("click", () => { if (nodes.length) runLayout(); });
@@ -583,6 +586,7 @@ function currentBuckets() {
     if (diffA && b.nNames < 2) return false;
     if (diffO && b.nOrgs < 2) return false;
     if (onlyFlagged && !hasFlagged(b.rows)) return false;
+    if (hideAllRejectedClusters() && clusterAllRejected(b.rows)) return false;
     if (!rowsMatchMeta(b.rows)) return false;
     if (idSearch) return rowsMatchArticleSearch(b.rows, idSearch);
     if (q) return str(ATTR_META[b.attr].pool, b.ref).toLowerCase().includes(q);
@@ -683,6 +687,7 @@ function currentUnits() {
     let units = [];
     for (const [ref, rows] of byEmail) {
       if (onlyFlagged && !hasFlagged(rows)) continue;
+      if (hideAllRejectedClusters() && clusterAllRejected(rows)) continue;
       if (!rowsMatchMeta(rows)) continue;
       if (idSearch) { if (!rowsMatchArticleSearch(rows, idSearch)) continue; }
       else if (q && !(str("emails", ref) || "").toLowerCase().includes(q)) continue;
@@ -707,6 +712,7 @@ function currentUnits() {
     if (diffA && u.nNames < 2) return false;
     if (diffO && u.nOrgs < 2) return false;
     if (onlyFlagged && !hasFlagged(u.rows)) return false;
+    if (hideAllRejectedClusters() && clusterAllRejected(u.rows)) return false;
     if (!rowsMatchMeta(u.rows)) return false;
     if (idSearch) return rowsMatchArticleSearch(u.rows, idSearch);
     if (q) return u.parts.some(p => (str(ATTR_META[p.attr].pool, p.ref) || "").toLowerCase().includes(q));
@@ -1320,7 +1326,12 @@ function compareSortedRows() {
   if (!cmpState) return [];
   const { rs } = cmpState, { key, dir } = cmpSort;
   const numeric = key === "id" || key === "pmScore" || key === "wdStatus";
+  const deprioritizeRejected = key !== "status";
   return rs.slice().sort((a, b) => {
+    if (deprioritizeRejected) {
+      const rr = (isRejected(a) ? 1 : 0) - (isRejected(b) ? 1 : 0);
+      if (rr) return rr;
+    }
     const va = cmpValue(a, key), vb = cmpValue(b, key);
     let c;
     if (numeric) c = va - vb;
@@ -1429,6 +1440,7 @@ function syncShare() {
   if (!$("fDiffAuthors").checked) p.set("da", "0");
   if (!$("fDiffOrgs").checked) p.set("do", "0");
   if ($("fFlaggedOnly").checked) p.set("fl", "1");
+  if (!$("fHideAllRejected").checked) p.set("har", "0");
   const jn = $("fJournal") ? $("fJournal").value : ""; if (jn) p.set("jn", jn);
   const sta = $("fStatus") ? $("fStatus").value : ""; if (sta) p.set("sta", sta);
   const ms = $("fMinSize").value; if (ms && ms !== "2") p.set("ms", ms);
@@ -1450,6 +1462,7 @@ function applyShareParams() {
   if (p.has("da")) $("fDiffAuthors").checked = p.get("da") !== "0";
   if (p.has("do")) $("fDiffOrgs").checked = p.get("do") !== "0";
   if (p.has("fl")) $("fFlaggedOnly").checked = p.get("fl") === "1";
+  if (p.has("har")) $("fHideAllRejected").checked = p.get("har") !== "0";
   if (p.get("jn") && $("fJournal")) $("fJournal").value = p.get("jn");
   if (p.get("sta") && $("fStatus")) $("fStatus").value = p.get("sta");
   if (p.get("ms")) $("fMinSize").value = p.get("ms");
