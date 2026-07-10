@@ -31,10 +31,10 @@
   .attrsq { width: 9px; height: 9px; flex: none; border-radius: 2px; }
   .row { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
   .row label { color: var(--muted); flex: none; min-width: 92px; }
-  input[type=text], input[type=number], select, textarea#fSearch {
+  input[type=text], input[type=number], select {
     background: var(--panel2); color: var(--text); border: 1px solid var(--line);
     border-radius: 6px; padding: 6px 8px; width: 100%; font-size: 12px; }
-  textarea#fSearch { min-height: 48px; resize: vertical; line-height: 1.35; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #fSearch { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   .bucket { padding: 8px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
   .bucket:hover { background: var(--panel2); }
   .bucket.sel { background: #232a3a; box-shadow: inset 3px 0 0 var(--accent); }
@@ -134,7 +134,7 @@
           <option value="orgs">Most distinct organisations</option>
         </select>
       </div>
-      <div class="row"><label>Search</label><textarea id="fSearch" rows="2" placeholder="article ids (comma / tab / line) or connection value"></textarea></div>
+      <div class="row"><label>Search</label><input type="text" id="fSearch" placeholder="article ids (comma / tab / line) or connection value"></div>
       <div class="row"><label>Email regex</label><input type="text" id="fEmailRegex" placeholder="e.g. \d{4,}@  or  @(163|qq|126)\."></div>
       <div id="emailErr" style="color:var(--red);font-size:11px;min-height:14px"></div>
       <div class="row" id="reviewerRow" style="display:none"><label>Reviewer</label><input type="text" id="fReviewer" placeholder="your name (for flags)"></div>
