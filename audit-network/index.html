@@ -72,6 +72,7 @@
   .conn { padding: 7px 0; border-bottom: 1px solid var(--line); }
   .conn .ch { display: flex; align-items: center; gap: 7px; cursor: pointer; }
   .conn .cids { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 5px; }
+  .conn.hit { background: #232a3a; border-radius: 4px; box-shadow: inset 3px 0 0 var(--accent); padding-left: 6px; margin-left: -6px; }
   .aid { font-family: ui-monospace, monospace; font-size: 11px; color: var(--accent); cursor: pointer; text-decoration: none; }
   .aid:hover { text-decoration: underline; }
   .muted { color: var(--muted); }
@@ -89,8 +90,13 @@
   table.cmp th, table.cmp td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; white-space: nowrap;
     max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
   table.cmp thead th { position: sticky; top: 0; background: var(--panel2); z-index: 1; }
+  table.cmp th[data-sort] { cursor: grab; }
+  table.cmp th[data-sort].drag-over { outline: 1px dashed var(--accent); outline-offset: -2px; }
   table.cmp td.share { font-weight: 600; }
   table.cmp tr:hover td { background: #ffffff08; }
+  table.cmp tr.sel td { background: #232a3a; box-shadow: inset 3px 0 0 var(--accent); }
+  table.cmp tr.sel:hover td { background: #232a3a; }
+  table.cmp tbody tr[data-r] { cursor: pointer; }
   .close { margin-left: auto; }
 </style>
 </head>
@@ -110,6 +116,15 @@
       <label class="chk"><input type="checkbox" id="fDiffAuthors" checked> Different submitting authors</label>
       <label class="chk"><input type="checkbox" id="fDiffOrgs" checked> Different organisations</label>
       <label class="chk"><input type="checkbox" id="fFlaggedOnly"> <span style="color:#D51A2C">⚑</span> Only clusters with a flagged paper</label>
+      <div class="row" id="journalRow"><label>Journal</label><select id="fJournal" disabled><option value="">All journals</option></select></div>
+      <div class="row" id="statusRow"><label>Status</label>
+        <select id="fStatus" disabled>
+          <option value="">Any status</option>
+          <option value="rej">Rejected</option>
+          <option value="not">Not rejected</option>
+        </select>
+      </div>
+      <div class="muted" id="metaFilterNote" style="font-size:11px;margin-top:4px;display:none"></div>
       <div class="row"><label>Min papers</label><input type="number" id="fMinSize" value="2" min="2" style="width:70px"></div>
       <div class="row"><label>Sort by</label>
         <select id="fSort">
@@ -154,6 +169,7 @@
     <div class="modalhead">
       <h2 id="modalTitle">Compare papers</h2>
       <span class="muted" id="modalSub"></span>
+      <button class="btn" id="modalCopy" title="Copy table to clipboard (TSV)">Copy</button>
       <button class="btn close" id="modalClose">Close</button>
     </div>
     <div class="modalbody" id="modalBody"></div>
@@ -169,6 +185,8 @@ const OVERVIEW_HUBS = 140;     // clusters shown in the high-level overview
 const SECONDARY_HUBS = 40;     // neighbouring clusters shown when drilling in
 const LAYOUT_ITERS = 170;
 const DEFAULT_ACTIVE_ATTRS = new Set(["ip", "device", "locale", "wdAuthor"]);
+// Bump when snapshot.json.gz is rebuilt — busts browser/CDN caches for the data file.
+const SNAPSHOT_REV = "20260710T083104";
 
 // -------- attribute display config --------
 const ATTR_META = {
@@ -188,7 +206,8 @@ const BAND_COLORS = ["#6b7280", "#65C161", "#E87626", "#D51A2C"];
 const BAND_NAMES  = ["no score", "low", "medium", "high"];
 const STATUS_NAMES = ["", "green", "yellow", "red", "gold", "n/a", "unchecked"];
 const PATTERN_NAMES = ["", "all-digits", "name.surname", "all-alpha", "alpha+digits", "other"];
-const CMP_COLS = ["authorName","authorEmail","authorOrg","wdAuthor","wdEditedBy","wdCompany","device","ip","locale","authorIp"];
+const CMP_PRIORITY = ["status", "authorName", "authorEmail", "authorOrg", "wdAuthor", "wdEditedBy", "wdStatus", "journal", "section"];
+const CMP_REST = ["pmScore", "wdCompany", "device", "ip", "locale", "authorIp"];
 
 // -------- state --------
 let D = null, attrs = [];
@@ -202,6 +221,7 @@ let selectedBucketKey = null;
 let nodes = [], edges = [], adj = [], simEdges = [];
 let emailMatch = null;        // Set<rowIdx> whose author email matches the active regex, or null
 let selected = null;          // node index highlighted
+let searchFocusTimer = null;
 let view = { x: 0, y: 0, k: 1 };
 // -------- papermill flags (Azure Table Storage backend) --------
 const FC = (typeof window !== "undefined" && window.FLAGS_CONFIG) ? window.FLAGS_CONFIG : null;
@@ -304,16 +324,88 @@ const str = (pool, ref) => (ref == null || ref < 0) ? "" : (D.dict[pool] ? D.dic
 const A = (c, r) => D.articles[c][r];
 const POOLS = { title:"titles", authorName:"names", authorEmail:"emails", authorOrg:"orgs",
   platform:"platforms", uaFamily:"uaFamilies", ip:"ips", device:"devices", locale:"locales",
-  wdAuthor:"wdAuthors", wdEditedBy:"wdEditedBys", wdCompany:"wdCompanies", authorIp:"authorIps" };
-const artStr = (f, r) => str(POOLS[f], A(f, r));
+  wdAuthor:"wdAuthors", wdEditedBy:"wdEditedBys", wdCompany:"wdCompanies", authorIp:"authorIps",
+  status:"statuses", journal:"journals", section:"sections" };
+const artStr = (f, r) => (D.articles[f] === undefined ? "" : str(POOLS[f], A(f, r)));
+const cmpCols = () => [...CMP_PRIORITY, ...CMP_REST].filter(f => D.articles[f] !== undefined);
+const defaultCmpColOrder = () => ["id", ...cmpCols()];
+let cmpColOrder = null;   // persisted drag order; null = use default
+let cmpDragKey = null;
+function loadCmpColOrder() {
+  try {
+    const raw = localStorage.getItem("auditCmpColOrder");
+    if (raw) return JSON.parse(raw);
+  } catch (_) {}
+  return null;
+}
+function saveCmpColOrder(order) {
+  try { localStorage.setItem("auditCmpColOrder", JSON.stringify(order)); } catch (_) {}
+}
+function activeCmpColOrder() {
+  const def = defaultCmpColOrder();
+  const saved = cmpColOrder || loadCmpColOrder();
+  if (!saved || !saved.length) return def;
+  const have = new Set(def);
+  const order = saved.filter(k => have.has(k));
+  for (const k of def) if (!order.includes(k)) order.push(k);
+  return order;
+}
+function resetCmpColOrder() {
+  cmpColOrder = null;
+  try { localStorage.removeItem("auditCmpColOrder"); } catch (_) {}
+}
+const cmpColDefs = () => activeCmpColOrder().map(k => [k, k === "id" ? "Article" : cmpFieldLabel(k)]);
+const cmpFieldLabel = (f) => {
+  if (ATTR_META[f]) {
+    if (f === "wdEditedBy") return "Word: last edited";
+    return ATTR_META[f].label;
+  }
+  return ({ authorName: "Author", authorEmail: "Email", authorOrg: "Organisation", status: "Status",
+    journal: "Journal", section: "Section", pmScore: "Score", wdStatus: "Word-doc status" })[f] || f;
+};
+const cmpDisplay = (r, key) => {
+  if (key === "id") return String(A("id", r));
+  if (key === "pmScore") return bandLabel(r);
+  if (key === "wdStatus") return STATUS_NAMES[A("wdStatus", r)] || "";
+  const ref = A(key, r);
+  return ref >= 0 ? (str(POOLS[key], ref) || "") : "";
+};
+const cmpShareKey = (r, key) => {
+  if (key === "pmScore") { const s = A("pmScore", r); return s == null ? null : s; }
+  if (key === "wdStatus") { const s = A("wdStatus", r); return s > 0 ? s : null; }
+  const ref = A(key, r);
+  return ref >= 0 ? ref : null;
+};
+// article-level metadata (display / compare / optional filter — never connective)
+const artStatus = (r) => (D.articles.status ? artStr("status", r) : "");
+const artJournal = (r) => (D.articles.journal ? artStr("journal", r) : "");
+const isRejected = (r) => artStatus(r).toLowerCase() === "rejected";
+function clusterMetaPills(rows) {
+  if (!D.articles.status && !D.articles.journal) return "";
+  const statuses = new Map(), journals = new Map();
+  for (const r of rows) {
+    const s = artStatus(r); if (s) statuses.set(s, (statuses.get(s) || 0) + 1);
+    const j = artJournal(r); if (j) journals.set(j, (journals.get(j) || 0) + 1);
+  }
+  const pills = [];
+  const topStatus = [...statuses.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (topStatus) {
+    const cls = topStatus[0].toLowerCase() === "rejected" ? "bad" : "";
+    pills.push(`<span class="pill ${cls}" title="Most common status in cluster">${escapeHtml(topStatus[0])}</span>`);
+  }
+  const topJournal = [...journals.entries()].sort((a, b) => b[1] - a[1])[0];
+  if (topJournal) pills.push(`<span class="pill" title="Most common journal in cluster">${escapeHtml(topJournal[0].slice(0, 42))}${topJournal[0].length > 42 ? "…" : ""}</span>`);
+  return pills.join("");
+}
 const valOf = (key) => { const i = key.indexOf(":"), a = key.slice(0, i); return str(ATTR_META[a].pool, +key.slice(i + 1)); };
 const attrOf = (key) => key.slice(0, key.indexOf(":"));
 
 async function fetchSnapshot(url) {
-  const res = await fetch(url);
+  const bust = url + (url.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(SNAPSHOT_REV);
+  const res = await fetch(bust, { cache: "no-store" });
   if (!res.ok) throw new Error(`${url}: ${res.status}`);
   if (url.endsWith(".gz")) {
-    if (typeof DecompressionStream === "undefined") throw new Error("Browser lacks DecompressionStream");
+    if (typeof DecompressionStream === "undefined") throw new Error("Browser lacks DecompressionStream (use a current Chrome, Firefox, or Safari)");
     return await new Response(res.body.pipeThrough(new DecompressionStream("gzip"))).json();
   }
   return await res.json();
@@ -331,8 +423,12 @@ async function boot() {
       buckets.push({ attr, ref, rows, nNames: nN, nOrgs: nO });
     }
   const m = D.meta;
-  $("meta").textContent = `${m.count.toLocaleString()} papers · ${m.buckets.toLocaleString()} connections · ${m.windowDays}-day window`;
-  buildAttrToggles(); bindUI(); renderList(); setupCanvas(); buildLegend();
+  const metaBits = [`${m.count.toLocaleString()} papers`, `${m.buckets.toLocaleString()} connections`, `${m.windowDays}-day window`];
+  if (D.articles.status) metaBits.push(`${(D.dict.statuses || []).length} statuses`);
+  if (D.dict && D.dict.journals) metaBits.push(`${D.dict.journals.length} journals`);
+  if (m.builtUtc) metaBits.push(`snapshot ${m.builtUtc.slice(0, 10)}`);
+  $("meta").textContent = metaBits.join(" · ");
+  buildAttrToggles(); bindUI(); buildMetaFilters(); renderList(); setupCanvas(); buildLegend();
   if (D.articles.pmFlag) for (let r = 0; r < D.articles.pmFlag.length; r++) if (D.articles.pmFlag[r]) flags.set(A("id", r), { by: "baked", utc: "" });
   updateFlagCount();
   if (FC) {
@@ -357,9 +453,39 @@ function buildAttrToggles() {
 }
 const activeAttrs = () => [...document.querySelectorAll("#attrToggles input:checked")].map(i => i.dataset.attr);
 
+// Populate journal / status filters from the snapshot.
+function buildMetaFilters() {
+  const note = $("metaFilterNote");
+  const hasJ = !!(D.dict && D.dict.journals && D.dict.journals.length);
+  const hasS = !!(D.articles && D.articles.status);
+  $("journalRow").style.display = "flex";
+  $("statusRow").style.display = "flex";
+  if (hasJ) {
+    const sel = $("fJournal"), opts = D.dict.journals.slice().sort((a, b) => a.localeCompare(b));
+    sel.innerHTML = '<option value="">All journals</option>' + opts.map(j => `<option value="${escapeHtml(j)}">${escapeHtml(j)}</option>`).join("");
+    sel.disabled = false;
+  } else $("fJournal").disabled = true;
+  if (hasS) $("fStatus").disabled = false;
+  else $("fStatus").disabled = true;
+  if (!hasJ && !hasS) {
+    note.style.display = "";
+    note.textContent = "This snapshot has no status/journal metadata — rebuild and redeploy snapshot.json.gz.";
+  } else note.style.display = "none";
+}
+
 function bindUI() {
-  ["fDiffAuthors","fDiffOrgs","fFlaggedOnly","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", () => { renderList(); if (mode === "overview") showOverview(); else syncShare(); }));
-  $("fEmailRegex").addEventListener("input", () => { rebuildEmailFilter(); renderList(); if (mode === "overview") showOverview(); else syncShare(); });
+  const onFilterChange = () => {
+    renderList();
+    clearTimeout(searchFocusTimer);
+    const typingId = document.activeElement === $("fSearch") && /^\d+$/.test($("fSearch").value.trim());
+    searchFocusTimer = setTimeout(() => {
+      if (maybeFocusArticleSearch()) return;
+      if (mode === "overview") showOverview();
+      else syncShare();
+    }, typingId ? 350 : 0);
+  };
+  ["fDiffAuthors","fDiffOrgs","fFlaggedOnly","fJournal","fStatus","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", onFilterChange));
+  $("fEmailRegex").addEventListener("input", () => { rebuildEmailFilter(); onFilterChange(); });
   $("btnOverview").addEventListener("click", showOverview);
   $("btnRelayout").addEventListener("click", () => { if (nodes.length) runLayout(); });
   $("btnCompare").addEventListener("click", openCompare);
@@ -367,7 +493,18 @@ function bindUI() {
   $("btnFlagRefresh").addEventListener("click", async () => { await loadFlags(); updateHubFlags(); renderList(); if (mode === "overview") showOverview(); draw(); });
   if ($("fReviewer")) $("fReviewer").addEventListener("input", () => localStorage.setItem("auditReviewer", $("fReviewer").value.trim()));
   $("modalClose").addEventListener("click", closeModal);
-  $("modal").addEventListener("click", e => { if (e.target.id === "modal") closeModal(); });
+  $("modalCopy").addEventListener("click", copyCompareTable);
+  $("modal").addEventListener("click", e => {
+    if (e.target.id === "modal") closeModal();
+    if (e.target.id === "cmpColReset") { e.preventDefault(); resetCmpColOrder(); renderCompareTable(); }
+  });
+  $("modalBody").addEventListener("click", e => {
+    if (!$("modal").classList.contains("open")) return;
+    if (e.target.closest("a.aid") || e.target.closest(".flagcell")) return;
+    const tr = e.target.closest("tbody tr[data-r]");
+    if (!tr) return;
+    selectCompareRow(+tr.dataset.r);
+  });
   window.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
 }
 
@@ -382,6 +519,16 @@ function buildLegend() {
 }
 
 // -------- bucket list --------
+// Optional metadata filters: keep a cluster if ≥1 of its papers matches the
+// selected journal / rejection status (mirrors the "flagged only" semantics).
+function rowsMatchMeta(rows) {
+  const jsel = $("fJournal"), ssel = $("fStatus");
+  const jr = jsel ? jsel.value : "", sta = ssel ? ssel.value : "";
+  if (jr && !rows.some(r => artJournal(r) === jr)) return false;
+  if (sta === "rej" && !rows.some(isRejected)) return false;
+  if (sta === "not" && !rows.some(r => artStatus(r) && !isRejected(r))) return false;
+  return true;
+}
 function currentBuckets() {
   const act = new Set(activeAttrs());
   const diffA = $("fDiffAuthors").checked, diffO = $("fDiffOrgs").checked;
@@ -396,6 +543,7 @@ function currentBuckets() {
     if (diffA && b.nNames < 2) return false;
     if (diffO && b.nOrgs < 2) return false;
     if (onlyFlagged && !hasFlagged(b.rows)) return false;
+    if (!rowsMatchMeta(b.rows)) return false;
     if (q) {
       if (qid != null) return b.rows.some(r => A("id", r) === qid);
       return str(ATTR_META[b.attr].pool, b.ref).toLowerCase().includes(q);
@@ -496,6 +644,7 @@ function currentUnits() {
     let units = [];
     for (const [ref, rows] of byEmail) {
       if (onlyFlagged && !hasFlagged(rows)) continue;
+      if (!rowsMatchMeta(rows)) continue;
       if (q) { if (qid != null) { if (!rows.some(r => A("id", r) === qid)) continue; } else if (!(str("emails", ref) || "").toLowerCase().includes(q)) continue; }
       const dc = distinctCounts(rows);
       units.push({ kind: "single", key: "email:" + ref, attr: "email", ref, rows, nNames: dc.nNames, nOrgs: dc.nOrgs });
@@ -518,6 +667,7 @@ function currentUnits() {
     if (diffA && u.nNames < 2) return false;
     if (diffO && u.nOrgs < 2) return false;
     if (onlyFlagged && !hasFlagged(u.rows)) return false;
+    if (!rowsMatchMeta(u.rows)) return false;
     if (q) return qid != null ? u.rows.some(r => A("id", r) === qid)
       : u.parts.some(p => (str(ATTR_META[p.attr].pool, p.ref) || "").toLowerCase().includes(q));
     return true;
@@ -526,6 +676,38 @@ function currentUnits() {
     : sort === "orgs" ? b.nOrgs - a.nOrgs || b.rows.length - a.rows.length
     : b.rows.length - a.rows.length);
   return units;
+}
+
+// Numeric article-id search: drill into the best matching filtered cluster and
+// highlight the paper (same end state as clicking the cluster, then the paper).
+function articleQuery() {
+  const q = $("fSearch").value.trim();
+  if (!/^\d+$/.test(q)) return null;
+  const aid = parseInt(q, 10);
+  const r = D.articles.id.indexOf(aid);
+  return r >= 0 ? { aid, r } : null;
+}
+function maybeFocusArticleSearch() {
+  const aq = articleQuery();
+  if (!aq) return false;
+  const units = currentUnits().filter(u => u.rows.includes(aq.r));
+  if (!units.length) {
+    mode = "overview"; focusKey = null; selectedBucketKey = null; selected = null;
+    nodes = []; edges = []; adj = [];
+    drawOverlay(`Article ${aq.aid} is in the snapshot but matches no cluster with the current filters.`);
+    showPaperDetail(aq.r);
+    syncShare();
+    return true;
+  }
+  focusUnit(units[0]);
+  focusPaper(aq.r);
+  requestAnimationFrame(() => {
+    const el = document.querySelector("#bucketList .bucket.sel");
+    if (el) el.scrollIntoView({ block: "nearest" });
+    const hit = document.querySelector("#detail .conn.hit");
+    if (hit) hit.scrollIntoView({ block: "nearest" });
+  });
+  return true;
 }
 
 function renderUnits() {
@@ -555,24 +737,26 @@ function renderUnits() {
 function unitRowInner(u) {
   const authPill = u.nNames >= 2 ? `<span class="pill bad">${u.nNames} authors</span>` : (u.nNames ? `<span class="pill">1 author</span>` : "");
   const orgPill = u.nOrgs >= 2 ? `<span class="pill warn">${u.nOrgs} orgs</span>` : "";
+  const metaPills = clusterMetaPills(u.rows);
+  const metaHtml = metaPills ? `<div class="b2">${metaPills}</div>` : "";
   if (u.kind === "emailrx") {
     return `<div class="b1"><span class="attrsq" style="background:${ATTR_META.email.color}"></span>
         <span class="muted" style="font-size:11px">Email pattern</span></div>
       <div class="val" title="${escapeHtml(u.label)}">${escapeHtml(u.label)}</div>
-      <div class="b2"><span class="pill">${u.rows.length} papers</span>${authPill}${orgPill}</div>`;
+      <div class="b2"><span class="pill">${u.rows.length} papers</span>${authPill}${orgPill}</div>${metaHtml}`;
   }
   if (u.kind === "single") {
     const meta = ATTR_META[u.attr], val = str(meta.pool, u.ref) || "(empty)";
     return `<div class="b1"><span class="attrsq" style="background:${meta.color}"></span>
         <span class="muted" style="font-size:11px">${meta.label}</span></div>
       <div class="val" title="${val.replace(/"/g,'&quot;')}">${val}</div>
-      <div class="b2"><span class="pill">${u.rows.length} papers</span>${authPill}${orgPill}</div>`;
+      <div class="b2"><span class="pill">${u.rows.length} papers</span>${authPill}${orgPill}</div>${metaHtml}`;
   }
   const dots = u.parts.map(p => `<span class="attrsq" style="background:${ATTR_META[p.attr].color}" title="${ATTR_META[p.attr].label}"></span>`).join("");
   const lines = u.parts.map(p => `<div class="val" title="${(str(ATTR_META[p.attr].pool, p.ref) || '').replace(/"/g,'&quot;')}"><span class="muted" style="font-size:10px">${ATTR_META[p.attr].label}:</span> ${str(ATTR_META[p.attr].pool, p.ref) || "(empty)"}</div>`).join("");
   return `<div class="b1">${dots}<span class="muted" style="font-size:11px">${u.parts.length} types shared</span></div>
     ${lines}
-    <div class="b2"><span class="pill bad">${u.rows.length} papers</span>${authPill}${orgPill}</div>`;
+    <div class="b2"><span class="pill bad">${u.rows.length} papers</span>${authPill}${orgPill}</div>${metaHtml}`;
 }
 function focusUnit(u) { if (u.kind === "single") focusHub(u.key, u.rows); else if (u.kind === "emailrx") focusEmailrx(u); else focusCombo(u); }
 function focusEmailrx(u) {
@@ -817,13 +1001,13 @@ function hoverTip(px, py) {
   tip.style.top = (py + 14) + "px";
 }
 function onPick(h) {
-  if (h == null) { selected = null; draw(); return; }
+  if (h == null) { selected = null; draw(); syncCmpHighlight(); return; }
   selected = h;
   const nd = nodes[h];
   if (nd.type === "paper") showPaperDetail(nd.r);
   else if (nd.unit && nd.unit.kind === "combo") showComboDetail(nd.unit);
   else showBucketDetail(nd.key);
-  draw(); syncShare();
+  draw(); syncShare(); syncCmpHighlight();
 }
 function resize() { const r = cv.getBoundingClientRect(); DPR = window.devicePixelRatio || 1; cv.width = r.width * DPR; cv.height = r.height * DPR; draw(); }
 const toScreen = (x, y) => [x * view.k + view.x, y * view.k + view.y];
@@ -913,7 +1097,12 @@ function showBucketDetail(key, rowsOverride) {
 }
 function paperRowHtml(r) {
   const nm = artStr("authorName", r), t = artStr("title", r);
-  return `<div class="conn"><span class="aid" data-r="${r}">${A("id", r)}</span><span class="muted"> · ${bandLabel(r)}</span>
+  const st = artStatus(r), jn = artJournal(r);
+  const meta = [st, jn].filter(Boolean).map(x => escapeHtml(x)).join(" · ");
+  const aq = articleQuery();
+  const hit = aq && aq.r === r;
+  return `<div class="conn${hit ? " hit" : ""}"><span class="aid" data-r="${r}">${A("id", r)}</span><span class="muted"> · ${bandLabel(r)}</span>
+    ${meta ? `<div class="muted" style="font-size:11px">${meta}</div>` : ""}
     ${nm ? `<div class="muted" style="font-size:11px">${escapeHtml(nm)}</div>` : ""}
     ${t ? `<div style="font-size:11px">${escapeHtml(t.slice(0, 90))}</div>` : ""}</div>`;
 }
@@ -921,7 +1110,9 @@ function showPaperDetail(r) {
   $("detailTitle").textContent = "Paper " + A("id", r);
   $("detailSub").textContent = artStr("title", r) || "no title";
   const rows = [
-    ["Submitted", A("date", r)], ["Author", artStr("authorName", r) || "—"], ["Email", artStr("authorEmail", r) || "—"],
+    ["Submitted", A("date", r)],
+    ["Status", artStatus(r) || "—"], ["Journal", artJournal(r) || "—"], ["Section", artStr("section", r) || "—"],
+    ["Author", artStr("authorName", r) || "—"], ["Email", artStr("authorEmail", r) || "—"],
     ["Organisation", artStr("authorOrg", r) || "—"], ["Name/email sim", A("nameEmailSim", r) == null ? "—" : A("nameEmailSim", r) + "%"],
     ["Email pattern", PATTERN_NAMES[A("emailPattern", r)] || "—"], ["Papermill score", bandLabel(r)],
     ["Word-doc status", STATUS_NAMES[A("wdStatus", r)] || "—"],
@@ -965,7 +1156,7 @@ function focusPaper(r) {
     if (best) { focusHub(best); idx = nodes.findIndex(n => n.type === "paper" && n.r === r); }
   }
   if (idx >= 0) selected = idx;
-  showPaperDetail(r); draw(); syncShare();
+  showPaperDetail(r); draw(); syncShare(); syncCmpHighlight();
 }
 const escapeHtml = (s) => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -976,20 +1167,52 @@ function currentPapers() {
   return [...new Set(rs)];
 }
 let cmpState = null;                        // { rs, shared }
+let cmpHighlightR = null;                   // snapshot row idx highlighted in compare table
 let cmpSort = { key: "pmScore", dir: -1 };  // dir: 1 asc, -1 desc
+const selectedPaperRow = () => (selected != null && nodes[selected] && nodes[selected].type === "paper") ? nodes[selected].r : null;
+function syncCmpHighlight() {
+  if (!$("modal").classList.contains("open")) return;
+  cmpHighlightR = selectedPaperRow();
+  renderCompareTable();
+}
+function selectCompareRow(r) {
+  cmpHighlightR = r;
+  renderCompareTable();
+  const idx = nodes.findIndex(n => n.type === "paper" && n.r === r);
+  if (idx >= 0) {
+    selected = idx;
+    showPaperDetail(r);
+    draw();
+    syncShare();
+  }
+}
+function applyCompareSelectionToGraph() {
+  if (cmpHighlightR == null) return;
+  const idx = nodes.findIndex(n => n.type === "paper" && n.r === cmpHighlightR);
+  if (idx >= 0) {
+    selected = idx;
+    showPaperDetail(cmpHighlightR);
+    draw();
+  }
+}
 function openCompare() {
   const rs = currentPapers();
   if (!rs.length) { drawOverlay("Select a cluster first, then compare."); return; }
+  const CC = cmpCols();
   const shared = {};
-  for (const f of CMP_COLS) {
+  for (const f of CC) {
     const counts = new Map();
-    for (const r of rs) { const v = A(f, r); if (v >= 0) counts.set(v, (counts.get(v) || 0) + 1); }
+    for (const r of rs) {
+      const v = cmpShareKey(r, f);
+      if (v != null) counts.set(v, (counts.get(v) || 0) + 1);
+    }
     shared[f] = counts;
   }
   cmpState = { rs, shared };
+  cmpHighlightR = selectedPaperRow();
   cmpSort = { key: "pmScore", dir: -1 };
   $("modalTitle").textContent = "Compare papers";
-  $("modalSub").textContent = `${rs.length} papers · shared values highlighted · click a header to sort`;
+  $("modalSub").innerHTML = `${rs.length} papers · click header to sort · drag header to reorder · <a href="#" class="aid" id="cmpColReset">reset columns</a>`;
   renderCompareTable();
   $("modal").classList.add("open");
   syncShare();
@@ -997,50 +1220,118 @@ function openCompare() {
 function closeModal() {
   if (!$("modal").classList.contains("open")) return;
   $("modal").classList.remove("open");
+  applyCompareSelectionToGraph();
   syncShare();
 }
 function cmpValue(r, key) {
   if (key === "id") return A("id", r);
   if (key === "pmScore") return A("pmScore", r) == null ? -1 : A("pmScore", r);
-  const ref = A(key, r); return ref >= 0 ? (str(POOLS[key], ref) || "") : "";
+  if (key === "wdStatus") return A("wdStatus", r) || -1;
+  return cmpDisplay(r, key);
 }
-function renderCompareTable() {
-  if (!cmpState) return;
-  const { rs, shared } = cmpState, { key, dir } = cmpSort;
-  const numeric = key === "id" || key === "pmScore";
-  const sorted = rs.slice().sort((a, b) => {
+function compareSortedRows() {
+  if (!cmpState) return [];
+  const { rs } = cmpState, { key, dir } = cmpSort;
+  const numeric = key === "id" || key === "pmScore" || key === "wdStatus";
+  return rs.slice().sort((a, b) => {
     const va = cmpValue(a, key), vb = cmpValue(b, key);
     let c;
     if (numeric) c = va - vb;
-    else { const ea = va === "", eb = vb === ""; c = (ea && eb) ? 0 : ea ? 1 : eb ? -1 : va.localeCompare(vb); }
+    else { const ea = va === "", eb = vb === ""; c = (ea && eb) ? 0 : ea ? 1 : eb ? -1 : String(va).localeCompare(String(vb)); }
     return (c * dir) || (A("id", a) - A("id", b));
   });
+}
+const tsvCell = (v) => String(v == null ? "" : v).replace(/\t/g, " ").replace(/\r?\n/g, " ");
+async function copyCompareTable() {
+  if (!cmpState) return;
+  const sorted = compareSortedRows();
+  const cols = cmpColDefs();
+  const headers = (FC ? ["Flagged"] : []).concat(cols.map(([, lbl]) => lbl));
+  const lines = [headers.map(tsvCell).join("\t")];
+  for (const r of sorted) {
+    const cells = FC ? [flags.has(A("id", r)) ? "yes" : ""] : [];
+    for (const [k] of cols) cells.push(tsvCell(k === "id" ? A("id", r) : cmpDisplay(r, k)));
+    lines.push(cells.map(tsvCell).join("\t"));
+  }
+  const text = lines.join("\n");
+  const btn = $("modalCopy");
+  try {
+    await navigator.clipboard.writeText(text);
+    if (btn) { const prev = btn.textContent; btn.textContent = "Copied!"; setTimeout(() => { btn.textContent = prev; }, 1500); }
+  } catch (_) {
+    const ta = document.createElement("textarea");
+    ta.value = text; ta.style.position = "fixed"; ta.style.left = "-9999px";
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); if (btn) { const prev = btn.textContent; btn.textContent = "Copied!"; setTimeout(() => { btn.textContent = prev; }, 1500); } }
+    catch (e) { alert("Copy failed — try again or use a secure (https) context."); }
+    document.body.removeChild(ta);
+  }
+}
+function renderCompareTable() {
+  if (!cmpState) return;
+  const { shared } = cmpState, { key } = cmpSort;
+  const sorted = compareSortedRows();
   const arrow = k => cmpSort.key === k ? (cmpSort.dir < 0 ? " ▼" : " ▲") : "";
-  const cols = [["id", "Article"], ["pmScore", "Score"], ...CMP_COLS.map(f => [f, ATTR_META[f] ? ATTR_META[f].label : cmpLabel(f)])];
+  const cols = cmpColDefs();
   const flagTh = FC ? "<th>⚑</th>" : "";
-  const head = "<tr>" + flagTh + cols.map(([k, lbl]) => `<th data-sort="${k}" style="cursor:pointer;user-select:none" title="Sort by ${lbl}">${lbl}${arrow(k)}</th>`).join("") + "</tr>";
+  const head = "<tr>" + flagTh + cols.map(([k, lbl]) => `<th draggable="true" data-sort="${k}" style="cursor:grab;user-select:none" title="Sort by ${lbl} · drag to reorder">${lbl}${arrow(k)}</th>`).join("") + "</tr>";
   const body = sorted.slice(0, 300).map(r => {
-    const cells = CMP_COLS.map(f => {
-      const ref = A(f, r), v = ref >= 0 ? str(POOLS[f], ref) : "";
-      const sh = ref >= 0 && shared[f].get(ref) >= 2;
-      const cc = sh && ATTR_META[f] ? ATTR_META[f].color : (sh ? "#8ab4ff" : "");
-      return `<td class="${sh ? "share" : ""}" style="${sh ? `color:${cc}` : ""}" title="${escapeHtml(v)}">${escapeHtml(v) || '<span class="muted">—</span>'}</td>`;
-    }).join("");
     const ff = flags.get(A("id", r));
     const flagTd = FC ? `<td class="flagcell" data-fr="${r}" style="cursor:pointer;text-align:center" title="${ff && ff.comment ? escapeHtml(ff.comment) : "Toggle manufactured flag"}">${ff ? '<span style="color:#D51A2C">⚑</span>' : '<span class="muted">⚐</span>'}</td>` : "";
-    const aid = A("id", r);
-    return `<tr>${flagTd}<td><a class="aid" href="${reviewUrl(aid)}" target="_blank" rel="noopener" title="Open in Frontiers review">${aid}</a></td><td>${bandLabel(r)}</td>${cells}</tr>`;
+    const cells = cols.map(([k]) => {
+      if (k === "id") {
+        const aid = A("id", r);
+        return `<td><a class="aid" href="${reviewUrl(aid)}" target="_blank" rel="noopener" title="Open in Frontiers review">${aid}</a></td>`;
+      }
+      const v = cmpDisplay(r, k);
+      const sk = cmpShareKey(r, k);
+      const sh = sk != null && shared[k] && shared[k].get(sk) >= 2;
+      const cc = sh && ATTR_META[k] ? ATTR_META[k].color : (sh ? "#8ab4ff" : "");
+      return `<td class="${sh ? "share" : ""}" style="${sh ? `color:${cc}` : ""}" title="${escapeHtml(v)}">${escapeHtml(v) || '<span class="muted">—</span>'}</td>`;
+    }).join("");
+    return `<tr data-r="${r}" class="${r === cmpHighlightR ? "sel" : ""}">${flagTd}${cells}</tr>`;
   }).join("");
   const box = $("modalBody");
   box.innerHTML = `<table class="cmp"><thead>${head}</thead><tbody>${body}</tbody></table>`;
-  box.querySelectorAll("th[data-sort]").forEach(th => th.addEventListener("click", () => {
-    const k = th.dataset.sort;
-    if (cmpSort.key === k) cmpSort.dir *= -1; else cmpSort = { key: k, dir: k === "id" ? 1 : -1 };
-    renderCompareTable();
-  }));
+  if (cmpHighlightR != null) requestAnimationFrame(() => {
+    const row = box.querySelector("tbody tr.sel");
+    if (row) row.scrollIntoView({ block: "nearest" });
+  });
+  box.querySelectorAll("th[data-sort]").forEach(th => {
+    th.addEventListener("click", () => {
+      const k = th.dataset.sort;
+      if (cmpSort.key === k) cmpSort.dir *= -1; else cmpSort = { key: k, dir: k === "id" ? 1 : -1 };
+      renderCompareTable();
+    });
+    th.addEventListener("dragstart", e => {
+      cmpDragKey = th.dataset.sort;
+      e.dataTransfer.effectAllowed = "move";
+      th.classList.add("drag-over");
+    });
+    th.addEventListener("dragend", () => {
+      cmpDragKey = null;
+      box.querySelectorAll("th.drag-over").forEach(el => el.classList.remove("drag-over"));
+    });
+    th.addEventListener("dragover", e => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; th.classList.add("drag-over"); });
+    th.addEventListener("dragleave", () => th.classList.remove("drag-over"));
+    th.addEventListener("drop", e => {
+      e.preventDefault();
+      th.classList.remove("drag-over");
+      const target = th.dataset.sort;
+      if (!cmpDragKey || cmpDragKey === target) return;
+      const order = activeCmpColOrder().slice();
+      const from = order.indexOf(cmpDragKey), to = order.indexOf(target);
+      if (from < 0 || to < 0) return;
+      order.splice(from, 1);
+      order.splice(to, 0, cmpDragKey);
+      cmpColOrder = order;
+      saveCmpColOrder(order);
+      cmpDragKey = null;
+      renderCompareTable();
+    });
+  });
   box.querySelectorAll(".flagcell").forEach(td => td.addEventListener("click", () => toggleFlag(A("id", +td.dataset.fr))));
 }
-function cmpLabel(f) { return ({ authorName: "Author", authorEmail: "Email", authorOrg: "Organisation" })[f] || f; }
 const reviewUrl = (id) => `https://review.frontiersin.org/review/${id}/0/0`;
 
 // -------- share url --------
@@ -1051,6 +1342,8 @@ function syncShare() {
   if (!$("fDiffAuthors").checked) p.set("da", "0");
   if (!$("fDiffOrgs").checked) p.set("do", "0");
   if ($("fFlaggedOnly").checked) p.set("fl", "1");
+  const jn = $("fJournal") ? $("fJournal").value : ""; if (jn) p.set("jn", jn);
+  const sta = $("fStatus") ? $("fStatus").value : ""; if (sta) p.set("sta", sta);
   const ms = $("fMinSize").value; if (ms && ms !== "2") p.set("ms", ms);
   const st = $("fSort").value; if (st && st !== "size") p.set("st", st);
   const q = $("fSearch").value.trim(); if (q) p.set("q", q);
@@ -1070,12 +1363,15 @@ function applyShareParams() {
   if (p.has("da")) $("fDiffAuthors").checked = p.get("da") !== "0";
   if (p.has("do")) $("fDiffOrgs").checked = p.get("do") !== "0";
   if (p.has("fl")) $("fFlaggedOnly").checked = p.get("fl") === "1";
+  if (p.get("jn") && $("fJournal")) $("fJournal").value = p.get("jn");
+  if (p.get("sta") && $("fStatus")) $("fStatus").value = p.get("sta");
   if (p.get("ms")) $("fMinSize").value = p.get("ms");
   if (p.get("st")) $("fSort").value = p.get("st");
   if (p.get("q")) $("fSearch").value = p.get("q");
   if (p.get("re")) $("fEmailRegex").value = p.get("re");
   rebuildEmailFilter();
   if (p.get("c") && bucketMeta.has(p.get("c"))) focusHub(p.get("c"));
+  else if (maybeFocusArticleSearch()) { /* article search from q= */ }
   else if (p.get("a") && D.articles.id.indexOf(+p.get("a")) >= 0) focusPaper(D.articles.id.indexOf(+p.get("a")));
   else showOverview();
   if (p.get("cmp")) openCompare();

@@ -10,10 +10,13 @@ Data sources (see repo notes):
   - DeviceFingerprints            -> ip / asn / device profile / locale (full)
   - Indicators def 75 (Message)   -> Word-doc author / last-modified-by / company
   - Indicators def 80 (Message)   -> AIRA papermill risk score (%)
-  - PaperMillAuthorMetaData       -> submitting/corresponding author name/email/org (subset)
-  - PaperMillMetaData             -> article title (subset)
+  - PaperMillAuthorMetaData       -> author-declared IP only (~11%, no BQ source)
+  - frontiers-ocean BigQuery      -> status / journal / section / title / author name+email+org
 
-ResourceModel is intentionally NOT read (avg ~145 KB/row -> ~11 GB for 76k).
+ResourceModel is intentionally NOT read. Display/context fields (status, journal,
+section, title, author name/email/org) come from `frontiers-ocean.dataset_frontiersgraph`
+via BigQuery (~25s for 90d). Set AUDIT_META_SOURCE=sql to fall back to PaperMill tables
++ slow ResourceModel JSON_VALUE extraction.
 
 Usage:
   # first run / periodic full rebuild (pulls the whole 90-day window):
@@ -79,7 +82,74 @@ RAW_COLS = [
     "Platform", "ScreenWidth", "ScreenHeight", "DevicePixelRatio", "Languages", "Timezone", "UaFamily",
     "wdStatus", "wdMessage", "pmStatus", "pmMessage",
     "authorName", "authorEmail", "authorOrg", "authorIp", "ArticleTitle",
+    # article-level metadata (display / compare / optional filter — not connective).
+    # Pulled from the latest ResourceVersion.ResourceModel (two-phase, JSON_VALUE by PK).
+    "stageId", "stageName", "journal", "section",
 ]
+
+# Article metadata (status/journal/section): prefer BigQuery editorial warehouse
+# (`frontiers-ocean.dataset_frontiersgraph.*`), queried cross-project from
+# BQ_PROJECT (default `ocean-ml-sandbox`). Set AUDIT_META_SOURCE=sql to fall back
+# to slow ResourceModel JSON_VALUE extraction in service-aira.
+META_SOURCE = os.environ.get("AUDIT_META_SOURCE", "bq").lower()
+BQ_PROJECT = os.environ.get("BQ_PROJECT", "ocean-ml-sandbox")
+BQ_OCEAN_PROJECT = os.environ.get("BQ_OCEAN_PROJECT", "frontiers-ocean")
+
+# SQL fallback only (ResourceModel JSON paths).
+STAGE_ID_PATH = "$.review.stage.id"
+STAGE_NAME_PATH = "$.review.stage.name"
+JOURNAL_PATHS = ["$.submission.manuscriptDetails.journalName"]
+SECTION_PATHS = ["$.submission.manuscriptDetails.sectionName"]
+
+BQ_ARTICLE_CONTEXT_SQL = """
+WITH authors AS (
+  SELECT
+    aa.articleId AS ArticleId,
+    aa.firstName, aa.middleName, aa.lastName,
+    e.emailAddress AS email,
+    org.name AS orgName,
+    ROW_NUMBER() OVER (
+      PARTITION BY aa.articleId
+      ORDER BY IF(aa.isSubmitting, 0, 1), IF(aa.isCorresponding, 0, 1), aa.`order`
+    ) AS rn
+  FROM `{ocean}.dataset_frontiersgraph.article_article_author` aa
+  INNER JOIN `{ocean}.dataset_frontiersgraph.article_article` art
+    ON art.id = aa.articleId
+  LEFT JOIN `{ocean}.dataset_frontiersgraph.public_email_address` e
+    ON e.id = aa.emailAddressId
+  LEFT JOIN `{ocean}.dataset_frontiersgraph.article_article_author_affiliation` aff
+    ON aff.articleAuthorId = aa.id AND aff.`order` = 1
+  LEFT JOIN `{ocean}.dataset_frontiersgraph.organization_organization` org
+    ON org.id = aff.organizationId
+  WHERE art.submissionDate >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+    AND IFNULL(art.isDeleted, FALSE) = FALSE
+),
+picked AS (SELECT * FROM authors WHERE rn = 1)
+SELECT
+  a.id AS ArticleId,
+  a.title AS ArticleTitle,
+  a.articleStageId AS stageId,
+  st.name AS stageName,
+  j.name AS journal,
+  s.name AS section,
+  p.firstName, p.middleName, p.lastName,
+  p.email, p.orgName
+FROM `{ocean}.dataset_frontiersgraph.article_article` a
+LEFT JOIN `{ocean}.dataset_frontiersgraph.article_article_stage` st
+  ON st.id = a.articleStageId
+LEFT JOIN `{ocean}.dataset_frontiersgraph.journal_journal_section_path` jsp
+  ON jsp.id = a.journalSectionPathId
+LEFT JOIN `{ocean}.dataset_frontiersgraph.journal_journal` j
+  ON j.id = jsp.journalId
+LEFT JOIN `{ocean}.dataset_frontiersgraph.journal_section` s
+  ON s.id = jsp.sectionId
+LEFT JOIN picked p ON p.ArticleId = a.id
+WHERE a.submissionDate >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
+  AND IFNULL(a.isDeleted, FALSE) = FALSE
+"""
+
+# Legacy alias kept for scripts that only need status/journal/section.
+BQ_ARTICLE_META_SQL = BQ_ARTICLE_CONTEXT_SQL
 
 # ---------------------------------------------------------------------------
 # connection
@@ -181,42 +251,200 @@ def fetch(cs: str, days: int) -> pd.DataFrame:
     pm = ind[ind.IndicatorDefinitionId == PAPERMILL_INDICATOR][["ArticleId", "Status", "Message"]].copy()
     pm.columns = ["ArticleId", "pmStatus", "pmMessage"]
 
-    # author metadata (subset) - prefer submitting > corresponding > any
-    t = time.time()
+    # author-declared IP: only needed when author name/email come from BQ
+    author_ip = pd.DataFrame(columns=["ArticleId", "authorIp"])
+
+    if META_SOURCE == "sql":
+        # legacy: PaperMill author/title + ResourceModel JSON for status/journal/section
+        t = time.time()
+        frames = []
+        for batch in chunks(art_ids, 2000):
+            idcsv = ",".join(map(str, batch))
+            frames.append(
+                q(
+                    f"""SELECT ArticleId, FirstName, MiddleName, LastName, Email, Organisation, Role, IpAddress
+                        FROM PaperMillAuthorMetaData WITH (NOLOCK) WHERE ArticleId IN ({idcsv})"""
+                )
+            )
+        amd = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+        author = _pick_author(amd)
+        print(f"[fetch] author metadata (PaperMill): {len(author):,} ({time.time()-t:.1f}s)", file=sys.stderr)
+
+        t = time.time()
+        frames = []
+        for batch in chunks(art_ids, 2000):
+            idcsv = ",".join(map(str, batch))
+            frames.append(
+                q(f"SELECT ArticleID AS ArticleId, ArticleTitle FROM PaperMillMetaData WITH (NOLOCK) WHERE ArticleID IN ({idcsv})")
+            )
+        tt = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+        if not tt.empty:
+            tt["ArticleId"] = tt["ArticleId"].astype("int64")
+            tt = tt.dropna(subset=["ArticleTitle"]).groupby("ArticleId", as_index=False).first()
+        print(f"[fetch] titles (PaperMill): {len(tt):,} ({time.time()-t:.1f}s)", file=sys.stderr)
+
+        ctx = fetch_status_journal(conn, res_ids, rid_to_aid)
+    else:
+        author = pd.DataFrame()
+        tt = pd.DataFrame()
+        t = time.time()
+        author_ip = _fetch_author_ip(q, art_ids)
+        print(f"[fetch] author IP (PaperMill subset): {len(author_ip):,} ({time.time()-t:.1f}s)", file=sys.stderr)
+        ctx = fetch_article_context_bq(days)
+        if not author_ip.empty:
+            ctx = ctx.merge(author_ip, on="ArticleId", how="left")
+
+    conn.close()
+
+    df = res[["ArticleId", "Created"]].merge(fp, on="ArticleId", how="left")
+    for extra in (wd, pm, author, tt, ctx):
+        if not extra.empty:
+            df = df.merge(extra, on="ArticleId", how="left")
+    return df.reindex(columns=RAW_COLS)
+
+
+def _coalesce_json(paths: list[str], alias: str) -> str:
+    vals = [f"JSON_VALUE(rv.ResourceModel,'{p}')" for p in paths]
+    inner = vals[0] if len(vals) == 1 else f"COALESCE({','.join(vals)})"
+    return f"{inner} AS {alias}"
+
+
+def _fetch_author_ip(q, art_ids: list[int]) -> pd.DataFrame:
+    """Author-declared submission IP from PaperMillAuthorMetaData (small subset, no JSON)."""
     frames = []
     for batch in chunks(art_ids, 2000):
         idcsv = ",".join(map(str, batch))
         frames.append(
             q(
-                f"""SELECT ArticleId, FirstName, MiddleName, LastName, Email, Organisation, Role, IpAddress
-                    FROM PaperMillAuthorMetaData WITH (NOLOCK) WHERE ArticleId IN ({idcsv})"""
+                f"""SELECT ArticleId, IpAddress
+                    FROM PaperMillAuthorMetaData WITH (NOLOCK)
+                    WHERE ArticleId IN ({idcsv}) AND IpAddress IS NOT NULL AND IpAddress <> ''"""
             )
         )
     amd = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-    author = _pick_author(amd)
-    print(f"[fetch] author metadata: {len(author):,} of {len(art_ids):,} ({time.time()-t:.1f}s)", file=sys.stderr)
+    if amd.empty:
+        return pd.DataFrame(columns=["ArticleId", "authorIp"])
+    amd["ArticleId"] = amd["ArticleId"].astype("int64")
+    amd = amd.drop_duplicates("ArticleId", keep="first")
+    return amd.rename(columns={"IpAddress": "authorIp"})[["ArticleId", "authorIp"]]
 
-    # title (subset)
+
+def _bq_str(v) -> str:
+    if v is None or (isinstance(v, float) and v != v):
+        return ""
+    s = str(v).strip()
+    return "" if s.lower() in PLACEHOLDERS else s
+
+
+def _format_bq_context(df: pd.DataFrame) -> pd.DataFrame:
+    """Map raw BQ author columns to snapshot authorName/Email/Org fields."""
+    if df.empty:
+        return df
+    out = df.drop_duplicates("ArticleId", keep="first").copy()
+    out["authorName"] = [
+        author_display_name(_bq_str(f), _bq_str(m), _bq_str(l), None)
+        for f, m, l in zip(out.get("firstName"), out.get("middleName"), out.get("lastName"))
+    ]
+    out["authorEmail"] = out.get("email", pd.Series("", index=out.index)).map(_bq_str).str.lower()
+    out["authorOrg"] = out.get("orgName", pd.Series("", index=out.index)).map(_bq_str)
+    keep = ["ArticleId", "ArticleTitle", "stageId", "stageName", "journal", "section",
+            "authorName", "authorEmail", "authorOrg"]
+    if "authorIp" in out.columns:
+        keep.append("authorIp")
+    return out.reindex(columns=[c for c in keep if c in out.columns])
+
+
+def fetch_article_context_bq(days: int) -> pd.DataFrame:
+    """Article context from the editorial BigQuery warehouse (no JSON).
+
+    Returns status, journal, section, title, and submitting-author name/email/org.
+    Query jobs run in BQ_PROJECT; data is read cross-project from BQ_OCEAN_PROJECT.
+    """
+    empty = ["ArticleId", "ArticleTitle", "stageId", "stageName", "journal", "section",
+             "authorName", "authorEmail", "authorOrg"]
+    try:
+        from google.cloud import bigquery
+    except ImportError:
+        print("[fetch] google-cloud-bigquery not installed; skipping BQ context", file=sys.stderr)
+        return pd.DataFrame(columns=empty)
+
+    sql = BQ_ARTICLE_CONTEXT_SQL.format(ocean=BQ_OCEAN_PROJECT, days=int(days))
     t = time.time()
-    frames = []
-    for batch in chunks(art_ids, 2000):
+    client = bigquery.Client(project=BQ_PROJECT)
+    df = client.query(sql).to_dataframe()
+    if df.empty:
+        print(f"[fetch] BQ article context: 0 rows ({time.time()-t:.1f}s)", file=sys.stderr)
+        return pd.DataFrame(columns=empty)
+    df["ArticleId"] = df["ArticleId"].astype("int64")
+    out = _format_bq_context(df)
+    print(
+        f"[fetch] BQ article context: {len(out):,} "
+        f"({out['authorEmail'].astype(bool).sum():,} email, "
+        f"{out['journal'].notna().sum():,} journal, "
+        f"{(out['stageName'] == 'Rejected').sum():,} rejected) "
+        f"({time.time()-t:.1f}s)",
+        file=sys.stderr,
+    )
+    return out
+
+
+def fetch_status_journal_bq(days: int) -> pd.DataFrame:
+    """Backward-compatible wrapper — prefer fetch_article_context_bq."""
+    ctx = fetch_article_context_bq(days)
+    return ctx[["ArticleId", "stageId", "stageName", "journal", "section"]]
+
+
+def fetch_status_journal(conn, res_ids: list[int], rid_to_aid: dict) -> pd.DataFrame:
+    """Latest ResourceModel stage/journal/section per article (two-phase, by PK).
+
+    Phase 1 finds the latest ResourceVersion.Id per ResourceId via the ResourceId
+    index (no JSON). Phase 2 extracts scalar JSON_VALUE by PK for just those ids,
+    which is cheap relative to a full-blob parse.
+    """
+    cur = conn.cursor()
+    cols = [
+        "rv.Id",
+        f"TRY_CAST(JSON_VALUE(rv.ResourceModel,'{STAGE_ID_PATH}') AS INT) AS stageId",
+        f"JSON_VALUE(rv.ResourceModel,'{STAGE_NAME_PATH}') AS stageName",
+        _coalesce_json(JOURNAL_PATHS, "journal"),
+        _coalesce_json(SECTION_PATHS, "section"),
+    ]
+    sel = ",".join(cols)
+    out = {}
+    t = time.time()
+    for bi, batch in enumerate(chunks(res_ids, 1500)):
         idcsv = ",".join(map(str, batch))
-        frames.append(
-            q(f"SELECT ArticleID AS ArticleId, ArticleTitle FROM PaperMillMetaData WITH (NOLOCK) WHERE ArticleID IN ({idcsv})")
+        cur.execute(
+            f"""WITH ranked AS (
+                    SELECT Id, ResourceId,
+                           ROW_NUMBER() OVER (PARTITION BY ResourceId ORDER BY Version DESC, Id DESC) rn
+                    FROM ResourceVersion WITH (NOLOCK) WHERE ResourceId IN ({idcsv}))
+                SELECT ResourceId, Id FROM ranked WHERE rn=1"""
         )
-    tt = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-    if not tt.empty:
-        tt["ArticleId"] = tt["ArticleId"].astype("int64")
-        tt = tt.dropna(subset=["ArticleTitle"]).groupby("ArticleId", as_index=False).first()
-    print(f"[fetch] titles: {len(tt):,} ({time.time()-t:.1f}s)", file=sys.stderr)
-
-    conn.close()
-
-    df = res[["ArticleId", "Created"]].merge(fp, on="ArticleId", how="left")
-    for extra in (wd, pm, author, tt):
-        if not extra.empty:
-            df = df.merge(extra, on="ArticleId", how="left")
-    return df.reindex(columns=RAW_COLS)
+        vid_to_rid = {int(vid): int(rid) for rid, vid in cur.fetchall()}
+        vids = list(vid_to_rid)
+        for vbatch in chunks(vids, 1500):
+            vcsv = ",".join(map(str, vbatch))
+            cur.execute(f"SELECT {sel} FROM ResourceVersion rv WITH (NOLOCK) WHERE rv.Id IN ({vcsv})")
+            for row in cur.fetchall():
+                vid = int(row[0])
+                aid = rid_to_aid.get(vid_to_rid.get(vid))
+                if aid is None:
+                    continue
+                out[aid] = {
+                    "ArticleId": int(aid),
+                    "stageId": row[1],
+                    "stageName": row[2],
+                    "journal": row[3],
+                    "section": row[4],
+                }
+        if (bi + 1) % 10 == 0:
+            print(f"[fetch]   status/journal batch {bi+1}", file=sys.stderr)
+    df = pd.DataFrame(list(out.values()), columns=["ArticleId", "stageId", "stageName", "journal", "section"])
+    if not df.empty:
+        df["ArticleId"] = df["ArticleId"].astype("int64")
+    print(f"[fetch] status/journal/section: {len(df):,} ({time.time()-t:.1f}s)", file=sys.stderr)
+    return df
 
 
 def _created_naive(df: pd.DataFrame) -> pd.Series:
@@ -442,6 +670,9 @@ def build(df: pd.DataFrame, cap: int, days: int, flag_ids: set | None = None) ->
             "title": clean(r.get("ArticleTitle"))[:TITLE_MAX],
             "authorName": name,
             "authorEmail": email,
+            "status": clean(r.get("stageName")),
+            "journal": clean(r.get("journal")),
+            "section": clean(r.get("section")),
             "authorOrg": clean(r.get("authorOrg")),
             "platform": clean(r.get("Platform")),
             "uaFamily": clean(r.get("UaFamily")),
@@ -526,6 +757,9 @@ def _encode(recs, keep, old_to_new, kept_index, caps, days, flag_ids=None) -> di
         "title": "titles",
         "authorName": "names",
         "authorEmail": "emails",
+        "status": "statuses",
+        "journal": "journals",
+        "section": "sections",
         "authorOrg": "orgs",
         "platform": "platforms",
         "uaFamily": "uaFamilies",
