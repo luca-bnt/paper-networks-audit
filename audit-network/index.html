@@ -31,9 +31,10 @@
   .attrsq { width: 9px; height: 9px; flex: none; border-radius: 2px; }
   .row { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
   .row label { color: var(--muted); flex: none; min-width: 92px; }
-  input[type=text], input[type=number], select {
+  input[type=text], input[type=number], select, textarea#fSearch {
     background: var(--panel2); color: var(--text); border: 1px solid var(--line);
     border-radius: 6px; padding: 6px 8px; width: 100%; font-size: 12px; }
+  textarea#fSearch { min-height: 48px; resize: vertical; line-height: 1.35; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   .bucket { padding: 8px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
   .bucket:hover { background: var(--panel2); }
   .bucket.sel { background: #232a3a; box-shadow: inset 3px 0 0 var(--accent); }
@@ -133,7 +134,7 @@
           <option value="orgs">Most distinct organisations</option>
         </select>
       </div>
-      <div class="row"><label>Search</label><input type="text" id="fSearch" placeholder="value or article id"></div>
+      <div class="row"><label>Search</label><textarea id="fSearch" rows="2" placeholder="article ids (comma / tab / line) or connection value"></textarea></div>
       <div class="row"><label>Email regex</label><input type="text" id="fEmailRegex" placeholder="e.g. \d{4,}@  or  @(163|qq|126)\."></div>
       <div id="emailErr" style="color:var(--red);font-size:11px;min-height:14px"></div>
       <div class="row" id="reviewerRow" style="display:none"><label>Reviewer</label><input type="text" id="fReviewer" placeholder="your name (for flags)"></div>
@@ -477,7 +478,7 @@ function bindUI() {
   const onFilterChange = () => {
     renderList();
     clearTimeout(searchFocusTimer);
-    const typingId = document.activeElement === $("fSearch") && /^\d+$/.test($("fSearch").value.trim());
+    const typingId = document.activeElement === $("fSearch") && parseArticleIdSearch($("fSearch").value) !== null;
     searchFocusTimer = setTimeout(() => {
       if (maybeFocusArticleSearch()) return;
       if (mode === "overview") showOverview();
@@ -529,13 +530,36 @@ function rowsMatchMeta(rows) {
   if (sta === "not" && !rows.some(r => artStatus(r) && !isRejected(r))) return false;
   return true;
 }
+// Article-id search: comma, tab, or line break separated numeric ids (spaces stripped).
+const SEARCH_ID_SPLIT = /[\s,;\t]+/;
+function parseArticleIdSearch(raw) {
+  const trimmed = (raw || "").trim();
+  if (!trimmed) return null;
+  const parts = trimmed.split(SEARCH_ID_SPLIT).map(s => s.trim()).filter(Boolean);
+  if (!parts.length) return null;
+  const ordered = [], ids = new Set();
+  for (const p of parts) {
+    if (!/^\d+$/.test(p)) return null;
+    const aid = parseInt(p, 10);
+    if (!ids.has(aid)) { ids.add(aid); ordered.push(aid); }
+  }
+  return { ids, ordered };
+}
+function rowsMatchArticleSearch(rows, idSearch) {
+  return rows.some(r => idSearch.ids.has(A("id", r)));
+}
+function searchTextQuery() {
+  const raw = $("fSearch").value.trim();
+  if (!raw || parseArticleIdSearch(raw)) return "";
+  return raw.toLowerCase();
+}
 function currentBuckets() {
   const act = new Set(activeAttrs());
   const diffA = $("fDiffAuthors").checked, diffO = $("fDiffOrgs").checked;
   const onlyFlagged = $("fFlaggedOnly").checked;
   const minSize = Math.max(2, parseInt($("fMinSize").value) || 2);
-  const q = $("fSearch").value.trim().toLowerCase();
-  const qid = /^\d+$/.test(q) ? parseInt(q) : null;
+  const idSearch = parseArticleIdSearch($("fSearch").value);
+  const q = searchTextQuery();
   const sort = $("fSort").value;
   let list = buckets.filter(b => {
     if (!act.has(b.attr)) return false;
@@ -544,10 +568,8 @@ function currentBuckets() {
     if (diffO && b.nOrgs < 2) return false;
     if (onlyFlagged && !hasFlagged(b.rows)) return false;
     if (!rowsMatchMeta(b.rows)) return false;
-    if (q) {
-      if (qid != null) return b.rows.some(r => A("id", r) === qid);
-      return str(ATTR_META[b.attr].pool, b.ref).toLowerCase().includes(q);
-    }
+    if (idSearch) return rowsMatchArticleSearch(b.rows, idSearch);
+    if (q) return str(ATTR_META[b.attr].pool, b.ref).toLowerCase().includes(q);
     return true;
   });
   list.sort((a, b) => sort === "authors" ? b.nNames - a.nNames || b.rows.length - a.rows.length
@@ -639,13 +661,15 @@ function currentUnits() {
     const byEmail = new Map();
     for (const r of emailMatch) { const ref = D.articles.authorEmail[r]; if (ref < 0) continue; let g = byEmail.get(ref); if (!g) { g = []; byEmail.set(ref, g); } g.push(r); }
     const onlyFlagged = $("fFlaggedOnly").checked;
-    const q = $("fSearch").value.trim().toLowerCase(), qid = /^\d+$/.test(q) ? parseInt(q) : null;
+    const idSearch = parseArticleIdSearch($("fSearch").value);
+    const q = searchTextQuery();
     const sort = $("fSort").value;
     let units = [];
     for (const [ref, rows] of byEmail) {
       if (onlyFlagged && !hasFlagged(rows)) continue;
       if (!rowsMatchMeta(rows)) continue;
-      if (q) { if (qid != null) { if (!rows.some(r => A("id", r) === qid)) continue; } else if (!(str("emails", ref) || "").toLowerCase().includes(q)) continue; }
+      if (idSearch) { if (!rowsMatchArticleSearch(rows, idSearch)) continue; }
+      else if (q && !(str("emails", ref) || "").toLowerCase().includes(q)) continue;
       const dc = distinctCounts(rows);
       units.push({ kind: "single", key: "email:" + ref, attr: "email", ref, rows, nNames: dc.nNames, nOrgs: dc.nOrgs });
     }
@@ -659,8 +683,8 @@ function currentUnits() {
   const diffA = $("fDiffAuthors").checked, diffO = $("fDiffOrgs").checked;
   const onlyFlagged = $("fFlaggedOnly").checked;
   const minSize = Math.max(2, parseInt($("fMinSize").value) || 2);
-  const q = $("fSearch").value.trim().toLowerCase();
-  const qid = /^\d+$/.test(q) ? parseInt(q) : null;
+  const idSearch = parseArticleIdSearch($("fSearch").value);
+  const q = searchTextQuery();
   const sort = $("fSort").value;
   let units = computeCombos().filter(u => {
     if (u.rows.length < minSize) return false;
@@ -668,8 +692,8 @@ function currentUnits() {
     if (diffO && u.nOrgs < 2) return false;
     if (onlyFlagged && !hasFlagged(u.rows)) return false;
     if (!rowsMatchMeta(u.rows)) return false;
-    if (q) return qid != null ? u.rows.some(r => A("id", r) === qid)
-      : u.parts.some(p => (str(ATTR_META[p.attr].pool, p.ref) || "").toLowerCase().includes(q));
+    if (idSearch) return rowsMatchArticleSearch(u.rows, idSearch);
+    if (q) return u.parts.some(p => (str(ATTR_META[p.attr].pool, p.ref) || "").toLowerCase().includes(q));
     return true;
   });
   units.sort((a, b) => sort === "authors" ? b.nNames - a.nNames || b.rows.length - a.rows.length
@@ -678,29 +702,30 @@ function currentUnits() {
   return units;
 }
 
-// Numeric article-id search: drill into the best matching filtered cluster and
-// highlight the paper (same end state as clicking the cluster, then the paper).
-function articleQuery() {
-  const q = $("fSearch").value.trim();
-  if (!/^\d+$/.test(q)) return null;
-  const aid = parseInt(q, 10);
-  const r = D.articles.id.indexOf(aid);
-  return r >= 0 ? { aid, r } : null;
-}
+// Article-id search: drill into the best matching filtered cluster and highlight.
 function maybeFocusArticleSearch() {
-  const aq = articleQuery();
-  if (!aq) return false;
-  const units = currentUnits().filter(u => u.rows.includes(aq.r));
-  if (!units.length) {
+  const idSearch = parseArticleIdSearch($("fSearch").value);
+  if (!idSearch) return false;
+  let target = null, unit = null;
+  for (const aid of idSearch.ordered) {
+    const r = D.articles.id.indexOf(aid);
+    if (r < 0) continue;
+    const units = currentUnits().filter(u => u.rows.includes(r));
+    if (units.length) { target = { aid, r }; unit = units[0]; break; }
+  }
+  const firstSnap = idSearch.ordered.map(aid => D.articles.id.indexOf(aid)).find(r => r >= 0);
+  if (firstSnap === undefined) return false;
+  if (!target) {
     mode = "overview"; focusKey = null; selectedBucketKey = null; selected = null;
     nodes = []; edges = []; adj = [];
-    drawOverlay(`Article ${aq.aid} is in the snapshot but matches no cluster with the current filters.`);
-    showPaperDetail(aq.r);
+    const n = idSearch.ordered.length;
+    drawOverlay(`${n > 1 ? n + " articles" : "Article " + A("id", firstSnap)} in the snapshot but no cluster matches the current filters.`);
+    showPaperDetail(firstSnap);
     syncShare();
     return true;
   }
-  focusUnit(units[0]);
-  focusPaper(aq.r);
+  focusUnit(unit);
+  focusPaper(target.r);
   requestAnimationFrame(() => {
     const el = document.querySelector("#bucketList .bucket.sel");
     if (el) el.scrollIntoView({ block: "nearest" });
@@ -1099,8 +1124,8 @@ function paperRowHtml(r) {
   const nm = artStr("authorName", r), t = artStr("title", r);
   const st = artStatus(r), jn = artJournal(r);
   const meta = [st, jn].filter(Boolean).map(x => escapeHtml(x)).join(" · ");
-  const aq = articleQuery();
-  const hit = aq && aq.r === r;
+  const idSearch = parseArticleIdSearch($("fSearch").value);
+  const hit = idSearch && idSearch.ids.has(A("id", r));
   return `<div class="conn${hit ? " hit" : ""}"><span class="aid" data-r="${r}">${A("id", r)}</span><span class="muted"> · ${bandLabel(r)}</span>
     ${meta ? `<div class="muted" style="font-size:11px">${meta}</div>` : ""}
     ${nm ? `<div class="muted" style="font-size:11px">${escapeHtml(nm)}</div>` : ""}
