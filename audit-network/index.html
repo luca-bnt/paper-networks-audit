@@ -122,8 +122,8 @@
       <div class="row" id="statusRow"><label>Status</label>
         <select id="fStatus" disabled>
           <option value="">Any status</option>
-          <option value="rej">Rejected</option>
-          <option value="not">Not rejected</option>
+          <option value="rej">Rejected only</option>
+          <option value="not">Active only</option>
         </select>
       </div>
       <div class="muted" id="metaFilterNote" style="font-size:11px;margin-top:4px;display:none"></div>
@@ -384,6 +384,12 @@ const artJournal = (r) => (D.articles.journal ? artStr("journal", r) : "");
 const isRejected = (r) => artStatus(r).toLowerCase() === "rejected";
 const clusterAllRejected = (rows) => rows.length > 0 && rows.every(isRejected);
 const hideAllRejectedClusters = () => !$("fHideAllRejected") || $("fHideAllRejected").checked;
+// Skip hide-all-rejected when the user explicitly filters to rejected papers only.
+function shouldHideAllRejectedCluster(rows) {
+  const sta = $("fStatus") ? $("fStatus").value : "";
+  if (sta === "rej") return false;
+  return hideAllRejectedClusters() && clusterAllRejected(rows);
+}
 function clusterMetaPills(rows) {
   if (!D.articles.status && !D.articles.journal) return "";
   const statuses = new Map(), journals = new Map();
@@ -523,15 +529,17 @@ function buildLegend() {
 }
 
 // -------- bucket list --------
-// Optional metadata filters: keep a cluster if ≥1 of its papers matches the
-// selected journal / rejection status (mirrors the "flagged only" semantics).
-function rowsMatchMeta(rows) {
-  const jsel = $("fJournal"), ssel = $("fStatus");
-  const jr = jsel ? jsel.value : "", sta = ssel ? ssel.value : "";
-  if (jr && !rows.some(r => artJournal(r) === jr)) return false;
-  if (sta === "rej" && !rows.some(isRejected)) return false;
-  if (sta === "not" && !rows.some(r => artStatus(r) && !isRejected(r))) return false;
+// Journal / status filters apply per paper (not “cluster has at least one match”).
+function paperMatchesMetaFilter(r) {
+  const jr = $("fJournal") ? $("fJournal").value : "";
+  if (jr && artJournal(r) !== jr) return false;
+  const sta = $("fStatus") ? $("fStatus").value : "";
+  if (sta === "rej") return isRejected(r);
+  if (sta === "not") return !!artStatus(r) && !isRejected(r);
   return true;
+}
+function metaFilteredRows(rows) {
+  return rows.filter(paperMatchesMetaFilter);
 }
 // Article-id search: comma, tab, or line break separated numeric ids (spaces stripped).
 const SEARCH_ID_SPLIT = /[\s,;\t]+/;
@@ -557,7 +565,7 @@ function searchArticleRows(idSearch) {
     const r = D.articles.id.indexOf(aid);
     if (r >= 0) rows.push(r);
   }
-  return rows.filter(r => rowsMatchMeta([r]) && (!$("fFlaggedOnly").checked || isFlagged(r))).slice(0, NODE_CAP);
+  return rows.filter(r => paperMatchesMetaFilter(r) && (!$("fFlaggedOnly").checked || isFlagged(r))).slice(0, NODE_CAP);
 }
 function sharedAttrsBetween(r1, r2) {
   const out = [];
@@ -582,15 +590,20 @@ function currentBuckets() {
   const sort = $("fSort").value;
   let list = buckets.filter(b => {
     if (!act.has(b.attr)) return false;
-    if (b.rows.length < minSize) return false;
-    if (diffA && b.nNames < 2) return false;
-    if (diffO && b.nOrgs < 2) return false;
-    if (onlyFlagged && !hasFlagged(b.rows)) return false;
-    if (hideAllRejectedClusters() && clusterAllRejected(b.rows)) return false;
-    if (!rowsMatchMeta(b.rows)) return false;
-    if (idSearch) return rowsMatchArticleSearch(b.rows, idSearch);
-    if (q) return str(ATTR_META[b.attr].pool, b.ref).toLowerCase().includes(q);
+    const rows = metaFilteredRows(b.rows);
+    if (rows.length < minSize) return false;
+    const dc = distinctCounts(rows);
+    if (diffA && dc.nNames < 2) return false;
+    if (diffO && dc.nOrgs < 2) return false;
+    if (onlyFlagged && !rows.some(isFlagged)) return false;
+    if (shouldHideAllRejectedCluster(rows)) return false;
+    if (idSearch && !rowsMatchArticleSearch(rows, idSearch)) return false;
+    if (q && !str(ATTR_META[b.attr].pool, b.ref).toLowerCase().includes(q)) return false;
     return true;
+  }).map(b => {
+    const rows = metaFilteredRows(b.rows);
+    const dc = distinctCounts(rows);
+    return { attr: b.attr, ref: b.ref, rows, nNames: dc.nNames, nOrgs: dc.nOrgs };
   });
   list.sort((a, b) => sort === "authors" ? b.nNames - a.nNames || b.rows.length - a.rows.length
     : sort === "orgs" ? b.nOrgs - a.nOrgs || b.rows.length - a.rows.length
@@ -658,6 +671,7 @@ function computeCombos() {
   const groups = new Map();
   for (let r = 0; r < n; r++) {
     if (emailMatch && !emailMatch.has(r)) continue; // email regex acts as an AND filter
+    if (!paperMatchesMetaFilter(r)) continue;
     let key = "", ok = true;
     for (let i = 0; i < act.length; i++) { const ref = cols[i][r]; if (ref < 0) { ok = false; break; } key += act[i] + "#" + ref + "|"; }
     if (!ok) continue;
@@ -686,13 +700,14 @@ function currentUnits() {
     const sort = $("fSort").value;
     let units = [];
     for (const [ref, rows] of byEmail) {
-      if (onlyFlagged && !hasFlagged(rows)) continue;
-      if (hideAllRejectedClusters() && clusterAllRejected(rows)) continue;
-      if (!rowsMatchMeta(rows)) continue;
-      if (idSearch) { if (!rowsMatchArticleSearch(rows, idSearch)) continue; }
+      const fr = metaFilteredRows(rows);
+      if (!fr.length) continue;
+      if (onlyFlagged && !hasFlagged(fr)) continue;
+      if (shouldHideAllRejectedCluster(fr)) continue;
+      if (idSearch) { if (!rowsMatchArticleSearch(fr, idSearch)) continue; }
       else if (q && !(str("emails", ref) || "").toLowerCase().includes(q)) continue;
-      const dc = distinctCounts(rows);
-      units.push({ kind: "single", key: "email:" + ref, attr: "email", ref, rows, nNames: dc.nNames, nOrgs: dc.nOrgs });
+      const dc = distinctCounts(fr);
+      units.push({ kind: "single", key: "email:" + ref, attr: "email", ref, rows: fr, nNames: dc.nNames, nOrgs: dc.nOrgs });
     }
     units.sort((a, b) => sort === "authors" ? b.nNames - a.nNames || b.rows.length - a.rows.length
       : sort === "orgs" ? b.nOrgs - a.nOrgs || b.rows.length - a.rows.length
@@ -712,8 +727,7 @@ function currentUnits() {
     if (diffA && u.nNames < 2) return false;
     if (diffO && u.nOrgs < 2) return false;
     if (onlyFlagged && !hasFlagged(u.rows)) return false;
-    if (hideAllRejectedClusters() && clusterAllRejected(u.rows)) return false;
-    if (!rowsMatchMeta(u.rows)) return false;
+    if (shouldHideAllRejectedCluster(u.rows)) return false;
     if (idSearch) return rowsMatchArticleSearch(u.rows, idSearch);
     if (q) return u.parts.some(p => (str(ATTR_META[p.attr].pool, p.ref) || "").toLowerCase().includes(q));
     return true;
