@@ -25,6 +25,21 @@
   .section { padding: 10px 14px; border-bottom: 1px solid var(--line); }
   .section h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
     color: var(--muted); margin: 0 0 8px; }
+  .section.collapsible { padding: 0; }
+  .section.collapsible .section-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    width: 100%; padding: 10px 14px; background: none; border: none; color: inherit;
+    cursor: pointer; text-align: left;
+  }
+  .section.collapsible .section-head:hover h2 { color: var(--text); }
+  .section.collapsible .section-head h2 { margin: 0; transition: color .12s; }
+  .section.collapsible .section-chevron {
+    color: var(--muted); font-size: 10px; line-height: 1; flex: none;
+    transition: transform .15s ease;
+  }
+  .section.collapsible.collapsed .section-chevron { transform: rotate(-90deg); }
+  .section.collapsible .section-body { padding: 0 14px 10px; }
+  .section.collapsible.collapsed .section-body { display: none; }
   label.chk { display: flex; align-items: center; gap: 7px; padding: 3px 0; cursor: pointer; }
   label.chk input { accent-color: var(--accent); }
   .attrdot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
@@ -108,12 +123,21 @@
       <h1>Paper Connection Audit</h1>
       <div class="sub" id="meta">loading…</div>
     </header>
-    <div class="section">
-      <h2>Connection type</h2>
-      <div id="attrToggles"></div>
+    <div class="section collapsible" id="secConnTypes">
+      <button type="button" class="section-head" id="secConnTypesHead" aria-expanded="true" aria-controls="secConnTypesBody">
+        <h2>Connection type</h2>
+        <span class="section-chevron" aria-hidden="true">▾</span>
+      </button>
+      <div class="section-body" id="secConnTypesBody">
+        <div id="attrToggles"></div>
+      </div>
     </div>
-    <div class="section">
-      <h2>Filters</h2>
+    <div class="section collapsible" id="secFilters">
+      <button type="button" class="section-head" id="secFiltersHead" aria-expanded="true" aria-controls="secFiltersBody">
+        <h2>Filters</h2>
+        <span class="section-chevron" aria-hidden="true">▾</span>
+      </button>
+      <div class="section-body" id="secFiltersBody">
       <label class="chk"><input type="checkbox" id="fDiffAuthors" checked> Different submitting authors</label>
       <label class="chk"><input type="checkbox" id="fDiffOrgs" checked> Different organisations</label>
       <label class="chk"><input type="checkbox" id="fFlaggedOnly"> <span style="color:#D51A2C">⚑</span> Only clusters with a flagged paper</label>
@@ -139,6 +163,7 @@
       <div class="row"><label>Email regex</label><input type="text" id="fEmailRegex" placeholder="e.g. \d{4,}@  or  @(163|qq|126)\."></div>
       <div id="emailErr" style="color:var(--red);font-size:11px;min-height:14px"></div>
       <div class="row" id="reviewerRow" style="display:none"><label>Reviewer</label><input type="text" id="fReviewer" placeholder="your name (for flags)"></div>
+      </div>
     </div>
     <div class="section" style="padding-bottom:6px"><h2 style="margin:0"><span id="listTitle">Connections</span> <span class="count" id="bucketCount"></span></h2></div>
     <div class="scroll" id="bucketList"></div>
@@ -481,6 +506,25 @@ function buildMetaFilters() {
     note.style.display = "";
     note.textContent = "This snapshot has no status/journal metadata — rebuild and redeploy snapshot.json.gz.";
   } else note.style.display = "none";
+}
+
+const COLLAPSE_KEY = "auditSectionCollapse";
+function initCollapsibleSections() {
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(COLLAPSE_KEY) || "{}"); } catch (_) {}
+  [["secConnTypes", "conn"], ["secFilters", "filters"]].forEach(([id, key]) => {
+    const sec = $(id), head = $(id + "Head");
+    if (!sec || !head) return;
+    const collapsed = saved[key] === true;
+    sec.classList.toggle("collapsed", collapsed);
+    head.setAttribute("aria-expanded", String(!collapsed));
+    head.addEventListener("click", () => {
+      const nowCollapsed = sec.classList.toggle("collapsed");
+      head.setAttribute("aria-expanded", String(!nowCollapsed));
+      saved[key] = nowCollapsed;
+      try { localStorage.setItem(COLLAPSE_KEY, JSON.stringify(saved)); } catch (_) {}
+    });
+  });
 }
 
 function bindUI() {
@@ -1491,6 +1535,7 @@ function applyShareParams() {
   if (p.get("cmp")) openCompare();
 }
 
+initCollapsibleSections();
 boot();
 </script>
 </body>
