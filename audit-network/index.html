@@ -50,6 +50,28 @@
     background: var(--panel2); color: var(--text); border: 1px solid var(--line);
     border-radius: 6px; padding: 6px 8px; width: 100%; font-size: 12px; }
   #fSearch { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  #fEmailRegex { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .regex-field { position: relative; flex: 1; min-width: 0; }
+  .regex-presets { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 2px 100px; }
+  .regex-chip {
+    background: var(--panel2); color: var(--muted); border: 1px solid var(--line);
+    border-radius: 12px; padding: 2px 8px; font-size: 10px; cursor: pointer;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  .regex-chip:hover { color: var(--text); border-color: var(--accent); }
+  .regex-suggest {
+    display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 6px;
+    max-height: 160px; overflow-y: auto; box-shadow: 0 6px 18px #0008;
+  }
+  .regex-suggest.open { display: block; }
+  .regex-suggest button {
+    display: block; width: 100%; text-align: left; background: none; border: none;
+    color: var(--text); padding: 6px 8px; cursor: pointer; font-size: 11px;
+  }
+  .regex-suggest button:hover, .regex-suggest button.sel { background: #232a3a; }
+  .regex-suggest .pat { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--accent); }
+  .regex-suggest .hint { color: var(--muted); font-size: 10px; margin-left: 6px; }
   .bucket { padding: 8px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
   .bucket:hover { background: var(--panel2); }
   .bucket.sel { background: #232a3a; box-shadow: inset 3px 0 0 var(--accent); }
@@ -161,7 +183,13 @@
         </select>
       </div>
       <div class="row"><label>Search</label><input type="text" id="fSearch" placeholder="article ids (comma / tab / line) or connection value"></div>
-      <div class="row"><label>Email regex</label><input type="text" id="fEmailRegex" placeholder="e.g. \d{4,}@  or  @(163|qq|126)\."></div>
+      <div class="row"><label>Email regex</label>
+        <div class="regex-field">
+          <input type="text" id="fEmailRegex" placeholder="regex on full email" autocomplete="off" spellcheck="false">
+          <div class="regex-suggest" id="emailRegexSuggest" role="listbox"></div>
+        </div>
+      </div>
+      <div class="regex-presets" id="emailRegexChips"></div>
       <div id="emailErr" style="color:var(--red);font-size:11px;min-height:14px"></div>
       <div class="row" id="reviewerRow" style="display:none"><label>Reviewer</label><input type="text" id="fReviewer" placeholder="your name (for flags)"></div>
       </div>
@@ -217,6 +245,12 @@ const DEFAULT_ACTIVE_ATTRS = new Set(["ip", "device", "locale", "wdAuthor"]);
 const NAME_EMAIL_SIM_THRESHOLD = 20;
 // Bump when snapshot.json.gz is rebuilt — busts browser/CDN caches for the data file.
 const SNAPSHOT_REV = "20260714T134246";
+// Preset email regex patterns (tested against the full author email string).
+const EMAIL_REGEX_PRESETS = [
+  { label: "Short alpha + digits", pattern: "[a-z]{4,8}\\d{3,6}", hint: "e.g. hilp8387@…" },
+  { label: "Numeric local (8–11)", pattern: "\\d{8,11}", hint: "QQ / 163 phone-style IDs" },
+  { label: "CN freemail domains", pattern: "@(163|126|qq)\\.com", hint: "163, 126, qq" },
+];
 
 // -------- attribute display config --------
 const ATTR_META = {
@@ -533,6 +567,66 @@ function initCollapsibleSections() {
   });
 }
 
+function applyEmailRegexPreset(pattern) {
+  const inp = $("fEmailRegex");
+  inp.value = pattern;
+  $("emailRegexSuggest").classList.remove("open");
+  inp.dispatchEvent(new Event("input", { bubbles: true }));
+}
+function filteredEmailPresets(q) {
+  const needle = (q || "").trim().toLowerCase();
+  if (!needle) return EMAIL_REGEX_PRESETS;
+  return EMAIL_REGEX_PRESETS.filter(p =>
+    p.label.toLowerCase().includes(needle) || p.pattern.toLowerCase().includes(needle) || p.hint.toLowerCase().includes(needle));
+}
+function renderEmailRegexSuggest(q) {
+  const box = $("emailRegexSuggest");
+  const list = filteredEmailPresets(q);
+  if (!list.length) { box.classList.remove("open"); box.innerHTML = ""; return; }
+  box.innerHTML = list.map((p, i) =>
+    `<button type="button" role="option" data-i="${i}" data-pat="${escapeHtml(p.pattern)}">
+      <span class="pat">/${escapeHtml(p.pattern)}/</span><span class="hint">${escapeHtml(p.label)} · ${escapeHtml(p.hint)}</span>
+    </button>`).join("");
+  box.classList.add("open");
+  box.querySelectorAll("button").forEach(btn => btn.addEventListener("mousedown", e => {
+    e.preventDefault();
+    applyEmailRegexPreset(btn.dataset.pat);
+  }));
+}
+function initEmailRegexPresets() {
+  const chips = $("emailRegexChips");
+  chips.innerHTML = EMAIL_REGEX_PRESETS.map(p =>
+    `<button type="button" class="regex-chip" title="/${escapeHtml(p.pattern)}/ — ${escapeHtml(p.hint)}" data-pat="${escapeHtml(p.pattern)}">${escapeHtml(p.label)}</button>`
+  ).join("");
+  chips.querySelectorAll(".regex-chip").forEach(btn => btn.addEventListener("click", () => applyEmailRegexPreset(btn.dataset.pat)));
+
+  const inp = $("fEmailRegex"), suggest = $("emailRegexSuggest");
+  let suggestIdx = -1;
+  const closeSuggest = () => { suggest.classList.remove("open"); suggestIdx = -1; };
+  const highlightSuggest = () => {
+    suggest.querySelectorAll("button").forEach((b, i) => b.classList.toggle("sel", i === suggestIdx));
+  };
+  inp.addEventListener("focus", () => renderEmailRegexSuggest(inp.value));
+  inp.addEventListener("input", () => {
+    renderEmailRegexSuggest(inp.value);
+    suggestIdx = -1;
+  });
+  inp.addEventListener("blur", () => setTimeout(closeSuggest, 120));
+  inp.addEventListener("keydown", e => {
+    if (!suggest.classList.contains("open")) {
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") { renderEmailRegexSuggest(inp.value); e.preventDefault(); }
+      return;
+    }
+    const btns = [...suggest.querySelectorAll("button")];
+    if (e.key === "ArrowDown") { suggestIdx = Math.min(suggestIdx + 1, btns.length - 1); highlightSuggest(); e.preventDefault(); }
+    else if (e.key === "ArrowUp") { suggestIdx = Math.max(suggestIdx - 1, 0); highlightSuggest(); e.preventDefault(); }
+    else if (e.key === "Enter" && suggestIdx >= 0 && btns[suggestIdx]) {
+      e.preventDefault();
+      applyEmailRegexPreset(btns[suggestIdx].dataset.pat);
+    } else if (e.key === "Escape") closeSuggest();
+  });
+}
+
 function bindUI() {
   const onFilterChange = () => {
     renderList();
@@ -546,6 +640,7 @@ function bindUI() {
   };
   ["fDiffAuthors","fDiffOrgs","fFlaggedOnly","fHideAllRejected","fLowNameEmailSim","fJournal","fStatus","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", onFilterChange));
   $("fEmailRegex").addEventListener("input", () => { rebuildEmailFilter(); onFilterChange(); });
+  initEmailRegexPresets();
   $("btnOverview").addEventListener("click", showOverview);
   $("btnRelayout").addEventListener("click", () => { if (nodes.length) runLayout(); });
   $("btnCompare").addEventListener("click", openCompare);
