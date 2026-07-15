@@ -84,7 +84,7 @@ RAW_COLS = [
     "authorName", "authorEmail", "authorOrg", "authorIp", "ArticleTitle",
     # article-level metadata (display / compare / optional filter — not connective).
     # Pulled from the latest ResourceVersion.ResourceModel (two-phase, JSON_VALUE by PK).
-    "stageId", "stageName", "journal", "section",
+    "stageId", "stageName", "journal", "section", "articleType",
 ]
 
 # Article metadata (status/journal/section): prefer BigQuery editorial warehouse
@@ -130,6 +130,7 @@ SELECT
   a.title AS ArticleTitle,
   a.articleStageId AS stageId,
   st.name AS stageName,
+  typ.name AS articleType,
   j.name AS journal,
   s.name AS section,
   p.firstName, p.middleName, p.lastName,
@@ -137,6 +138,8 @@ SELECT
 FROM `{ocean}.dataset_frontiersgraph.article_article` a
 LEFT JOIN `{ocean}.dataset_frontiersgraph.article_article_stage` st
   ON st.id = a.articleStageId
+LEFT JOIN `{ocean}.dataset_frontiersgraph.public_article_type` typ
+  ON typ.id = a.articleTypeId AND typ.spaceId = a.spaceId
 LEFT JOIN `{ocean}.dataset_frontiersgraph.journal_journal_section_path` jsp
   ON jsp.id = a.journalSectionPathId
 LEFT JOIN `{ocean}.dataset_frontiersgraph.journal_journal` j
@@ -347,7 +350,7 @@ def _format_bq_context(df: pd.DataFrame) -> pd.DataFrame:
     ]
     out["authorEmail"] = out.get("email", pd.Series("", index=out.index)).map(_bq_str).str.lower()
     out["authorOrg"] = out.get("orgName", pd.Series("", index=out.index)).map(_bq_str)
-    keep = ["ArticleId", "ArticleTitle", "stageId", "stageName", "journal", "section",
+    keep = ["ArticleId", "ArticleTitle", "stageId", "stageName", "journal", "section", "articleType",
             "authorName", "authorEmail", "authorOrg"]
     if "authorIp" in out.columns:
         keep.append("authorIp")
@@ -360,7 +363,7 @@ def fetch_article_context_bq(days: int) -> pd.DataFrame:
     Returns status, journal, section, title, and submitting-author name/email/org.
     Query jobs run in BQ_PROJECT; data is read cross-project from BQ_OCEAN_PROJECT.
     """
-    empty = ["ArticleId", "ArticleTitle", "stageId", "stageName", "journal", "section",
+    empty = ["ArticleId", "ArticleTitle", "stageId", "stageName", "journal", "section", "articleType",
              "authorName", "authorEmail", "authorOrg"]
     try:
         from google.cloud import bigquery
@@ -391,7 +394,18 @@ def fetch_article_context_bq(days: int) -> pd.DataFrame:
 def fetch_status_journal_bq(days: int) -> pd.DataFrame:
     """Backward-compatible wrapper — prefer fetch_article_context_bq."""
     ctx = fetch_article_context_bq(days)
-    return ctx[["ArticleId", "stageId", "stageName", "journal", "section"]]
+    return ctx[["ArticleId", "stageId", "stageName", "journal", "section", "articleType"]]
+
+
+def refresh_bq_context(df: pd.DataFrame, days: int) -> pd.DataFrame:
+    """Re-merge BQ article context so cached rows pick up metadata updates (e.g. article type)."""
+    ctx = fetch_article_context_bq(days)
+    if ctx.empty:
+        return df.reindex(columns=RAW_COLS)
+    cols = [c for c in ctx.columns if c != "ArticleId"]
+    drop = [c for c in cols if c in df.columns]
+    out = df.drop(columns=drop, errors="ignore").merge(ctx, on="ArticleId", how="left")
+    return out.reindex(columns=RAW_COLS)
 
 
 def fetch_status_journal(conn, res_ids: list[int], rid_to_aid: dict) -> pd.DataFrame:
@@ -673,6 +687,7 @@ def build(df: pd.DataFrame, cap: int, days: int, flag_ids: set | None = None) ->
             "status": clean(r.get("stageName")),
             "journal": clean(r.get("journal")),
             "section": clean(r.get("section")),
+            "articleType": clean(r.get("articleType")),
             "authorOrg": clean(r.get("authorOrg")),
             "platform": clean(r.get("Platform")),
             "uaFamily": clean(r.get("UaFamily")),
@@ -760,6 +775,7 @@ def _encode(recs, keep, old_to_new, kept_index, caps, days, flag_ids=None) -> di
         "status": "statuses",
         "journal": "journals",
         "section": "sections",
+        "articleType": "articleTypes",
         "authorOrg": "orgs",
         "platform": "platforms",
         "uaFamily": "uaFamilies",
@@ -875,6 +891,11 @@ def main() -> None:
         raw_path.parent.mkdir(parents=True, exist_ok=True)
         raw_path.write_bytes(pickle.dumps(df))
         print(f"[raw] cached {len(df):,} rows -> {raw_path}", file=sys.stderr)
+
+    if META_SOURCE == "bq":
+        df = refresh_bq_context(df, args.days)
+        raw_path.write_bytes(pickle.dumps(df))
+        print(f"[raw] BQ context refreshed ({len(df):,} rows)", file=sys.stderr)
 
     flag_ids = set()
     table_conn = os.environ.get("AUDIT_TABLE_CONN")
