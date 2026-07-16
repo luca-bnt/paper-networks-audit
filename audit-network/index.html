@@ -690,11 +690,10 @@ function bindUI() {
   if ($("fReviewer")) $("fReviewer").addEventListener("input", () => localStorage.setItem("auditReviewer", $("fReviewer").value.trim()));
   $("modalClose").addEventListener("click", closeModal);
   $("modalCopy").addEventListener("click", copyCompareTable);
+  $("modalBackdrop").addEventListener("click", closeModal);
   $("modal").addEventListener("click", e => {
-    if (e.target.id === "modal" || e.target.id === "modalBackdrop") closeModal();
     if (e.target.id === "cmpColReset") { e.preventDefault(); resetCmpColOrder(); renderCompareTable(); }
   });
-  $("modal").querySelector(".modalbox").addEventListener("click", e => e.stopPropagation());
   $("modalBody").addEventListener("click", e => {
     if (!$("modal").classList.contains("open")) return;
     if (e.target.closest("a.aid") || e.target.closest(".flagcell")) return;
