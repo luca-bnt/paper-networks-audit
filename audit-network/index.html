@@ -1387,8 +1387,9 @@ function runLayout() {
   const k = Math.sqrt((900 * 700) / n);
   nodes.forEach((nd, i) => { const a = (i / n) * 6.283; const rad = nd.type === "hub" ? 60 : 320; nd.x = Math.cos(a) * rad; nd.y = Math.sin(a) * rad; });
   let temp = 320, iter = 0;
-  function step() {
-    const dx = new Float64Array(n), dy = new Float64Array(n);
+  const dx = new Float64Array(n), dy = new Float64Array(n);
+  while (iter < LAYOUT_ITERS && temp > 1) {
+    dx.fill(0); dy.fill(0);
     for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
       let ex = nodes[i].x - nodes[j].x, ey = nodes[i].y - nodes[j].y, d = Math.hypot(ex, ey) || .01;
       const rep = (k * k) / d, ux = ex / d, uy = ey / d;
@@ -1399,19 +1400,22 @@ function runLayout() {
       const att = (d * d) / k * (1 + (e.w - 1) * 0.5), ux = ex / d, uy = ey / d;
       dx[e.a] -= ux * att; dy[e.a] -= uy * att; dx[e.b] += ux * att; dy[e.b] += uy * att;
     }
-    // similarity attraction: pull papers together by how many attributes they
-    // share across ALL types (not just the filtered ones). Not drawn as edges.
     for (const e of simEdges) {
       let ex = nodes[e.a].x - nodes[e.b].x, ey = nodes[e.a].y - nodes[e.b].y, d = Math.hypot(ex, ey) || .01;
       const att = (d * d) / k * 0.05 * e.w, ux = ex / d, uy = ey / d;
       dx[e.a] -= ux * att; dy[e.a] -= uy * att; dx[e.b] += ux * att; dy[e.b] += uy * att;
     }
-    for (let i = 0; i < n; i++) { let d = Math.hypot(dx[i], dy[i]) || .01; nodes[i].x += (dx[i] / d) * Math.min(d, temp); nodes[i].y += (dy[i] / d) * Math.min(d, temp); }
-    temp *= 0.96; iter++;
-    if (iter < LAYOUT_ITERS && temp > 1) requestAnimationFrame(step); else fit();
-    draw();
+    for (let i = 0; i < n; i++) {
+      const d = Math.hypot(dx[i], dy[i]) || .01;
+      const step = Math.min(d, temp);
+      nodes[i].x += (dx[i] / d) * step;
+      nodes[i].y += (dy[i] / d) * step;
+    }
+    temp *= 0.96;
+    iter++;
   }
-  step();
+  fit();
+  draw();
 }
 
 // -------- canvas --------
