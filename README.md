@@ -120,6 +120,48 @@ compute required.
 
   Requires `azure-data-tables`. Use `--no-flags` to skip.
 
+## Scheduled refresh (cron / GitHub Actions)
+
+The app reads a pre-built `snapshot.json.gz`. Automate rebuild + deploy so reviewers
+always see fresh data. The snapshot records `meta.builtUtc`; the UI shows it as
+**“Data refreshed …”** in the header.
+
+### Option A — GitHub Actions (recommended, runs even when your laptop is off)
+
+Workflow: [`.github/workflows/refresh-snapshot.yml`](.github/workflows/refresh-snapshot.yml)
+— Mondays 05:00 UTC, plus a manual **Run workflow** button.
+
+Add these **repository secrets** (Settings → Secrets → Actions):
+
+| Secret | How to get it |
+| --- | --- |
+| `KIOSK_BEARER_TOKEN` | [kiosk-ui.frontiersin.org](https://kiosk-ui.frontiersin.org) → DevTools → any API call → `Authorization: Bearer …` |
+| `GCP_SA_KEY` | JSON key for a service account with BigQuery job user + read on `frontiers-ocean` (same access your `gcloud auth application-default login` uses) |
+| `AZURE_CREDENTIALS` | JSON from `az ad sp create-for-rbac …` with **Storage Blob Data Contributor** on `staticsitesops10798` |
+
+Your interactive `az login` / `gcloud` sessions are **not** enough for GitHub — the
+workflow needs these stored credentials. If you can upload blobs today with
+`az storage blob upload --auth-mode login`, you likely have permission to create
+the service principal or ask IT for one scoped to `prototypes/network-analysis/*`.
+
+The job also stores `audit-pipeline/raw_snapshot.pkl` in blob storage so incremental
+runs stay fast (~2 min vs ~20 min full pull).
+
+### Option B — Mac cron (works with your current login, machine must stay on)
+
+```bash
+cp .env.example .env          # add KIOSK_BEARER_TOKEN
+cp ../frontiers-mcp/get_creds.py .   # optional helper (git-ignored)
+python3 -m venv .dbenv && .dbenv/bin/pip install -r requirements.txt google-cloud-bigquery requests
+az login && gcloud auth application-default login   # refresh when cron starts failing
+chmod +x scripts/refresh_and_deploy.sh
+crontab -e
+# 0 6 * * 1  /Users/you/Code/network-analysis/scripts/refresh_and_deploy.sh >> /tmp/network-analysis-refresh.log 2>&1
+```
+
+`KIOSK_BEARER_TOKEN` must be renewed occasionally (copy a fresh bearer from Kiosk UI).
+`az` / `gcloud` tokens also expire — re-login when the log shows auth errors.
+
 ## Deploying
 
 Upload the `audit-network/` folder to the Frontiers static webapp storage under

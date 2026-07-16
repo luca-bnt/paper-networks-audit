@@ -415,6 +415,16 @@ function showFlaggedList() {
 }
 
 const $ = (id) => document.getElementById(id);
+/** ISO UTC from snapshot meta → "16 Jul 2026, 12:05 UTC" */
+const formatSnapshotUtc = (iso) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso.replace("T", " ").replace(/\+.*/, "") + " UTC";
+  return d.toLocaleString("en-GB", {
+    day: "numeric", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+    timeZone: "UTC", timeZoneName: "short",
+  });
+};
 const str = (pool, ref) => (ref == null || ref < 0) ? "" : (D.dict[pool] ? D.dict[pool][ref] : "");
 const A = (c, r) => D.articles[c][r];
 const POOLS = { title:"titles", authorName:"names", authorEmail:"emails", authorOrg:"orgs",
@@ -592,10 +602,11 @@ async function boot() {
       buckets.push({ attr, ref, rows, nNames: nN, nOrgs: nO });
     }
   const m = D.meta;
-  const metaBits = [`${m.count.toLocaleString()} papers`, `${m.buckets.toLocaleString()} connections`, `${m.windowDays}-day window`];
+  const metaBits = [];
+  if (m.builtUtc) metaBits.push(`Data refreshed ${formatSnapshotUtc(m.builtUtc)}`);
+  metaBits.push(`${m.count.toLocaleString()} papers`, `${m.buckets.toLocaleString()} connections`, `${m.windowDays}-day window`);
   if (D.articles.status) metaBits.push(`${(D.dict.statuses || []).length} statuses`);
   if (D.dict && D.dict.journals) metaBits.push(`${D.dict.journals.length} journals`);
-  if (m.builtUtc) metaBits.push(`snapshot ${m.builtUtc.slice(0, 10)}`);
   $("meta").textContent = metaBits.join(" · ");
   buildAttrToggles(); bindUI(); buildMetaFilters(); renderList(); setupCanvas(); buildLegend();
   if (D.articles.pmFlag) for (let r = 0; r < D.articles.pmFlag.length; r++) if (D.articles.pmFlag[r]) flags.set(A("id", r), { by: "baked", utc: "" });
