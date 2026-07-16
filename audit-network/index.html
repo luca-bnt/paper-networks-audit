@@ -88,6 +88,11 @@
   #cvTip { position: absolute; display: none; z-index: 20; pointer-events: none; max-width: 260px;
     background: #0f1115f2; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
     font-size: 11px; color: var(--text); box-shadow: 0 4px 14px #000a; }
+  #cmpTip {
+    position: fixed; display: none; z-index: 60; pointer-events: none; max-width: 360px;
+    background: #0f1115f5; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px;
+    font-size: 11px; color: var(--text); box-shadow: 0 6px 18px #000c; line-height: 1.35;
+  }
   #topbar { position: absolute; top: 0; left: 0; right: 0; padding: 8px 12px; display: flex;
     gap: 8px; align-items: center; background: linear-gradient(#0f1115ee, #0f111500);
     pointer-events: none; font-size: 12px; }
@@ -144,7 +149,7 @@
   table.cmp th, table.cmp td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; white-space: nowrap;
     max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
   table.cmp td[data-col="articleType"] { max-width: 52px; text-align: center; font-weight: 600; letter-spacing: .03em; }
-  table.cmp td[data-col="status"] { max-width: 88px; }
+  table.cmp td[data-col="status"] { max-width: 48px; text-align: center; font-weight: 600; letter-spacing: .03em; }
   table.cmp td[data-col="journal"] { max-width: 140px; }
   table.cmp td[data-col="section"] { max-width: 120px; }
   table.cmp td[data-col="authorEmail"] { max-width: 160px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
@@ -255,6 +260,8 @@
     <div class="modalbody" id="modalBody"></div>
   </div>
 </div>
+
+<div id="cmpTip"></div>
 
 <script src="flags-config.js"></script>
 <script>
@@ -467,14 +474,63 @@ const typeInitials = (s) => {
   if (!s) return "";
   return s.trim().split(/\s+/).filter(Boolean).map(w => w[0] || "").join("").toUpperCase();
 };
+const STATUS_SHORT = {
+  "Rejected": "REJ",
+  "In Independent Review": "IR",
+  "In Interactive Review": "IntR",
+  "In Review": "REV",
+  "Editorial Assignment": "EA",
+  "Accepted": "ACC",
+  "Published": "PUB",
+  "Initial Validation": "IV",
+  "Review Finalized": "RF",
+  "Final Validation": "FV",
+  "In Preparation": "PREP",
+  "Submitted": "SUB",
+  "In Copy-Editing": "CE",
+  "Copy-Edited": "CED",
+  "In Production": "PROD",
+  "Author's Proof": "AP",
+  "Rejection Recommended": "RR",
+};
+const statusShort = (s) => {
+  if (!s) return "";
+  if (STATUS_SHORT[s]) return STATUS_SHORT[s];
+  const trimmed = s.replace(/^In\s+/i, "");
+  if (trimmed !== s) return typeInitials(trimmed);
+  return typeInitials(s) || truncateText(s, 8);
+};
 const truncateText = (s, max) => (!s || s.length <= max) ? s : s.slice(0, Math.max(1, max - 1)) + "…";
 const cmpDisplayShort = (r, key) => {
   const full = cmpDisplay(r, key);
   if (!full) return "";
   if (key === "articleType") return typeInitials(full);
+  if (key === "status") return statusShort(full);
   const max = CMP_TRUNC[key];
   return max ? truncateText(full, max) : full;
 };
+function positionCmpTip(tipEl, td) {
+  const r = td.getBoundingClientRect(), pad = 6;
+  tipEl.style.display = "block";
+  const tw = tipEl.offsetWidth, th = tipEl.offsetHeight;
+  let left = r.left + r.width / 2 - tw / 2;
+  let top = r.top - th - pad;
+  if (top < 4) top = r.bottom + pad;
+  tipEl.style.left = Math.max(8, Math.min(left, window.innerWidth - tw - 8)) + "px";
+  tipEl.style.top = top + "px";
+}
+function bindCmpTooltips() {
+  const tipEl = $("cmpTip");
+  if (!tipEl) return;
+  const hide = () => { tipEl.style.display = "none"; };
+  $("modalBody").querySelectorAll("td[data-full]").forEach(td => {
+    td.addEventListener("mouseenter", () => {
+      tipEl.textContent = td.dataset.full;
+      positionCmpTip(tipEl, td);
+    });
+    td.addEventListener("mouseleave", hide);
+  });
+}
 const cmpShareKey = (r, key) => {
   if (key === "pmScore") { const s = A("pmScore", r); return s == null ? null : s; }
   if (key === "wdStatus") { const s = A("wdStatus", r); return s > 0 ? s : null; }
@@ -1520,6 +1576,7 @@ function closeModal() {
   if (!$("modal").classList.contains("open")) return;
   $("modal").classList.remove("open");
   $("modal").setAttribute("aria-hidden", "true");
+  const tipEl = $("cmpTip"); if (tipEl) tipEl.style.display = "none";
   applyCompareSelectionToGraph();
   syncShare();
 }
@@ -1593,11 +1650,11 @@ function renderCompareTable() {
       const sk = cmpShareKey(r, k);
       const sh = sk != null && shared[k] && shared[k].get(sk) >= 2;
       const cc = sh && ATTR_META[k] ? ATTR_META[k].color : (sh ? "#8ab4ff" : "");
-      const tip = v && shown !== v ? v : (v || "");
-      const tipAttr = tip ? ` title="${escapeHtml(tip)}"` : "";
-      const tipCls = v && shown !== v ? " cmp-tip" : "";
+      const tip = v && shown !== v ? v : "";
+      const tipCls = tip ? " cmp-tip" : "";
+      const dataFull = tip ? ` data-full="${escapeHtml(tip)}"` : "";
       const inner = shown ? escapeHtml(shown) : '<span class="muted">—</span>';
-      return `<td data-col="${k}" class="${sh ? "share" : ""}${tipCls}" style="${sh ? `color:${cc}` : ""}"${tipAttr}>${inner}</td>`;
+      return `<td data-col="${k}" class="${sh ? "share" : ""}${tipCls}" style="${sh ? `color:${cc}` : ""}"${dataFull}>${inner}</td>`;
     }).join("");
     return `<tr data-r="${r}" class="${r === cmpHighlightR ? "sel" : ""}">${flagTd}${cells}</tr>`;
   }).join("");
@@ -1641,6 +1698,7 @@ function renderCompareTable() {
     });
   });
   box.querySelectorAll(".flagcell").forEach(td => td.addEventListener("click", () => toggleFlag(A("id", +td.dataset.fr))));
+  bindCmpTooltips();
 }
 const reviewUrl = (id) => `https://review.frontiersin.org/review/${id}/0/0`;
 
