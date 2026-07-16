@@ -150,6 +150,7 @@
     max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
   table.cmp td[data-col="articleType"] { max-width: 52px; text-align: center; font-weight: 600; letter-spacing: .03em; }
   table.cmp td[data-col="status"] { max-width: 48px; text-align: center; font-weight: 600; letter-spacing: .03em; }
+  table.cmp td[data-col="nameEmailSim"] { max-width: 56px; text-align: center; font-weight: 600; }
   table.cmp td[data-col="journal"] { max-width: 140px; }
   table.cmp td[data-col="section"] { max-width: 120px; }
   table.cmp td[data-col="authorEmail"] { max-width: 160px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
@@ -274,6 +275,20 @@ const LAYOUT_ITERS = 170;
 const DEFAULT_ACTIVE_ATTRS = new Set(["ip", "device", "locale", "wdAuthor"]);
 // Name vs email local-part similarity below this % is treated as suspicious (optional filter).
 const NAME_EMAIL_SIM_THRESHOLD = 20;
+const NAME_EMAIL_SIM_COLORS = { high: "#65C161", med: "#E87626", low: "#D51A2C" };
+const nameEmailSimStyle = (sim) => {
+  if (sim == null) return null;
+  if (sim >= 40) return { color: NAME_EMAIL_SIM_COLORS.high, hint: "Strong name/email match" };
+  if (sim >= NAME_EMAIL_SIM_THRESHOLD) return { color: NAME_EMAIL_SIM_COLORS.med, hint: "Partial name/email match" };
+  return { color: NAME_EMAIL_SIM_COLORS.low, hint: "Weak name/email match — suspicious" };
+};
+const nameEmailSimText = (sim) => sim == null ? "—" : `${sim}%`;
+const nameEmailSimHtml = (sim) => {
+  const sty = nameEmailSimStyle(sim);
+  if (sim == null) return '<span class="muted">—</span>';
+  const title = sty ? ` title="${escapeHtml(sty.hint)}"` : "";
+  return `<span style="color:${sty.color};font-weight:600"${title}>${escapeHtml(nameEmailSimText(sim))}</span>`;
+};
 // Bump when snapshot.json.gz is rebuilt — busts browser/CDN caches for the data file.
 const SNAPSHOT_REV = "20260716T122956";
 // Preset email regex patterns (tested against the full author email string).
@@ -301,7 +316,7 @@ const BAND_COLORS = ["#6b7280", "#65C161", "#E87626", "#D51A2C"];
 const BAND_NAMES  = ["no score", "low", "medium", "high"];
 const STATUS_NAMES = ["", "green", "yellow", "red", "gold", "n/a", "unchecked"];
 const PATTERN_NAMES = ["", "all-digits", "name.surname", "all-alpha", "alpha+digits", "other"];
-const CMP_PRIORITY = ["status", "articleType", "authorName", "authorEmail", "authorOrg", "editors", "reviewers", "wdAuthor", "wdEditedBy", "wdStatus", "journal", "section"];
+const CMP_PRIORITY = ["status", "articleType", "authorName", "authorEmail", "nameEmailSim", "authorOrg", "editors", "reviewers", "wdAuthor", "wdEditedBy", "wdStatus", "journal", "section"];
 const CMP_REST = ["pmScore", "wdCompany", "device", "ip", "locale", "authorIp"];
 
 // -------- state --------
@@ -470,12 +485,13 @@ const cmpFieldLabel = (f) => {
   }
   return ({ authorName: "Author", authorEmail: "Email", authorOrg: "Organisation", status: "Status",
     articleType: "Type", journal: "Journal", section: "Section", pmScore: "Score", wdStatus: "Word-doc status",
-    editors: "Editor", reviewers: "Reviewers" })[f] || f;
+    editors: "Editor", reviewers: "Reviewers", nameEmailSim: "Email sim" })[f] || f;
 };
 const cmpDisplay = (r, key) => {
   if (key === "id") return String(A("id", r));
   if (key === "pmScore") return bandLabel(r);
   if (key === "wdStatus") return STATUS_NAMES[A("wdStatus", r)] || "";
+  if (key === "nameEmailSim") return nameEmailSimText(A("nameEmailSim", r));
   const ref = A(key, r);
   const pool = POOLS[key];
   return ref >= 0 && pool ? (strFull(pool, ref) || "") : "";
@@ -1494,6 +1510,7 @@ function showBucketDetail(key, rowsOverride) {
 function paperRowHtml(r) {
   const nm = artStr("authorName", r), t = artStr("title", r);
   const st = artStatus(r), jn = artJournal(r), jnShort = jn ? journalShort(jn) : "";
+  const sim = A("nameEmailSim", r);
   const metaParts = [];
   if (st) metaParts.push(escapeHtml(st));
   if (jnShort) {
@@ -1506,7 +1523,7 @@ function paperRowHtml(r) {
   const hit = idSearch && idSearch.ids.has(A("id", r));
   return `<div class="conn${hit ? " hit" : ""}"><span class="aid" data-r="${r}">${A("id", r)}</span><span class="muted"> · ${bandLabel(r)}</span>
     ${meta ? `<div class="muted" style="font-size:11px">${meta}</div>` : ""}
-    ${nm ? `<div class="muted" style="font-size:11px">${escapeHtml(nm)}</div>` : ""}
+    ${nm ? `<div class="muted" style="font-size:11px">${escapeHtml(nm)}${sim != null ? " · " + nameEmailSimHtml(sim) : ""}</div>` : (sim != null ? `<div class="muted" style="font-size:11px">${nameEmailSimHtml(sim)}</div>` : "")}
     ${t ? `<div style="font-size:11px">${escapeHtml(t.slice(0, 90))}</div>` : ""}</div>`;
 }
 function showPaperDetail(r) {
@@ -1519,7 +1536,8 @@ function showPaperDetail(r) {
     ["Section", artStr("section", r) || "—"],
     ["Editor", artStr("editors", r) || "—"], ["Reviewers", artStr("reviewers", r) || "—"],
     ["Author", artStr("authorName", r) || "—"], ["Email", artStr("authorEmail", r) || "—"],
-    ["Organisation", artStr("authorOrg", r) || "—"], ["Name/email sim", A("nameEmailSim", r) == null ? "—" : A("nameEmailSim", r) + "%"],
+    ["Organisation", artStr("authorOrg", r) || "—"],
+    ["Name/email sim", null, null, nameEmailSimHtml(A("nameEmailSim", r))],
     ["Email pattern", PATTERN_NAMES[A("emailPattern", r)] || "—"], ["Papermill score", bandLabel(r)],
     ["Word-doc status", STATUS_NAMES[A("wdStatus", r)] || "—"],
     ["Word-doc match", A("wdMatch", r) === 1 ? "matches author" : A("wdMatch", r) === 0 ? "does NOT match" : "—"],
@@ -1528,7 +1546,8 @@ function showPaperDetail(r) {
     ["IP", artStr("ip", r) || "—", artStr("ip", r) !== strFull("ips", A("ip", r)) ? strFull("ips", A("ip", r)) : ""], ["Locale", artStr("locale", r) || "—"],
     ["Platform / UA", [artStr("platform", r), artStr("uaFamily", r)].filter(Boolean).join(" / ") || "—"], ["Submission IP (author record)", artStr("authorIp", r) || "—"],
   ];
-  $("detail").innerHTML = flagControlHtml(r) + `<div class="section"><dl class="dl">${rows.map(([k, v, tip]) => {
+  $("detail").innerHTML = flagControlHtml(r) + `<div class="section"><dl class="dl">${rows.map(([k, v, tip, html]) => {
+    if (html) return `<div><dt>${k}</dt><dd>${html}</dd></div>`;
     const titleAttr = tip && tip !== v ? ` title="${escapeHtml(tip)}"` : "";
     return `<div><dt>${k}</dt><dd${titleAttr}>${escapeHtml(String(v))}</dd></div>`;
   }).join("")}</dl></div>
@@ -1640,13 +1659,14 @@ function closeModal() {
 function cmpValue(r, key) {
   if (key === "id") return A("id", r);
   if (key === "pmScore") return A("pmScore", r) == null ? -1 : A("pmScore", r);
+  if (key === "nameEmailSim") return A("nameEmailSim", r) == null ? -1 : A("nameEmailSim", r);
   if (key === "wdStatus") return A("wdStatus", r) || -1;
   return cmpDisplay(r, key);
 }
 function compareSortedRows() {
   if (!cmpState) return [];
   const { rs } = cmpState, { key, dir } = cmpSort;
-  const numeric = key === "id" || key === "pmScore" || key === "wdStatus";
+  const numeric = key === "id" || key === "pmScore" || key === "nameEmailSim" || key === "wdStatus";
   const deprioritizeRejected = key !== "status";
   return rs.slice().sort((a, b) => {
     if (deprioritizeRejected) {
@@ -1702,11 +1722,22 @@ function renderCompareTable() {
         const aid = A("id", r);
         return `<td><a class="aid" href="${reviewUrl(aid)}" target="_blank" rel="noopener" title="Open in Frontiers review">${aid}</a></td>`;
       }
-      const v = cmpDisplay(r, k);
-      const shown = cmpDisplayShort(r, k);
       const sk = cmpShareKey(r, k);
       const sh = sk != null && shared[k] && shared[k].get(sk) >= 2;
       const cc = sh && ATTR_META[k] ? ATTR_META[k].color : (sh ? "#8ab4ff" : "");
+      if (k === "nameEmailSim") {
+        const sim = A("nameEmailSim", r);
+        const sty = nameEmailSimStyle(sim);
+        const inner = sim == null ? '<span class="muted">—</span>' : escapeHtml(nameEmailSimText(sim));
+        const colorStyle = sty ? `color:${sty.color};font-weight:600` : "";
+        const shareStyle = sh ? `color:${cc};font-weight:600` : "";
+        const tip = sty && !sh ? sty.hint : "";
+        const tipCls = tip ? " cmp-tip" : "";
+        const dataFull = tip ? ` data-full="${escapeHtml(tip)}"` : "";
+        return `<td data-col="${k}" class="${sh ? "share" : ""}${tipCls}" style="${sh ? shareStyle : colorStyle}"${dataFull}>${inner}</td>`;
+      }
+      const v = cmpDisplay(r, k);
+      const shown = cmpDisplayShort(r, k);
       const tip = v && shown !== v ? v : "";
       const tipCls = tip ? " cmp-tip" : "";
       const dataFull = tip ? ` data-full="${escapeHtml(tip)}"` : "";
