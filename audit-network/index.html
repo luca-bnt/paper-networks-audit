@@ -314,6 +314,10 @@ const statusColor = (s) => {
   const key = s.trim().toLowerCase();
   return STATUS_COLORS[key] || "";
 };
+const looksLikeEmail = (s) => /@/.test(String(s || ""));
+const personProxyTip = (s) => looksLikeEmail(s)
+  ? "Primary email — name not available in BigQuery for this assignment"
+  : "";
 // Bump when snapshot.json.gz is rebuilt — busts browser/CDN caches for the data file.
 const SNAPSHOT_REV = "20260716T122956";
 // Preset email regex patterns (tested against the full author email string).
@@ -536,6 +540,10 @@ const cmpFieldLabel = (f) => {
   return ({ authorName: "Author", authorEmail: "Email", authorOrg: "Organisation", status: "Status",
     articleType: "Type", journal: "Journal", section: "Section", pmScore: "Score", wdStatus: "Word-doc status",
     editors: "Editor", reviewers: "Reviewers", nameEmailSim: "Email sim" })[f] || f;
+};
+const cmpColTitle = (f) => {
+  if (f === "editors" || f === "reviewers") return "Name when available; otherwise primary email from BigQuery";
+  return "";
 };
 const cmpDisplay = (r, key) => {
   if (key === "id") return String(A("id", r));
@@ -1592,7 +1600,8 @@ function showPaperDetail(r) {
     ["Status", artStatus(r) || "—"], ["Article type", artStr("articleType", r) || "—"],
     ["Journal", journalShort(artJournal(r)) || "—", artJournal(r) || ""],
     ["Section", artStr("section", r) || "—"],
-    ["Editor", artStr("editors", r) || "—"], ["Reviewers", artStr("reviewers", r) || "—"],
+    ["Editor", artStr("editors", r) || "—", personProxyTip(artStr("editors", r)) || ""],
+    ["Reviewers", artStr("reviewers", r) || "—", personProxyTip(artStr("reviewers", r)) || ""],
     ["Author", artStr("authorName", r) || "—"], ["Email", artStr("authorEmail", r) || "—"],
     ["Organisation", artStr("authorOrg", r) || "—"],
     ["Name/email sim", null, null, nameEmailSimHtml(A("nameEmailSim", r))],
@@ -1794,7 +1803,11 @@ function renderCompareTable() {
   const allPicked = visible.length > 0 && visible.every(r => cmpSelected.has(r));
   const pickTh = FC ? `<th class="cmp-pick" title="Select for bulk flag"><input type="checkbox" id="cmpSelectAll"${allPicked ? " checked" : ""}></th>` : "";
   const flagTh = FC ? "<th>⚑</th>" : "";
-  const head = "<tr>" + pickTh + flagTh + cols.map(([k, lbl]) => `<th draggable="true" data-sort="${k}" style="cursor:grab;user-select:none" title="Sort by ${lbl} · drag to reorder">${lbl}${arrow(k)}</th>`).join("") + "</tr>";
+  const head = "<tr>" + pickTh + flagTh + cols.map(([k, lbl]) => {
+    const extra = cmpColTitle(k);
+    const thTitle = (extra ? extra + " · " : "") + `Sort by ${lbl} · drag to reorder`;
+    return `<th draggable="true" data-sort="${k}" style="cursor:grab;user-select:none" title="${escapeHtml(thTitle)}">${lbl}${arrow(k)}</th>`;
+  }).join("") + "</tr>";
   const body = visible.map(r => {
     const ff = flags.get(A("id", r));
     const picked = cmpSelected.has(r);
@@ -1828,6 +1841,17 @@ function renderCompareTable() {
         const tipCls = tip ? " cmp-tip" : "";
         const dataFull = tip ? ` data-full="${escapeHtml(tip)}"` : "";
         return `<td data-col="${k}" class="${tipCls}" style="${colorStyle}"${dataFull}>${inner}</td>`;
+      }
+      if (k === "editors" || k === "reviewers") {
+        const v = cmpDisplay(r, k);
+        const shown = cmpDisplayShort(r, k);
+        const proxy = personProxyTip(v);
+        const tip = proxy || (v && shown !== v ? v : "");
+        const tipCls = tip ? " cmp-tip" : "";
+        const dataFull = tip ? ` data-full="${escapeHtml(tip)}"` : "";
+        const inner = shown ? escapeHtml(shown) : '<span class="muted">—</span>';
+        const mono = looksLikeEmail(v) ? "font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;" : "";
+        return `<td data-col="${k}" class="${tipCls}" style="${mono}"${dataFull}>${inner}</td>`;
       }
       const v = cmpDisplay(r, k);
       const shown = cmpDisplayShort(r, k);
