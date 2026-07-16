@@ -163,6 +163,19 @@
   table.cmp tr.sel td { background: #232a3a; box-shadow: inset 3px 0 0 var(--accent); }
   table.cmp tr.sel:hover td { background: #232a3a; }
   table.cmp tbody tr[data-r] { cursor: pointer; }
+  table.cmp td.cmp-pick, table.cmp th.cmp-pick { width: 28px; text-align: center; padding: 4px; }
+  table.cmp tr.cmp-picked td { box-shadow: inset 2px 0 0 #D51A2C; }
+  .cmp-bulk {
+    flex: none; padding: 10px 16px 12px; border-top: 1px solid var(--line);
+    background: var(--panel2); display: none; gap: 10px; align-items: flex-end; flex-wrap: wrap;
+  }
+  .cmp-bulk.open { display: flex; }
+  .cmp-bulk textarea {
+    flex: 1; min-width: 200px; min-height: 40px; max-height: 80px;
+    background: var(--panel); color: var(--text); border: 1px solid var(--line);
+    border-radius: 6px; padding: 6px 8px; font: inherit; font-size: 12px; resize: vertical;
+  }
+  .cmp-bulk .cmp-bulk-count { font-size: 12px; min-width: 88px; }
   .close { margin-left: auto; }
 </style>
 </head>
@@ -259,6 +272,12 @@
       <button class="btn close" id="modalClose">Close</button>
     </div>
     <div class="modalbody" id="modalBody"></div>
+    <div class="cmp-bulk" id="cmpBulkBar">
+      <span class="muted cmp-bulk-count" id="cmpBulkCount">0 selected</span>
+      <textarea id="cmpBulkComment" placeholder="Reason for bulk flag (optional)" rows="2"></textarea>
+      <button class="btn" id="cmpBulkFlag" disabled style="background:#D51A2C;border-color:#D51A2C;color:#fff">Flag selected</button>
+      <button class="btn" id="cmpBulkUnflag" disabled>Unflag selected</button>
+    </div>
   </div>
 </div>
 
@@ -368,6 +387,31 @@ async function setFlag(id, on, comment) {
     }
     return true;
   } catch (e) { console.warn("[flags] write failed:", e); return false; }
+}
+async function bulkToggleFlags(rowIndices, on) {
+  if (!FC) { alert("Flagging is not configured for this deployment."); return; }
+  const rows = [...rowIndices];
+  if (!rows.length) { alert("Select one or more papers first."); return; }
+  const comment = on ? (($("cmpBulkComment") && $("cmpBulkComment").value.trim()) || "") : "";
+  const ids = rows.map(r => A("id", r));
+  const targets = on ? ids.filter(id => !flags.has(id)) : ids.filter(id => flags.has(id));
+  if (!targets.length) {
+    alert(on ? "All selected papers are already flagged." : "None of the selected papers are flagged.");
+    return;
+  }
+  const msg = on
+    ? `Flag ${targets.length} paper(s) as manufactured (papermill)?` + (comment ? `\n\nReason: ${comment}` : "")
+    : `Remove manufactured flags from ${targets.length} paper(s)?`;
+  if (!confirm(msg)) return;
+  let ok = 0, fail = 0;
+  for (const id of targets) {
+    if (await setFlag(id, on, on ? comment : null)) ok++; else fail++;
+  }
+  if (fail) alert(`${ok} updated · ${fail} failed — the write token may have expired.`);
+  updateFlagCount(); updateHubFlags(); draw();
+  if ($("fFlaggedOnly").checked) { renderList(); if (mode === "overview") showOverview(); }
+  if ($("modal").classList.contains("open")) renderCompareTable();
+  else if (cmpHighlightR != null) showPaperDetail(cmpHighlightR);
 }
 async function toggleFlag(id, after) {
   if (!FC) { alert("Flagging is not configured for this deployment."); return; }
@@ -800,11 +844,13 @@ function bindUI() {
   });
   $("modalBody").addEventListener("click", e => {
     if (!$("modal").classList.contains("open")) return;
-    if (e.target.closest("a.aid") || e.target.closest(".flagcell")) return;
+    if (e.target.closest("a.aid") || e.target.closest(".flagcell") || e.target.closest(".cmp-pick")) return;
     const tr = e.target.closest("tbody tr[data-r]");
     if (!tr) return;
     selectCompareRow(+tr.dataset.r);
   });
+  if ($("cmpBulkFlag")) $("cmpBulkFlag").addEventListener("click", () => bulkToggleFlags(cmpSelected, true));
+  if ($("cmpBulkUnflag")) $("cmpBulkUnflag").addEventListener("click", () => bulkToggleFlags(cmpSelected, false));
   window.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
 }
 
@@ -1597,6 +1643,7 @@ function currentPapers() {
   return [...new Set(rs)];
 }
 let cmpState = null;                        // { rs, shared }
+let cmpSelected = new Set();                // row indices selected for bulk flag
 let cmpHighlightR = null;                   // snapshot row idx highlighted in compare table
 let cmpSort = { key: "pmScore", dir: -1 };  // dir: 1 asc, -1 desc
 const selectedPaperRow = () => (selected != null && nodes[selected] && nodes[selected].type === "paper") ? nodes[selected].r : null;
@@ -1625,6 +1672,20 @@ function applyCompareSelectionToGraph() {
     draw();
   }
 }
+function syncCmpBulkBar() {
+  const bar = $("cmpBulkBar");
+  if (!bar || !FC) return;
+  const n = cmpSelected.size;
+  const el = $("cmpBulkCount");
+  if (el) el.textContent = n ? `${n} selected` : "0 selected";
+  const dis = n === 0;
+  if ($("cmpBulkFlag")) $("cmpBulkFlag").disabled = dis;
+  if ($("cmpBulkUnflag")) $("cmpBulkUnflag").disabled = dis;
+}
+function cmpVisibleRows() {
+  if (!cmpState) return [];
+  return compareSortedRows().slice(0, 300);
+}
 function openCompare() {
   const rs = currentPapers();
   if (!rs.length) { drawOverlay("Select a cluster first, then compare."); return; }
@@ -1640,19 +1701,22 @@ function openCompare() {
     shared[f] = counts;
   }
   cmpState = { rs, shared };
+  cmpSelected = new Set();
   cmpHighlightR = selectedPaperRow();
   cmpSort = { key: "pmScore", dir: -1 };
   $("modalTitle").textContent = "Compare papers";
-  $("modalSub").innerHTML = `${rs.length} papers · click header to sort · drag header to reorder · <a href="#" class="aid" id="cmpColReset">reset columns</a>`;
+  $("modalSub").innerHTML = `${rs.length} papers · check rows to bulk-flag · click header to sort · drag header to reorder · <a href="#" class="aid" id="cmpColReset">reset columns</a>`;
   renderCompareTable();
   $("modal").classList.add("open");
   $("modal").setAttribute("aria-hidden", "false");
+  if (FC && $("cmpBulkBar")) { $("cmpBulkBar").classList.add("open"); syncCmpBulkBar(); }
   syncShare();
 }
 function closeModal() {
   if (!$("modal").classList.contains("open")) return;
   $("modal").classList.remove("open");
   $("modal").setAttribute("aria-hidden", "true");
+  if ($("cmpBulkBar")) $("cmpBulkBar").classList.remove("open");
   const tipEl = $("cmpTip"); if (tipEl) tipEl.style.display = "none";
   applyCompareSelectionToGraph();
   syncShare();
@@ -1713,10 +1777,15 @@ function renderCompareTable() {
   const sorted = compareSortedRows();
   const arrow = k => cmpSort.key === k ? (cmpSort.dir < 0 ? " ▼" : " ▲") : "";
   const cols = cmpColDefs();
+  const visible = sorted.slice(0, 300);
+  const allPicked = visible.length > 0 && visible.every(r => cmpSelected.has(r));
+  const pickTh = FC ? `<th class="cmp-pick" title="Select for bulk flag"><input type="checkbox" id="cmpSelectAll"${allPicked ? " checked" : ""}></th>` : "";
   const flagTh = FC ? "<th>⚑</th>" : "";
-  const head = "<tr>" + flagTh + cols.map(([k, lbl]) => `<th draggable="true" data-sort="${k}" style="cursor:grab;user-select:none" title="Sort by ${lbl} · drag to reorder">${lbl}${arrow(k)}</th>`).join("") + "</tr>";
-  const body = sorted.slice(0, 300).map(r => {
+  const head = "<tr>" + pickTh + flagTh + cols.map(([k, lbl]) => `<th draggable="true" data-sort="${k}" style="cursor:grab;user-select:none" title="Sort by ${lbl} · drag to reorder">${lbl}${arrow(k)}</th>`).join("") + "</tr>";
+  const body = visible.map(r => {
     const ff = flags.get(A("id", r));
+    const picked = cmpSelected.has(r);
+    const pickTd = FC ? `<td class="cmp-pick"><input type="checkbox" class="cmp-pick-cb" data-r="${r}"${picked ? " checked" : ""}></td>` : "";
     const flagTd = FC ? `<td class="flagcell" data-fr="${r}" style="cursor:pointer;text-align:center" title="${ff && ff.comment ? escapeHtml(ff.comment) : "Toggle manufactured flag"}">${ff ? '<span style="color:#D51A2C">⚑</span>' : '<span class="muted">⚐</span>'}</td>` : "";
     const cells = cols.map(([k]) => {
       if (k === "id") {
@@ -1744,7 +1813,7 @@ function renderCompareTable() {
       const inner = shown ? escapeHtml(shown) : '<span class="muted">—</span>';
       return `<td data-col="${k}" class="${sh ? "share" : ""}${tipCls}" style="${sh ? `color:${cc}` : ""}"${dataFull}>${inner}</td>`;
     }).join("");
-    return `<tr data-r="${r}" class="${r === cmpHighlightR ? "sel" : ""}">${flagTd}${cells}</tr>`;
+    return `<tr data-r="${r}" class="${r === cmpHighlightR ? "sel" : ""}${picked ? " cmp-picked" : ""}">${pickTd}${flagTd}${cells}</tr>`;
   }).join("");
   const box = $("modalBody");
   box.innerHTML = `<table class="cmp"><thead>${head}</thead><tbody>${body}</tbody></table>`;
@@ -1786,7 +1855,30 @@ function renderCompareTable() {
     });
   });
   box.querySelectorAll(".flagcell").forEach(td => td.addEventListener("click", () => toggleFlag(A("id", +td.dataset.fr))));
+  const selAll = box.querySelector("#cmpSelectAll");
+  if (selAll) {
+    selAll.addEventListener("click", e => {
+      e.stopPropagation();
+      const on = selAll.checked;
+      for (const r of visible) { if (on) cmpSelected.add(r); else cmpSelected.delete(r); }
+      syncCmpBulkBar();
+      renderCompareTable();
+    });
+  }
+  box.querySelectorAll(".cmp-pick-cb").forEach(cb => {
+    cb.addEventListener("click", e => e.stopPropagation());
+    cb.addEventListener("change", () => {
+      const r = +cb.dataset.r;
+      if (cb.checked) cmpSelected.add(r); else cmpSelected.delete(r);
+      syncCmpBulkBar();
+      const tr = cb.closest("tr");
+      if (tr) tr.classList.toggle("cmp-picked", cb.checked);
+      const all = box.querySelector("#cmpSelectAll");
+      if (all) all.checked = visible.length > 0 && visible.every(x => cmpSelected.has(x));
+    });
+  });
   bindCmpTooltips();
+  syncCmpBulkBar();
 }
 const reviewUrl = (id) => `https://review.frontiersin.org/review/${id}/0/0`;
 
