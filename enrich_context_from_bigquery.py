@@ -25,6 +25,7 @@ RAW_DEFAULT = REPO / "audit-pipeline" / "raw_snapshot_enriched.pkl"
 CONTEXT_COLS = [
     "stageId", "stageName", "journal", "section", "articleType",
     "ArticleTitle", "authorName", "authorEmail", "authorOrg",
+    "editors", "reviewers",
 ]
 
 

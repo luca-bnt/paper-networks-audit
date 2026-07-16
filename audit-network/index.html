@@ -275,7 +275,7 @@ const DEFAULT_ACTIVE_ATTRS = new Set(["ip", "device", "locale", "wdAuthor"]);
 // Name vs email local-part similarity below this % is treated as suspicious (optional filter).
 const NAME_EMAIL_SIM_THRESHOLD = 20;
 // Bump when snapshot.json.gz is rebuilt — busts browser/CDN caches for the data file.
-const SNAPSHOT_REV = "20260715T133358";
+const SNAPSHOT_REV = "20260716T122956";
 // Preset email regex patterns (tested against the full author email string).
 const EMAIL_REGEX_PRESETS = [
   { label: "Short alpha + digits", pattern: "[a-z]{4,8}\\d{3,6}", hint: "e.g. hilp8387@…" },
@@ -301,7 +301,7 @@ const BAND_COLORS = ["#6b7280", "#65C161", "#E87626", "#D51A2C"];
 const BAND_NAMES  = ["no score", "low", "medium", "high"];
 const STATUS_NAMES = ["", "green", "yellow", "red", "gold", "n/a", "unchecked"];
 const PATTERN_NAMES = ["", "all-digits", "name.surname", "all-alpha", "alpha+digits", "other"];
-const CMP_PRIORITY = ["status", "articleType", "authorName", "authorEmail", "authorOrg", "wdAuthor", "wdEditedBy", "wdStatus", "journal", "section"];
+const CMP_PRIORITY = ["status", "articleType", "authorName", "authorEmail", "authorOrg", "editors", "reviewers", "wdAuthor", "wdEditedBy", "wdStatus", "journal", "section"];
 const CMP_REST = ["pmScore", "wdCompany", "device", "ip", "locale", "authorIp"];
 
 // -------- state --------
@@ -415,22 +415,13 @@ function showFlaggedList() {
 }
 
 const $ = (id) => document.getElementById(id);
-/** ISO UTC from snapshot meta → "16 Jul 2026, 12:05 UTC" */
-const formatSnapshotUtc = (iso) => {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso.replace("T", " ").replace(/\+.*/, "") + " UTC";
-  return d.toLocaleString("en-GB", {
-    day: "numeric", month: "short", year: "numeric",
-    hour: "2-digit", minute: "2-digit", hour12: false,
-    timeZone: "UTC", timeZoneName: "short",
-  });
-};
 const str = (pool, ref) => (ref == null || ref < 0) ? "" : (D.dict[pool] ? D.dict[pool][ref] : "");
 const A = (c, r) => D.articles[c][r];
 const POOLS = { title:"titles", authorName:"names", authorEmail:"emails", authorOrg:"orgs",
   platform:"platforms", uaFamily:"uaFamilies", ip:"ips", device:"devices", locale:"locales",
   wdAuthor:"wdAuthors", wdEditedBy:"wdEditedBys", wdCompany:"wdCompanies", authorIp:"authorIps",
-  status:"statuses", journal:"journals", section:"sections", articleType:"articleTypes" };
+  status:"statuses", journal:"journals", section:"sections", articleType:"articleTypes",
+  editors:"editors", reviewers:"reviewers" };
 const artStr = (f, r) => (D.articles[f] === undefined ? "" : str(POOLS[f], A(f, r)));
 const cmpCols = () => [...CMP_PRIORITY, ...CMP_REST].filter(f => D.articles[f] !== undefined);
 const defaultCmpColOrder = () => ["id", ...cmpCols()];
@@ -466,7 +457,8 @@ const cmpFieldLabel = (f) => {
     return ATTR_META[f].label;
   }
   return ({ authorName: "Author", authorEmail: "Email", authorOrg: "Organisation", status: "Status",
-    articleType: "Type", journal: "Journal", section: "Section", pmScore: "Score", wdStatus: "Word-doc status" })[f] || f;
+    articleType: "Type", journal: "Journal", section: "Section", pmScore: "Score", wdStatus: "Word-doc status",
+    editors: "Editor", reviewers: "Reviewers" })[f] || f;
 };
 const cmpDisplay = (r, key) => {
   if (key === "id") return String(A("id", r));
@@ -478,6 +470,7 @@ const cmpDisplay = (r, key) => {
 // Compare table: compact cell text; full values stay in title + clipboard + sort.
 const CMP_TRUNC = {
   journal: 32, section: 28, authorName: 26, authorEmail: 30, authorOrg: 32,
+  editors: 24, reviewers: 28,
   wdAuthor: 20, wdEditedBy: 20, wdCompany: 20, device: 16, ip: 14, locale: 18, authorIp: 14,
 };
 const typeInitials = (s) => {
@@ -602,11 +595,10 @@ async function boot() {
       buckets.push({ attr, ref, rows, nNames: nN, nOrgs: nO });
     }
   const m = D.meta;
-  const metaBits = [];
-  if (m.builtUtc) metaBits.push(`Data refreshed ${formatSnapshotUtc(m.builtUtc)}`);
-  metaBits.push(`${m.count.toLocaleString()} papers`, `${m.buckets.toLocaleString()} connections`, `${m.windowDays}-day window`);
+  const metaBits = [`${m.count.toLocaleString()} papers`, `${m.buckets.toLocaleString()} connections`, `${m.windowDays}-day window`];
   if (D.articles.status) metaBits.push(`${(D.dict.statuses || []).length} statuses`);
   if (D.dict && D.dict.journals) metaBits.push(`${D.dict.journals.length} journals`);
+  if (m.builtUtc) metaBits.push(`snapshot ${m.builtUtc.slice(0, 10)}`);
   $("meta").textContent = metaBits.join(" · ");
   buildAttrToggles(); bindUI(); buildMetaFilters(); renderList(); setupCanvas(); buildLegend();
   if (D.articles.pmFlag) for (let r = 0; r < D.articles.pmFlag.length; r++) if (D.articles.pmFlag[r]) flags.set(A("id", r), { by: "baked", utc: "" });
@@ -1477,6 +1469,7 @@ function showPaperDetail(r) {
     ["Submitted", A("date", r)],
     ["Status", artStatus(r) || "—"], ["Article type", artStr("articleType", r) || "—"],
     ["Journal", artJournal(r) || "—"], ["Section", artStr("section", r) || "—"],
+    ["Editor", artStr("editors", r) || "—"], ["Reviewers", artStr("reviewers", r) || "—"],
     ["Author", artStr("authorName", r) || "—"], ["Email", artStr("authorEmail", r) || "—"],
     ["Organisation", artStr("authorOrg", r) || "—"], ["Name/email sim", A("nameEmailSim", r) == null ? "—" : A("nameEmailSim", r) + "%"],
     ["Email pattern", PATTERN_NAMES[A("emailPattern", r)] || "—"], ["Papermill score", bandLabel(r)],

@@ -85,6 +85,7 @@ RAW_COLS = [
     # article-level metadata (display / compare / optional filter — not connective).
     # Pulled from the latest ResourceVersion.ResourceModel (two-phase, JSON_VALUE by PK).
     "stageId", "stageName", "journal", "section", "articleType",
+    "editors", "reviewers",
 ]
 
 # Article metadata (status/journal/section): prefer BigQuery editorial warehouse
@@ -124,7 +125,59 @@ WITH authors AS (
   WHERE art.submissionDate >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
     AND IFNULL(art.isDeleted, FALSE) = FALSE
 ),
-picked AS (SELECT * FROM authors WHERE rn = 1)
+picked AS (SELECT * FROM authors WHERE rn = 1),
+users AS (
+  SELECT id AS userId, firstName, middleName, lastName
+  FROM `{ocean}.dataset_frontiersgraph_stream.datachanges_frontiersgraph_user_user`
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY id ORDER BY modificationDate DESC) = 1
+),
+user_emails AS (
+  SELECT userId, emailAddress
+  FROM `{ocean}.dataset_frontiersgraph.public_email_address`
+  WHERE isPrimary = TRUE
+  QUALIFY ROW_NUMBER() OVER (PARTITION BY userId ORDER BY modificationDate DESC) = 1
+),
+active_editors AS (
+  SELECT e.articleId, e.userId
+  FROM `{ocean}.dataset_frontiersgraph.article_article_editor` e
+  WHERE e.revocationDate IS NULL AND e.reviewAssignmentStatusId = 1
+),
+editor_people AS (
+  SELECT ae.articleId, ae.userId,
+    NULLIF(TRIM(REGEXP_REPLACE(CONCAT(IFNULL(u.firstName, ''), ' ', IFNULL(u.middleName, ''), ' ', IFNULL(u.lastName, '')), r' +', ' ')), '') AS fullName,
+    em.emailAddress
+  FROM active_editors ae
+  LEFT JOIN users u ON u.userId = ae.userId
+  LEFT JOIN user_emails em ON em.userId = ae.userId
+),
+editor_agg AS (
+  SELECT articleId,
+    STRING_AGG(DISTINCT COALESCE(fullName, emailAddress) ORDER BY COALESCE(fullName, emailAddress) LIMIT 3) AS editors
+  FROM editor_people
+  WHERE COALESCE(fullName, emailAddress) IS NOT NULL
+  GROUP BY articleId
+),
+active_reviewers AS (
+  SELECT rv.articleId, rv.userId
+  FROM `{ocean}.dataset_frontiersgraph.article_article_reviewer` rv
+  WHERE rv.reviewAssignmentStatusId IN (1, 2)
+    AND (rv.reviewAssignmentStatusId = 2 OR rv.endDate IS NULL)
+),
+reviewer_people AS (
+  SELECT ar.articleId, ar.userId,
+    NULLIF(TRIM(REGEXP_REPLACE(CONCAT(IFNULL(u.firstName, ''), ' ', IFNULL(u.middleName, ''), ' ', IFNULL(u.lastName, '')), r' +', ' ')), '') AS fullName,
+    em.emailAddress
+  FROM active_reviewers ar
+  LEFT JOIN users u ON u.userId = ar.userId
+  LEFT JOIN user_emails em ON em.userId = ar.userId
+),
+reviewer_agg AS (
+  SELECT articleId,
+    STRING_AGG(DISTINCT COALESCE(fullName, emailAddress) ORDER BY COALESCE(fullName, emailAddress) LIMIT 5) AS reviewers
+  FROM reviewer_people
+  WHERE COALESCE(fullName, emailAddress) IS NOT NULL
+  GROUP BY articleId
+)
 SELECT
   a.id AS ArticleId,
   a.title AS ArticleTitle,
@@ -134,7 +187,9 @@ SELECT
   j.name AS journal,
   s.name AS section,
   p.firstName, p.middleName, p.lastName,
-  p.email, p.orgName
+  p.email, p.orgName,
+  ed.editors,
+  rv.reviewers
 FROM `{ocean}.dataset_frontiersgraph.article_article` a
 LEFT JOIN `{ocean}.dataset_frontiersgraph.article_article_stage` st
   ON st.id = a.articleStageId
@@ -147,6 +202,8 @@ LEFT JOIN `{ocean}.dataset_frontiersgraph.journal_journal` j
 LEFT JOIN `{ocean}.dataset_frontiersgraph.journal_section` s
   ON s.id = jsp.sectionId
 LEFT JOIN picked p ON p.ArticleId = a.id
+LEFT JOIN editor_agg ed ON ed.articleId = a.id
+LEFT JOIN reviewer_agg rv ON rv.articleId = a.id
 WHERE a.submissionDate >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {days} DAY)
   AND IFNULL(a.isDeleted, FALSE) = FALSE
 """
@@ -350,8 +407,13 @@ def _format_bq_context(df: pd.DataFrame) -> pd.DataFrame:
     ]
     out["authorEmail"] = out.get("email", pd.Series("", index=out.index)).map(_bq_str).str.lower()
     out["authorOrg"] = out.get("orgName", pd.Series("", index=out.index)).map(_bq_str)
+    for c in ("editors", "reviewers"):
+        if c in out.columns:
+            out[c] = out[c].map(_bq_str)
+        else:
+            out[c] = ""
     keep = ["ArticleId", "ArticleTitle", "stageId", "stageName", "journal", "section", "articleType",
-            "authorName", "authorEmail", "authorOrg"]
+            "authorName", "authorEmail", "authorOrg", "editors", "reviewers"]
     if "authorIp" in out.columns:
         keep.append("authorIp")
     return out.reindex(columns=[c for c in keep if c in out.columns])
@@ -364,7 +426,7 @@ def fetch_article_context_bq(days: int) -> pd.DataFrame:
     Query jobs run in BQ_PROJECT; data is read cross-project from BQ_OCEAN_PROJECT.
     """
     empty = ["ArticleId", "ArticleTitle", "stageId", "stageName", "journal", "section", "articleType",
-             "authorName", "authorEmail", "authorOrg"]
+             "authorName", "authorEmail", "authorOrg", "editors", "reviewers"]
     try:
         from google.cloud import bigquery
     except ImportError:
@@ -384,6 +446,8 @@ def fetch_article_context_bq(days: int) -> pd.DataFrame:
         f"[fetch] BQ article context: {len(out):,} "
         f"({out['authorEmail'].astype(bool).sum():,} email, "
         f"{out['journal'].notna().sum():,} journal, "
+        f"{out['editors'].astype(bool).sum():,} editors, "
+        f"{out['reviewers'].astype(bool).sum():,} reviewers, "
         f"{(out['stageName'] == 'Rejected').sum():,} rejected) "
         f"({time.time()-t:.1f}s)",
         file=sys.stderr,
@@ -688,6 +752,8 @@ def build(df: pd.DataFrame, cap: int, days: int, flag_ids: set | None = None) ->
             "journal": clean(r.get("journal")),
             "section": clean(r.get("section")),
             "articleType": clean(r.get("articleType")),
+            "editors": clean(r.get("editors")),
+            "reviewers": clean(r.get("reviewers")),
             "authorOrg": clean(r.get("authorOrg")),
             "platform": clean(r.get("Platform")),
             "uaFamily": clean(r.get("UaFamily")),
@@ -776,6 +842,8 @@ def _encode(recs, keep, old_to_new, kept_index, caps, days, flag_ids=None) -> di
         "journal": "journals",
         "section": "sections",
         "articleType": "articleTypes",
+        "editors": "editors",
+        "reviewers": "reviewers",
         "authorOrg": "orgs",
         "platform": "platforms",
         "uaFamily": "uaFamilies",
