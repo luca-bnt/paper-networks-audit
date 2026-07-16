@@ -116,14 +116,30 @@
   .muted { color: var(--muted); }
   .empty { padding: 24px 14px; color: var(--muted); text-align: center; }
   .count { color: var(--muted); font-size: 11px; }
-  /* modal */
-  #modal { position: fixed; inset: 0; background: #000a; display: none; align-items: center; justify-content: center; z-index: 50; }
-  #modal.open { display: flex; }
-  .modalbox { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-    width: min(1800px, 97vw); height: min(94vh, 1200px); display: flex; flex-direction: column; }
-  .modalhead { padding: 12px 16px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; }
+  /* compare bottom panel */
+  #modal { position: fixed; inset: 0; z-index: 50; display: none; pointer-events: none; }
+  #modal.open { display: block; pointer-events: auto; }
+  #modal .cmp-backdrop {
+    position: absolute; inset: 0; background: #00000066;
+    opacity: 0; transition: opacity .22s ease;
+  }
+  #modal.open .cmp-backdrop { opacity: 1; }
+  .modalbox {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: calc(100vh - 36px);
+    background: var(--panel); border-top: 1px solid var(--line);
+    border-radius: 12px 12px 0 0; display: flex; flex-direction: column;
+    box-shadow: 0 -10px 40px #00000055;
+    transform: translateY(100%); transition: transform .24s ease;
+  }
+  #modal.open .modalbox { transform: translateY(0); }
+  .cmp-drag {
+    flex: none; height: 5px; width: 44px; margin: 8px auto 0;
+    border-radius: 3px; background: var(--line);
+  }
+  .modalhead { padding: 10px 16px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; flex: none; }
   .modalhead h2 { margin: 0; font-size: 14px; }
-  .modalbody { overflow: auto; flex: 1; }
+  .modalbody { overflow: auto; flex: 1; min-height: 0; }
   table.cmp { border-collapse: collapse; font-size: 12px; width: 100%; }
   table.cmp th, table.cmp td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; white-space: nowrap;
     max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
@@ -226,8 +242,10 @@
   </div>
 </div>
 
-<div id="modal">
-  <div class="modalbox">
+<div id="modal" aria-hidden="true">
+  <div class="cmp-backdrop" id="modalBackdrop"></div>
+  <div class="modalbox" role="dialog" aria-labelledby="modalTitle">
+    <div class="cmp-drag" aria-hidden="true"></div>
     <div class="modalhead">
       <h2 id="modalTitle">Compare papers</h2>
       <span class="muted" id="modalSub"></span>
@@ -673,9 +691,10 @@ function bindUI() {
   $("modalClose").addEventListener("click", closeModal);
   $("modalCopy").addEventListener("click", copyCompareTable);
   $("modal").addEventListener("click", e => {
-    if (e.target.id === "modal") closeModal();
+    if (e.target.id === "modal" || e.target.id === "modalBackdrop") closeModal();
     if (e.target.id === "cmpColReset") { e.preventDefault(); resetCmpColOrder(); renderCompareTable(); }
   });
+  $("modal").querySelector(".modalbox").addEventListener("click", e => e.stopPropagation());
   $("modalBody").addEventListener("click", e => {
     if (!$("modal").classList.contains("open")) return;
     if (e.target.closest("a.aid") || e.target.closest(".flagcell")) return;
@@ -1495,11 +1514,13 @@ function openCompare() {
   $("modalSub").innerHTML = `${rs.length} papers · click header to sort · drag header to reorder · <a href="#" class="aid" id="cmpColReset">reset columns</a>`;
   renderCompareTable();
   $("modal").classList.add("open");
+  $("modal").setAttribute("aria-hidden", "false");
   syncShare();
 }
 function closeModal() {
   if (!$("modal").classList.contains("open")) return;
   $("modal").classList.remove("open");
+  $("modal").setAttribute("aria-hidden", "true");
   applyCompareSelectionToGraph();
   syncShare();
 }
