@@ -1631,6 +1631,7 @@ function openCompare() {
   const CC = cmpCols();
   const shared = {};
   for (const f of CC) {
+    if (f === "nameEmailSim") continue; // similarity uses its own color scale, not share highlight
     const counts = new Map();
     for (const r of rs) {
       const v = cmpShareKey(r, f);
@@ -1730,11 +1731,10 @@ function renderCompareTable() {
         const sty = nameEmailSimStyle(sim);
         const inner = sim == null ? '<span class="muted">—</span>' : escapeHtml(nameEmailSimText(sim));
         const colorStyle = sty ? `color:${sty.color};font-weight:600` : "";
-        const shareStyle = sh ? `color:${cc};font-weight:600` : "";
-        const tip = sty && !sh ? sty.hint : "";
+        const tip = sty ? sty.hint : "";
         const tipCls = tip ? " cmp-tip" : "";
         const dataFull = tip ? ` data-full="${escapeHtml(tip)}"` : "";
-        return `<td data-col="${k}" class="${sh ? "share" : ""}${tipCls}" style="${sh ? shareStyle : colorStyle}"${dataFull}>${inner}</td>`;
+        return `<td data-col="${k}" class="${tipCls}" style="${colorStyle}"${dataFull}>${inner}</td>`;
       }
       const v = cmpDisplay(r, k);
       const shown = cmpDisplayShort(r, k);
