@@ -127,6 +127,12 @@
   table.cmp { border-collapse: collapse; font-size: 12px; width: 100%; }
   table.cmp th, table.cmp td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; white-space: nowrap;
     max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+  table.cmp td[data-col="articleType"] { max-width: 52px; text-align: center; font-weight: 600; letter-spacing: .03em; }
+  table.cmp td[data-col="status"] { max-width: 88px; }
+  table.cmp td[data-col="journal"] { max-width: 140px; }
+  table.cmp td[data-col="section"] { max-width: 120px; }
+  table.cmp td[data-col="authorEmail"] { max-width: 160px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+  table.cmp td.cmp-tip { cursor: default; }
   table.cmp thead th { position: sticky; top: 0; background: var(--panel2); z-index: 1; }
   table.cmp th[data-sort] { cursor: grab; }
   table.cmp th[data-sort].drag-over { outline: 1px dashed var(--accent); outline-offset: -2px; }
@@ -425,7 +431,7 @@ const cmpFieldLabel = (f) => {
     return ATTR_META[f].label;
   }
   return ({ authorName: "Author", authorEmail: "Email", authorOrg: "Organisation", status: "Status",
-    articleType: "Article type", journal: "Journal", section: "Section", pmScore: "Score", wdStatus: "Word-doc status" })[f] || f;
+    articleType: "Type", journal: "Journal", section: "Section", pmScore: "Score", wdStatus: "Word-doc status" })[f] || f;
 };
 const cmpDisplay = (r, key) => {
   if (key === "id") return String(A("id", r));
@@ -433,6 +439,23 @@ const cmpDisplay = (r, key) => {
   if (key === "wdStatus") return STATUS_NAMES[A("wdStatus", r)] || "";
   const ref = A(key, r);
   return ref >= 0 ? (str(POOLS[key], ref) || "") : "";
+};
+// Compare table: compact cell text; full values stay in title + clipboard + sort.
+const CMP_TRUNC = {
+  journal: 32, section: 28, authorName: 26, authorEmail: 30, authorOrg: 32,
+  wdAuthor: 20, wdEditedBy: 20, wdCompany: 20, device: 16, ip: 14, locale: 18, authorIp: 14,
+};
+const typeInitials = (s) => {
+  if (!s) return "";
+  return s.trim().split(/\s+/).filter(Boolean).map(w => w[0] || "").join("").toUpperCase();
+};
+const truncateText = (s, max) => (!s || s.length <= max) ? s : s.slice(0, Math.max(1, max - 1)) + "…";
+const cmpDisplayShort = (r, key) => {
+  const full = cmpDisplay(r, key);
+  if (!full) return "";
+  if (key === "articleType") return typeInitials(full);
+  const max = CMP_TRUNC[key];
+  return max ? truncateText(full, max) : full;
 };
 const cmpShareKey = (r, key) => {
   if (key === "pmScore") { const s = A("pmScore", r); return s == null ? null : s; }
@@ -1546,10 +1569,15 @@ function renderCompareTable() {
         return `<td><a class="aid" href="${reviewUrl(aid)}" target="_blank" rel="noopener" title="Open in Frontiers review">${aid}</a></td>`;
       }
       const v = cmpDisplay(r, k);
+      const shown = cmpDisplayShort(r, k);
       const sk = cmpShareKey(r, k);
       const sh = sk != null && shared[k] && shared[k].get(sk) >= 2;
       const cc = sh && ATTR_META[k] ? ATTR_META[k].color : (sh ? "#8ab4ff" : "");
-      return `<td class="${sh ? "share" : ""}" style="${sh ? `color:${cc}` : ""}" title="${escapeHtml(v)}">${escapeHtml(v) || '<span class="muted">—</span>'}</td>`;
+      const tip = v && shown !== v ? v : (v || "");
+      const tipAttr = tip ? ` title="${escapeHtml(tip)}"` : "";
+      const tipCls = v && shown !== v ? " cmp-tip" : "";
+      const inner = shown ? escapeHtml(shown) : '<span class="muted">—</span>';
+      return `<td data-col="${k}" class="${sh ? "share" : ""}${tipCls}" style="${sh ? `color:${cc}` : ""}"${tipAttr}>${inner}</td>`;
     }).join("");
     return `<tr data-r="${r}" class="${r === cmpHighlightR ? "sel" : ""}">${flagTd}${cells}</tr>`;
   }).join("");
