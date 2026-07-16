@@ -308,6 +308,12 @@ const nameEmailSimHtml = (sim) => {
   const title = sty ? ` title="${escapeHtml(sty.hint)}"` : "";
   return `<span style="color:${sty.color};font-weight:600"${title}>${escapeHtml(nameEmailSimText(sim))}</span>`;
 };
+const STATUS_COLORS = { rejected: "#D51A2C", accepted: "#65C161" };
+const statusColor = (s) => {
+  if (!s) return "";
+  const key = s.trim().toLowerCase();
+  return STATUS_COLORS[key] || "";
+};
 // Bump when snapshot.json.gz is rebuilt — busts browser/CDN caches for the data file.
 const SNAPSHOT_REV = "20260716T122956";
 // Preset email regex patterns (tested against the full author email string).
@@ -1698,7 +1704,7 @@ function openCompare() {
   const CC = cmpCols();
   const shared = {};
   for (const f of CC) {
-    if (f === "nameEmailSim") continue; // similarity uses its own color scale, not share highlight
+    if (f === "nameEmailSim" || f === "status") continue; // similarity uses its own color scale, not share highlight
     const counts = new Map();
     for (const r of rs) {
       const v = cmpShareKey(r, f);
@@ -1808,6 +1814,17 @@ function renderCompareTable() {
         const inner = sim == null ? '<span class="muted">—</span>' : escapeHtml(nameEmailSimText(sim));
         const colorStyle = sty ? `color:${sty.color};font-weight:600` : "";
         const tip = sty ? sty.hint : "";
+        const tipCls = tip ? " cmp-tip" : "";
+        const dataFull = tip ? ` data-full="${escapeHtml(tip)}"` : "";
+        return `<td data-col="${k}" class="${tipCls}" style="${colorStyle}"${dataFull}>${inner}</td>`;
+      }
+      if (k === "status") {
+        const full = cmpDisplay(r, k);
+        const shown = cmpDisplayShort(r, k);
+        const color = statusColor(full);
+        const inner = shown ? escapeHtml(shown) : '<span class="muted">—</span>';
+        const colorStyle = color ? `color:${color};font-weight:600` : "";
+        const tip = full && shown !== full ? full : "";
         const tipCls = tip ? " cmp-tip" : "";
         const dataFull = tip ? ` data-full="${escapeHtml(tip)}"` : "";
         return `<td data-col="${k}" class="${tipCls}" style="${colorStyle}"${dataFull}>${inner}</td>`;
