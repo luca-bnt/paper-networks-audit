@@ -415,7 +415,19 @@ function showFlaggedList() {
 }
 
 const $ = (id) => document.getElementById(id);
-const str = (pool, ref) => (ref == null || ref < 0) ? "" : (D.dict[pool] ? D.dict[pool][ref] : "");
+const strFull = (pool, ref) => (ref == null || ref < 0) ? "" : (D.dict[pool] ? D.dict[pool][ref] : "");
+const HASH_POOLS = new Set(["ips", "devices"]);
+const hashShort = (s) => {
+  if (!s) return "";
+  const h = String(s).replace(/[^a-f0-9]/gi, "").toLowerCase();
+  if (h.length < 6) return h;
+  return h.slice(0, 3) + "·" + h.slice(3, 6);
+};
+const str = (pool, ref) => {
+  const v = strFull(pool, ref);
+  if (!v) return "";
+  return HASH_POOLS.has(pool) ? hashShort(v) : v;
+};
 const A = (c, r) => D.articles[c][r];
 const POOLS = { title:"titles", authorName:"names", authorEmail:"emails", authorOrg:"orgs",
   platform:"platforms", uaFamily:"uaFamilies", ip:"ips", device:"devices", locale:"locales",
@@ -465,13 +477,14 @@ const cmpDisplay = (r, key) => {
   if (key === "pmScore") return bandLabel(r);
   if (key === "wdStatus") return STATUS_NAMES[A("wdStatus", r)] || "";
   const ref = A(key, r);
-  return ref >= 0 ? (str(POOLS[key], ref) || "") : "";
+  const pool = POOLS[key];
+  return ref >= 0 && pool ? (strFull(pool, ref) || "") : "";
 };
 // Compare table: compact cell text; full values stay in title + clipboard + sort.
 const CMP_TRUNC = {
   journal: 32, section: 28, authorName: 26, authorEmail: 30, authorOrg: 32,
   editors: 24, reviewers: 28,
-  wdAuthor: 20, wdEditedBy: 20, wdCompany: 20, device: 16, ip: 14, locale: 18, authorIp: 14,
+  wdAuthor: 20, wdEditedBy: 20, wdCompany: 20, locale: 18, authorIp: 14,
 };
 const typeInitials = (s) => {
   if (!s) return "";
@@ -520,6 +533,7 @@ const cmpDisplayShort = (r, key) => {
     const max = CMP_TRUNC.journal;
     return max ? truncateText(short, max) : short;
   }
+  if (key === "ip" || key === "device") return hashShort(full);
   const max = CMP_TRUNC[key];
   return max ? truncateText(full, max) : full;
 };
@@ -862,7 +876,7 @@ function currentBuckets() {
     if (onlyFlagged && !rows.some(isFlagged)) return false;
     if (shouldHideAllRejectedCluster(rows)) return false;
     if (idSearch && !rowsMatchArticleSearch(rows, idSearch)) return false;
-    if (q && !str(ATTR_META[b.attr].pool, b.ref).toLowerCase().includes(q)) return false;
+    if (q && !(strFull(ATTR_META[b.attr].pool, b.ref) || str(ATTR_META[b.attr].pool, b.ref) || "").toLowerCase().includes(q)) return false;
     return true;
   }).map(b => {
     const rows = metaFilteredRows(b.rows);
@@ -1110,14 +1124,18 @@ function unitRowInner(u) {
       <div class="b2"><span class="pill">${u.rows.length} papers</span>${authPill}${orgPill}</div>${metaHtml}`;
   }
   if (u.kind === "single") {
-    const meta = ATTR_META[u.attr], val = str(meta.pool, u.ref) || "(empty)";
+    const meta = ATTR_META[u.attr], full = strFull(meta.pool, u.ref), val = str(meta.pool, u.ref) || "(empty)";
     return `<div class="b1"><span class="attrsq" style="background:${meta.color}"></span>
         <span class="muted" style="font-size:11px">${meta.label}</span></div>
-      <div class="val" title="${val.replace(/"/g,'&quot;')}">${val}</div>
+      <div class="val" title="${escapeHtml(full)}">${escapeHtml(val)}</div>
       <div class="b2"><span class="pill">${u.rows.length} papers</span>${authPill}${orgPill}</div>${metaHtml}`;
   }
   const dots = u.parts.map(p => `<span class="attrsq" style="background:${ATTR_META[p.attr].color}" title="${ATTR_META[p.attr].label}"></span>`).join("");
-  const lines = u.parts.map(p => `<div class="val" title="${(str(ATTR_META[p.attr].pool, p.ref) || '').replace(/"/g,'&quot;')}"><span class="muted" style="font-size:10px">${ATTR_META[p.attr].label}:</span> ${str(ATTR_META[p.attr].pool, p.ref) || "(empty)"}</div>`).join("");
+  const lines = u.parts.map(p => {
+    const full = strFull(ATTR_META[p.attr].pool, p.ref) || "";
+    const shown = str(ATTR_META[p.attr].pool, p.ref) || "(empty)";
+    return `<div class="val" title="${escapeHtml(full)}"><span class="muted" style="font-size:10px">${ATTR_META[p.attr].label}:</span> ${escapeHtml(shown)}</div>`;
+  }).join("");
   return `<div class="b1">${dots}<span class="muted" style="font-size:11px">${u.parts.length} types shared</span></div>
     ${lines}
     <div class="b2"><span class="pill bad">${u.rows.length} papers</span>${authPill}${orgPill}</div>${metaHtml}`;
@@ -1164,7 +1182,12 @@ function focusCombo(u) {
 function showComboDetail(u) {
   $("detailTitle").textContent = `${u.parts.length}-type connection`;
   $("detailSub").textContent = `${u.rows.length} papers share all selected values`;
-  const partRows = u.parts.map(p => `<div><dt>${ATTR_META[p.attr].label}</dt><dd class="val">${escapeHtml(str(ATTR_META[p.attr].pool, p.ref) || "—")}</dd></div>`).join("");
+  const partRows = u.parts.map(p => {
+    const full = strFull(ATTR_META[p.attr].pool, p.ref) || "";
+    const shown = str(ATTR_META[p.attr].pool, p.ref) || "—";
+    const titleAttr = full && full !== shown ? ` title="${escapeHtml(full)}"` : "";
+    return `<div><dt>${ATTR_META[p.attr].label}</dt><dd class="val"${titleAttr}>${escapeHtml(shown)}</dd></div>`;
+  }).join("");
   $("detail").innerHTML = `<div class="section"><dl class="dl">${partRows}
       <div><dt>Papers</dt><dd>${u.rows.length}</dd></div>
       <div><dt>Distinct authors</dt><dd>${u.nNames || "unknown"}</dd></div>
@@ -1359,7 +1382,9 @@ function hoverTip(px, py) {
       + (nd.nFlagged ? `<div style="color:#ff8a8a">⚑ ${nd.nFlagged} flagged</div>` : "")
       + `<div class="muted">click to drill in</div>`;
   } else if (nd.type === "hub" && ATTR_META[nd.attr]) {
-    html = `<b>${ATTR_META[nd.attr].label}</b><div class="muted">${escapeHtml((str(ATTR_META[nd.attr].pool, nd.ref) || "").slice(0, 60))}</div>`
+    const full = strFull(ATTR_META[nd.attr].pool, nd.ref) || "";
+    const shown = str(ATTR_META[nd.attr].pool, nd.ref) || "";
+    html = `<b>${ATTR_META[nd.attr].label}</b><div class="muted" title="${escapeHtml(full)}">${escapeHtml(shown)}</div>`
       + `<div class="muted">${nd.n} papers</div>`
       + (nd.nFlagged ? `<div style="color:#ff8a8a">⚑ ${nd.nFlagged} flagged</div>` : "")
       + `<div class="muted">click to drill in</div>`;
@@ -1499,7 +1524,8 @@ function showPaperDetail(r) {
     ["Word-doc status", STATUS_NAMES[A("wdStatus", r)] || "—"],
     ["Word-doc match", A("wdMatch", r) === 1 ? "matches author" : A("wdMatch", r) === 0 ? "does NOT match" : "—"],
     ["Word author", artStr("wdAuthor", r) || "—"], ["Word edited by", artStr("wdEditedBy", r) || "—"], ["Word company", artStr("wdCompany", r) || "—"],
-    ["Device", artStr("device", r) || "—"], ["IP", artStr("ip", r) || "—"], ["Locale", artStr("locale", r) || "—"],
+    ["Device", artStr("device", r) || "—", artStr("device", r) !== strFull("devices", A("device", r)) ? strFull("devices", A("device", r)) : ""],
+    ["IP", artStr("ip", r) || "—", artStr("ip", r) !== strFull("ips", A("ip", r)) ? strFull("ips", A("ip", r)) : ""], ["Locale", artStr("locale", r) || "—"],
     ["Platform / UA", [artStr("platform", r), artStr("uaFamily", r)].filter(Boolean).join(" / ") || "—"], ["Submission IP (author record)", artStr("authorIp", r) || "—"],
   ];
   $("detail").innerHTML = flagControlHtml(r) + `<div class="section"><dl class="dl">${rows.map(([k, v, tip]) => {
@@ -1519,10 +1545,11 @@ function connectionsHtml(r) {
     const ref = D.articles[col(attr)][r]; if (ref < 0) continue;
     const key = attr + ":" + ref, members = indexMap.get(key);
     if (!members || members.length < 2) continue;
-    const meta = ATTR_META[attr], others = members.filter(x => x !== r);
+    const meta = ATTR_META[attr], full = strFull(meta.pool, ref), shown = str(meta.pool, ref);
+    const others = members.filter(x => x !== r);
     out.push(`<div class="conn"><div class="ch" data-hub="${key}"><span class="attrsq" style="background:${meta.color}"></span>
         <b>${meta.label}</b> <span class="muted">· ${members.length} papers · drill in</span></div>
-      <div class="muted val" style="margin-top:3px">${escapeHtml(str(meta.pool, ref))}</div>
+      <div class="muted val" style="margin-top:3px" title="${escapeHtml(full)}">${escapeHtml(shown)}</div>
       <div class="cids">${others.slice(0, 40).map(x => `<span class="aid" data-r="${x}">${A("id", x)}</span>`).join("")}</div></div>`);
   }
   return out.length ? out.join("") : `<div class="muted">No shared attributes retained (all too common or unique).</div>`;
