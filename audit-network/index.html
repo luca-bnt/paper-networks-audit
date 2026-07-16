@@ -169,7 +169,7 @@
     flex: none; padding: 10px 16px 12px; border-top: 1px solid var(--line);
     background: var(--panel2); display: none; gap: 10px; align-items: flex-end; flex-wrap: wrap;
   }
-  .cmp-bulk.open { display: flex; }
+  #modal.open .cmp-bulk { display: flex; }
   .cmp-bulk textarea {
     flex: 1; min-width: 200px; min-height: 40px; max-height: 80px;
     background: var(--panel); color: var(--text); border: 1px solid var(--line);
@@ -697,6 +697,8 @@ async function boot() {
     $("reviewerRow").style.display = "";
     $("fReviewer").value = localStorage.getItem("auditReviewer") || "";
     await loadFlags();
+  } else if ($("cmpBulkBar")) {
+    $("cmpBulkBar").style.display = "none";
   }
   applyShareParams();
 }
@@ -1673,8 +1675,7 @@ function applyCompareSelectionToGraph() {
   }
 }
 function syncCmpBulkBar() {
-  const bar = $("cmpBulkBar");
-  if (!bar || !FC) return;
+  if (!FC) return;
   const n = cmpSelected.size;
   const el = $("cmpBulkCount");
   if (el) el.textContent = n ? `${n} selected` : "0 selected";
@@ -1709,14 +1710,13 @@ function openCompare() {
   renderCompareTable();
   $("modal").classList.add("open");
   $("modal").setAttribute("aria-hidden", "false");
-  if (FC && $("cmpBulkBar")) { $("cmpBulkBar").classList.add("open"); syncCmpBulkBar(); }
+  syncCmpBulkBar();
   syncShare();
 }
 function closeModal() {
   if (!$("modal").classList.contains("open")) return;
   $("modal").classList.remove("open");
   $("modal").setAttribute("aria-hidden", "true");
-  if ($("cmpBulkBar")) $("cmpBulkBar").classList.remove("open");
   const tipEl = $("cmpTip"); if (tipEl) tipEl.style.display = "none";
   applyCompareSelectionToGraph();
   syncShare();
