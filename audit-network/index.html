@@ -502,8 +502,8 @@
           <ul>
             <li>Rejected papers include a <b>rejection reason</b> from the editorial system (e.g. Ethical issues, Below Standard, Author request).</li>
             <li>In the <b>compare table</b>, the status column uses short codes (REJ) with colour by risk:
-              <b style="color:#D51A2C">red</b> high (ethical issues, below standard, prescreening),
-              <b style="color:#E87626">orange</b> mid (out of scope, not sufficiently revised, other),
+              <b style="color:#D51A2C">red</b> high (ethical issues, rejected before review),
+              <b style="color:#E87626">orange</b> mid (below standard, prescreening, out of scope, not sufficiently revised, other),
               <b style="color:#6B6B6B">grey</b> low (author or editorial withdrawal).</li>
             <li>Hover the status cell for the full reason (e.g. “Rejected · Ethical issues”).</li>
             <li>The <b>detail panel</b> shows status and a separate rejection-reason row when recorded.</li>
@@ -639,9 +639,9 @@ const nameEmailSimHtml = (sim) => {
   return `<span style="color:${sty.color};font-weight:600"${title}>${escapeHtml(nameEmailSimText(sim))}</span>`;
 };
 const STATUS_COLORS = { rejected: "#D51A2C", accepted: "#65C161", published: "#65C161" };
-const REJ_RISK_HIGH = [/ETHICAL/i, /BELOW_STANDARD/i, /OBJECTIVE_ERROR/i, /PRESCREENING/i, /BEFORE_REVIEW/i];
+const REJ_RISK_HIGH = [/ETHICAL/i, /OBJECTIVE_ERROR/i, /BEFORE_REVIEW/i];
 const REJ_RISK_LOW = [/AUTHOR_REQUEST/i, /WITHDRAWN/i];
-const REJ_RISK_MID = [/NOT_SUFFICIENTLY_REVISED/i, /OUT_OF_SCOPE/i, /_OTHER/i, /OTHER/i];
+const REJ_RISK_MID = [/BELOW_STANDARD/i, /PRESCREENING/i, /NOT_SUFFICIENTLY_REVISED/i, /OUT_OF_SCOPE/i, /_OTHER/i, /OTHER/i];
 const REJ_COLOR = { high: "#D51A2C", mid: "#E87626", low: "#6B6B6B" };
 const statusColor = (s) => {
   if (!s) return "";
