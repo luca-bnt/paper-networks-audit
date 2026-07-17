@@ -93,8 +93,10 @@ Reviewers can flag/unflag articles as manufactured. Because the app is static
 the same account and written directly from the browser via a SAS — no backend
 compute required.
 
-- **Storage:** table `pmflags`, one entity per flag (`PartitionKey="flag"`,
-  `RowKey=<articleId>`, `flaggedBy`, `flaggedUtc`).
+- **Storage:** table `pmflags`:
+  - Active flags: `PartitionKey="flag"`, `RowKey=<articleId>`, `flaggedBy`, `flaggedUtc`, `comment`
+  - Removals (for DB sync): `PartitionKey="unflag"`, same `RowKey`, plus `removedBy`, `removedUtc`, and copies of the flag metadata
+- **CSV export:** **↓ CSV** downloads all rows from both partitions (paginated, all time — not limited to the 90-day snapshot). Columns: `articleId`, `status` (`active`|`removed`), `comment`, `flaggedAt`, `removedAt`, `flaggedBy`, `removedBy`, `inSnapshot`
 - **Config:** the app reads `flags-config.js` (git-ignored) which sets
   `window.FLAGS_CONFIG = { account, table, sas }`. If absent, the flag UI is
   hidden and any baked flags show read-only. Regenerate the SAS periodically:
