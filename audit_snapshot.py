@@ -84,7 +84,7 @@ RAW_COLS = [
     "authorName", "authorEmail", "authorOrg", "authorIp", "ArticleTitle",
     # article-level metadata (display / compare / optional filter — not connective).
     # Pulled from the latest ResourceVersion.ResourceModel (two-phase, JSON_VALUE by PK).
-    "stageId", "stageName", "journal", "section", "articleType",
+    "stageId", "stageName", "rejectionReason", "rejectionCode", "journal", "section", "articleType",
     "editors", "reviewers",
 ]
 
@@ -184,6 +184,8 @@ SELECT
   a.title AS ArticleTitle,
   a.articleStageId AS stageId,
   st.name AS stageName,
+  rr.name AS rejectionReason,
+  rr.code AS rejectionCode,
   typ.name AS articleType,
   j.name AS journal,
   s.name AS section,
@@ -194,6 +196,8 @@ SELECT
 FROM `{ocean}.dataset_frontiersgraph.article_article` a
 LEFT JOIN `{ocean}.dataset_frontiersgraph.article_article_stage` st
   ON st.id = a.articleStageId
+LEFT JOIN `{ocean}.dataset_frontiersgraph.article_article_rejection_reason` rr
+  ON rr.id = a.rejectionReasonId
 LEFT JOIN `{ocean}.dataset_frontiersgraph.public_article_type` typ
   ON typ.id = a.articleTypeId AND typ.spaceId = a.spaceId
 LEFT JOIN `{ocean}.dataset_frontiersgraph.journal_journal_section_path` jsp
@@ -413,8 +417,8 @@ def _format_bq_context(df: pd.DataFrame) -> pd.DataFrame:
             out[c] = out[c].map(_bq_str)
         else:
             out[c] = ""
-    keep = ["ArticleId", "ArticleTitle", "stageId", "stageName", "journal", "section", "articleType",
-            "authorName", "authorEmail", "authorOrg", "editors", "reviewers"]
+    keep = ["ArticleId", "ArticleTitle", "stageId", "stageName", "rejectionReason", "rejectionCode",
+            "journal", "section", "articleType", "authorName", "authorEmail", "authorOrg", "editors", "reviewers"]
     if "authorIp" in out.columns:
         keep.append("authorIp")
     return out.reindex(columns=[c for c in keep if c in out.columns])
@@ -426,8 +430,8 @@ def fetch_article_context_bq(days: int) -> pd.DataFrame:
     Returns status, journal, section, title, and submitting-author name/email/org.
     Query jobs run in BQ_PROJECT; data is read cross-project from BQ_OCEAN_PROJECT.
     """
-    empty = ["ArticleId", "ArticleTitle", "stageId", "stageName", "journal", "section", "articleType",
-             "authorName", "authorEmail", "authorOrg", "editors", "reviewers"]
+    empty = ["ArticleId", "ArticleTitle", "stageId", "stageName", "rejectionReason", "rejectionCode",
+             "journal", "section", "articleType", "authorName", "authorEmail", "authorOrg", "editors", "reviewers"]
     try:
         from google.cloud import bigquery
     except ImportError:
@@ -750,6 +754,8 @@ def build(df: pd.DataFrame, cap: int, days: int, flag_ids: set | None = None) ->
             "authorName": name,
             "authorEmail": email,
             "status": clean(r.get("stageName")),
+            "rejectionReason": clean(r.get("rejectionReason")),
+            "rejectionCode": clean(r.get("rejectionCode")),
             "journal": clean(r.get("journal")),
             "section": clean(r.get("section")),
             "articleType": clean(r.get("articleType")),
@@ -840,6 +846,8 @@ def _encode(recs, keep, old_to_new, kept_index, caps, days, flag_ids=None) -> di
         "authorName": "names",
         "authorEmail": "emails",
         "status": "statuses",
+        "rejectionReason": "rejectionReasons",
+        "rejectionCode": "rejectionCodes",
         "journal": "journals",
         "section": "sections",
         "articleType": "articleTypes",

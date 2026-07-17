@@ -21,6 +21,15 @@
   header { padding: 12px 14px; border-bottom: 1px solid var(--line); }
   header h1 { font-size: 14px; margin: 0 0 2px; letter-spacing: .2px; }
   header .sub { color: var(--muted); font-size: 11px; }
+  .app-header-row { display: flex; align-items: center; gap: 8px; margin-bottom: 2px; }
+  .app-header-row h1 { flex: 1; min-width: 0; margin: 0; }
+  .btn-info {
+    flex: none; width: 24px; height: 24px; border-radius: 50%;
+    border: 1px solid var(--line); background: var(--panel2); color: var(--muted);
+    cursor: pointer; font-size: 13px; font-weight: 600; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center; padding: 0;
+  }
+  .btn-info:hover { color: var(--accent); border-color: var(--accent); }
   .scroll { overflow-y: auto; flex: 1; min-height: 0; }
   .section { padding: 10px 14px; border-bottom: 1px solid var(--line); }
   .section h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
@@ -52,13 +61,6 @@
   #fSearch { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   #fEmailRegex { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
   .regex-field { position: relative; flex: 1; min-width: 0; }
-  .regex-presets { display: flex; flex-wrap: wrap; gap: 5px; margin: 4px 0 2px 100px; }
-  .regex-chip {
-    background: var(--panel2); color: var(--muted); border: 1px solid var(--line);
-    border-radius: 12px; padding: 2px 8px; font-size: 10px; cursor: pointer;
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  }
-  .regex-chip:hover { color: var(--text); border-color: var(--accent); }
   .regex-suggest {
     display: none; position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 30;
     background: var(--panel2); border: 1px solid var(--line); border-radius: 6px;
@@ -76,6 +78,7 @@
   .bucket:hover { background: var(--panel2); }
   .bucket.sel { background: #232a3a; box-shadow: inset 3px 0 0 var(--accent); }
   .bucket .b1 { display: flex; align-items: center; gap: 7px; }
+  .bucket .b1 .cluster-seen-icon { margin-left: auto; flex: none; }
   .bucket .val { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .bucket .b2 { color: var(--muted); font-size: 11px; margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; }
@@ -89,10 +92,25 @@
     background: #0f1115f2; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
     font-size: 11px; color: var(--text); box-shadow: 0 4px 14px #000a; }
   #cmpTip {
-    position: fixed; display: none; z-index: 60; pointer-events: none; max-width: 360px;
+    position: fixed; display: none; z-index: 120; pointer-events: none; max-width: 360px;
     background: #0f1115f5; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px;
     font-size: 11px; color: var(--text); box-shadow: 0 6px 18px #000c; line-height: 1.35;
   }
+  #cmpTip .cmp-tip-title { font-weight: 600; margin-bottom: 3px; }
+  #cmpTip .cmp-tip-extra { color: var(--muted); font-size: 10px; margin-bottom: 3px; line-height: 1.4; }
+  #cmpTip .cmp-tip-meta { color: var(--muted); font-size: 10px; font-style: italic; }
+  #trackTip {
+    position: fixed; display: none; z-index: 65; pointer-events: none; max-width: 288px; min-width: 140px;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+    font-size: 11px; color: var(--text); box-shadow: 0 8px 24px #000d; line-height: 1.35;
+  }
+  #trackTip .track-tip-title { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 6px; }
+  #trackTip .track-tip-empty { color: var(--muted); font-size: 11px; }
+  #trackTip .track-tip-list { margin: 0; padding: 0; list-style: none; }
+  #trackTip .track-tip-list li { display: flex; justify-content: space-between; gap: 10px; padding: 3px 0; border-top: 1px solid var(--line); }
+  #trackTip .track-tip-list li:first-child { border-top: none; padding-top: 0; }
+  #trackTip .track-tip-name { font-weight: 500; word-break: break-word; }
+  #trackTip .track-tip-when { color: var(--muted); font-size: 10px; white-space: nowrap; flex: none; }
   #cmpFilterPop {
     position: fixed; display: none; z-index: 70; pointer-events: auto; max-width: 340px;
     background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
@@ -153,18 +171,42 @@
   }
   .modalhead { padding: 10px 16px 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 12px; flex: none; }
   .modalhead h2 { margin: 0; font-size: 14px; }
-  .modalbody { overflow: auto; flex: 1; min-height: 0; }
-  table.cmp { border-collapse: collapse; font-size: 12px; width: 100%; }
-  table.cmp th, table.cmp td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; white-space: nowrap;
-    max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
-  table.cmp td[data-col="articleType"] { max-width: 52px; text-align: center; font-weight: 600; letter-spacing: .03em; }
-  table.cmp td[data-col="status"] { max-width: 48px; text-align: center; font-weight: 600; letter-spacing: .03em; }
-  table.cmp td[data-col="nameEmailSim"] { max-width: 56px; text-align: center; font-weight: 600; }
-  table.cmp td[data-col="journal"] { max-width: 140px; }
-  table.cmp td[data-col="section"] { max-width: 120px; }
-  table.cmp td[data-col="authorEmail"] { max-width: 160px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+  .modalbody {
+    overflow: auto; flex: 1; min-height: 0;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+  table.cmp { border-collapse: collapse; font-size: 12px; width: max-content; min-width: 100%; }
+  table.cmp th, table.cmp td { border: 1px solid var(--line); padding: 3px 5px; text-align: left; white-space: nowrap;
+    min-width: 0; vertical-align: middle; }
+  table.cmp td[data-col], table.cmp th[data-sort] { min-width: 52px; }
+  table.cmp td[data-col="articleType"], table.cmp th[data-sort="articleType"] { min-width: 36px; max-width: 36px; text-align: center; font-weight: 600; letter-spacing: .03em; padding: 3px 2px; }
+  table.cmp td[data-col="status"], table.cmp th[data-sort="status"] { min-width: 36px; max-width: 36px; text-align: center; font-weight: 600; letter-spacing: .03em; padding: 3px 2px; }
+  table.cmp td[data-col="nameEmailSim"], table.cmp th[data-sort="nameEmailSim"] { min-width: 52px; max-width: 60px; text-align: center; font-weight: 600; padding: 3px 4px; }
+  table.cmp td[data-col="pmScore"], table.cmp th[data-sort="pmScore"] { min-width: 56px; max-width: 76px; text-align: right; padding: 3px 5px; }
+  table.cmp td[data-col="wdStatus"], table.cmp th[data-sort="wdStatus"] { min-width: 40px; max-width: 44px; text-align: center; padding: 3px 2px; }
+  table.cmp td[data-col="journal"], table.cmp th[data-sort="journal"] { min-width: 88px; max-width: 120px; }
+  table.cmp td[data-col="section"], table.cmp th[data-sort="section"] { min-width: 72px; max-width: 100px; }
+  table.cmp td[data-col="authorEmail"], table.cmp th[data-sort="authorEmail"] { min-width: 108px; max-width: 140px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+  table.cmp td[data-col="authorName"], table.cmp th[data-sort="authorName"] { min-width: 80px; max-width: 108px; }
+  table.cmp td[data-col="authorOrg"], table.cmp th[data-sort="authorOrg"] { min-width: 80px; max-width: 108px; }
+  table.cmp td[data-col="editors"], table.cmp th[data-sort="editors"],
+  table.cmp td[data-col="reviewers"], table.cmp th[data-sort="reviewers"] { min-width: 72px; max-width: 96px; }
+  table.cmp th[data-sort="editors"], table.cmp th[data-sort="reviewers"] { min-width: 56px; }
+  table.cmp td[data-col="wdAuthor"], table.cmp th[data-sort="wdAuthor"] { min-width: 72px; max-width: 96px; }
+  table.cmp td[data-col="wdEditedBy"], table.cmp th[data-sort="wdEditedBy"] { min-width: 88px; max-width: 108px; }
+  table.cmp td[data-col="wdCompany"], table.cmp th[data-sort="wdCompany"] { min-width: 64px; max-width: 88px; }
+  table.cmp td[data-col="locale"], table.cmp th[data-sort="locale"],
+  table.cmp td[data-col="platform"], table.cmp th[data-sort="platform"],
+  table.cmp td[data-col="uaFamily"], table.cmp th[data-sort="uaFamily"] { min-width: 48px; max-width: 72px; }
+  table.cmp td[data-col="ip"], table.cmp th[data-sort="ip"],
+  table.cmp td[data-col="device"], table.cmp th[data-sort="device"] { min-width: 52px; max-width: 64px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; }
+  table.cmp td[data-col="id"], table.cmp th[data-sort="id"] { min-width: 58px; max-width: 62px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px; padding: 3px 4px; }
+  table.cmp td[data-col="id"] .cmp-review-link, table.cmp td[data-col="id"] a.aid { font-size: 11px; }
+  table.cmp th, table.cmp td { overflow: hidden; text-overflow: ellipsis; }
+  table.cmp thead th { overflow: visible; text-overflow: clip; max-width: none !important; white-space: nowrap; }
   table.cmp td.cmp-tip { cursor: default; }
-  table.cmp thead th { position: sticky; top: 0; background: var(--panel2); z-index: 1; }
+  table.cmp thead th { position: sticky; top: 0; background: var(--panel2); z-index: 2; }
   table.cmp th[data-sort] { cursor: grab; }
   table.cmp th[data-sort].drag-over { outline: 1px dashed var(--accent); outline-offset: -2px; }
   table.cmp td.share { font-weight: 600; }
@@ -172,7 +214,71 @@
   table.cmp tr.sel td { background: #232a3a; box-shadow: inset 3px 0 0 var(--accent); }
   table.cmp tr.sel:hover td { background: #232a3a; }
   table.cmp tbody tr[data-r] { cursor: pointer; }
-  table.cmp td.cmp-pick, table.cmp th.cmp-pick { width: 28px; text-align: center; padding: 4px; }
+  table.cmp td.cmp-pick, table.cmp th.cmp-pick {
+    width: 22px; min-width: 22px; max-width: 22px; text-align: center; padding: 2px 1px;
+  }
+  table.cmp td.cmp-pick input { width: 13px; height: 13px; margin: 0; vertical-align: middle; }
+  table.cmp td.cmp-track, table.cmp th.cmp-track {
+    width: 54px; min-width: 54px; max-width: 54px; text-align: center; padding: 2px 1px; white-space: nowrap;
+    font-size: 10px; letter-spacing: -.02em;
+  }
+  .track-icon {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 12px; height: 12px; margin: 0; border-radius: 2px;
+    font-size: 9px; line-height: 1; cursor: pointer; opacity: .22; vertical-align: middle;
+    border: 1px solid transparent;
+  }
+  .track-icon.on { opacity: 1; }
+  .track-icon.track-seen.on { color: #61C4F1; border-color: #61C4F144; }
+  .track-icon.track-checked.on { color: #a78bfa; border-color: #a78bfa44; }
+  .track-icon.track-resolved.on { color: #65C161; border-color: #65C16144; }
+  .track-icon.track-flagged.on { color: #D51A2C; border-color: #D51A2C44; }
+  .track-icon:hover { opacity: .85; }
+  .cmp-bulk { flex-wrap: wrap; align-items: center; }
+  .cmp-bulk .cmp-bulk-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  #managerPanel {
+    display: none; margin: 8px 0; padding: 10px; border-radius: 8px;
+    background: #1a2332; border: 1px solid #E8762666;
+  }
+  #managerPanel.open { display: block; }
+  #managerPanel .mgr-stat { font-size: 12px; margin: 4px 0; }
+  #managerPanel table.mgr { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 8px; }
+  #managerPanel table.mgr th, #managerPanel table.mgr td { border: 1px solid var(--line); padding: 4px 6px; text-align: left; }
+  .submodal {
+    position: fixed; inset: 0; z-index: 80; display: none; align-items: center; justify-content: center;
+    background: #00000088; pointer-events: auto;
+  }
+  .submodal.open { display: flex; }
+  .submodal-box {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; max-width: 520px; width: calc(100% - 32px); max-height: 80vh; overflow: auto;
+    box-shadow: 0 12px 40px #00000066;
+  }
+  .submodal-box h3 { margin: 0 0 10px; font-size: 15px; }
+  .submodal-box.help-box {
+    max-width: 840px; max-height: 92vh; padding: 20px 24px 18px;
+  }
+  .help-body { font-size: 12px; line-height: 1.5; color: var(--text); }
+  .help-body h4 { margin: 16px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+  .help-body h4:first-child { margin-top: 0; }
+  .help-body p { margin: 0 0 8px; color: var(--muted); }
+  .help-body ul { margin: 0 0 4px; padding-left: 18px; }
+  .help-body li { margin: 4px 0; }
+  .help-body li b { color: var(--text); font-weight: 500; }
+  .help-body .help-features {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px 28px; margin-top: 4px;
+  }
+  .help-feature-block h5 { margin: 0 0 5px; font-size: 12px; font-weight: 600; color: var(--text); }
+  .help-feature-block ul { margin: 0; padding-left: 16px; font-size: 11px; line-height: 1.45; }
+  .help-feature-block li { margin: 3px 0; color: var(--muted); }
+  .help-feature-block li b { color: var(--text); font-weight: 500; }
+  @media (max-width: 720px) {
+    .submodal-box.help-box { max-width: calc(100% - 24px); padding: 16px 18px; }
+    .help-body .help-features { grid-template-columns: 1fr; }
+  }
+  .submodal-box table.detail { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .submodal-box table.detail th, .submodal-box table.detail td { border: 1px solid var(--line); padding: 5px 8px; text-align: left; }
+  .submodal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 12px; flex-wrap: wrap; }
   table.cmp tr.cmp-picked td { box-shadow: inset 2px 0 0 #D51A2C; }
   .cmp-bulk {
     flex: none; padding: 10px 16px 12px; border-top: 1px solid var(--line);
@@ -190,6 +296,20 @@
     background: #1a2332; border: 1px solid var(--accent);
   }
   .global-field-filter .gff-value { font-size: 12px; margin-top: 4px; word-break: break-word; }
+  .reviewer-bar {
+    display: flex; align-items: center; gap: 6px; margin-bottom: 8px;
+    padding: 6px 8px; border-radius: 6px; background: var(--panel2); border: 1px solid var(--line);
+    font-size: 12px; min-width: 0;
+  }
+  .reviewer-bar .reviewer-label { flex: none; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .reviewer-bar .reviewer-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
+  .reviewer-bar .reviewer-name.muted { font-weight: 400; font-style: italic; }
+  .btn-reviewer-edit {
+    flex: none; width: 24px; height: 24px; padding: 0; border: none; border-radius: 4px;
+    background: transparent; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1;
+    letter-spacing: 1px;
+  }
+  .btn-reviewer-edit:hover { color: var(--text); background: #ffffff10; }
   .close { margin-left: auto; }
 </style>
 </head>
@@ -197,7 +317,10 @@
 <div id="app">
   <div id="left" class="col">
     <header>
-      <h1>Paper Connection Audit</h1>
+      <div class="app-header-row">
+        <h1>Paper Network Audit</h1>
+        <button type="button" class="btn-info" id="btnHelp" title="How to use this tool" aria-label="How to use this tool">i</button>
+      </div>
       <div class="sub" id="meta">loading…</div>
     </header>
     <div class="section collapsible" id="secConnTypes">
@@ -249,9 +372,24 @@
           <div class="regex-suggest" id="emailRegexSuggest" role="listbox"></div>
         </div>
       </div>
-      <div class="regex-presets" id="emailRegexChips"></div>
       <div id="emailErr" style="color:var(--red);font-size:11px;min-height:14px"></div>
-      <div class="row" id="reviewerRow" style="display:none"><label>Reviewer</label><input type="text" id="fReviewer" placeholder="your name (for flags)"></div>
+      </div>
+    </div>
+    <div class="section collapsible collapsed" id="secReviewer" style="display:none">
+      <button type="button" class="section-head" id="secReviewerHead" aria-expanded="false" aria-controls="secReviewerBody">
+        <h2>Reviewer</h2>
+        <span class="section-chevron" aria-hidden="true">▾</span>
+      </button>
+      <div class="section-body" id="secReviewerBody">
+        <div class="reviewer-bar">
+          <span class="reviewer-label">Name</span>
+          <span class="reviewer-name muted" id="reviewerDisplay">Not set</span>
+          <button type="button" class="btn-reviewer-edit" id="btnEditReviewer" title="Edit name" aria-label="Edit name">···</button>
+        </div>
+        <input type="hidden" id="fReviewer">
+        <label class="chk" id="incognitoRow" style="display:none"><input type="checkbox" id="fIncognito"> Incognito (do not track seen / checked)</label>
+        <button type="button" class="btn" id="btnManager" style="display:none;width:100%;margin-top:8px">Manager summary</button>
+        <div id="managerPanel"></div>
       </div>
     </div>
     <div class="section" style="padding-bottom:6px"><h2 style="margin:0"><span id="listTitle">Connections</span> <span class="count" id="bucketCount"></span></h2></div>
@@ -265,7 +403,7 @@
       <span class="crumb" id="crumb"></span>
       <span style="flex:1"></span>
       <button class="btn" id="btnFlagged" title="Show flagged papers" style="display:none">⚑ <span id="flagCount">0</span></button>
-      <button class="btn" id="btnFlagDownload" title="Download all flag records (CSV): active and removed, all time" style="display:none">↓ CSV</button>
+      <button class="btn" id="btnFlagDownload" title="Download all flag records (CSV): article id, flagger name, comment, active and removed, all time" style="display:none">↓ CSV</button>
       <button class="btn" id="btnFlagRefresh" title="Reload flags from server" style="display:none">⟳</button>
       <button class="btn" id="btnCompare">Compare papers</button>
       <button class="btn" id="btnRelayout">Re-layout</button>
@@ -295,17 +433,184 @@
     <div class="cmp-bulk" id="cmpBulkBar">
       <span class="muted cmp-bulk-count" id="cmpBulkCount">0 selected</span>
       <textarea id="cmpBulkComment" placeholder="Reason for bulk flag (optional)" rows="2"></textarea>
-      <button class="btn" id="cmpBulkFlag" disabled style="background:#D51A2C;border-color:#D51A2C;color:#fff">Flag selected</button>
-      <button class="btn" id="cmpBulkUnflag" disabled>Unflag selected</button>
+      <div class="cmp-bulk-actions">
+        <button class="btn" id="cmpBulkResolve" disabled style="background:#65C161;border-color:#65C161;color:#fff">Resolve</button>
+        <button class="btn" id="cmpBulkFlag" disabled style="background:#D51A2C;border-color:#D51A2C;color:#fff">Flag</button>
+        <button class="btn" id="cmpBulkUnflag" disabled>Unflag</button>
+        <button class="btn" id="cmpBulkUnresolve" disabled>Clear resolve</button>
+        <button class="btn" id="cmpBulkUnseen" disabled>Mark unseen</button>
+        <button class="btn" id="cmpBulkUnchecked" disabled>Mark unchecked</button>
+      </div>
     </div>
   </div>
 </div>
 
 <div id="cmpTip"></div>
+<div id="trackTip" role="tooltip" aria-hidden="true"></div>
 <div id="cmpFilterPop" role="dialog" aria-hidden="true">
   <div class="cmp-filter-label"></div>
   <div class="cmp-filter-value"></div>
   <button type="button" class="btn cmp-filter-btn">Show matching papers</button>
+</div>
+
+<div id="helpModal" class="submodal" aria-hidden="true">
+  <div class="submodal-box help-box">
+    <h3>How to use Paper Connection Audit</h3>
+    <div class="help-body">
+      <p>Find groups of papers that share suspicious connection attributes (IP, email, device fingerprint, Word metadata, and more) to support papermill investigation.</p>
+      <h4>Quick start</h4>
+      <ul>
+        <li>Choose <b>connection types</b>, apply <b>filters</b>, then click a <b>cluster</b> in the list or graph.</li>
+        <li>Open <b>Compare papers</b> to review the cluster side by side; click a paper node for the detail panel.</li>
+        <li>Set your name under <b>Reviewer</b> so seen, checked, resolve, and flag actions are attributed to you.</li>
+      </ul>
+      <h4>Features</h4>
+      <div class="help-features">
+        <div class="help-feature-block">
+          <h5>Connection types &amp; clustering</h5>
+          <ul>
+            <li>Toggle attributes: email, IP, device fingerprint, locale, Word author/editor/company, author-declared IP.</li>
+            <li><b>Single-type clusters</b> — papers sharing one value (e.g. same hashed IP).</li>
+            <li><b>Multi-type (AND) clusters</b> — papers sharing the same value on every selected type; shown in lime on the graph.</li>
+            <li><b>Email regex</b> — filter to matching author emails; combines with other types as AND, or lists matches alone.</li>
+            <li>Cluster pills show paper count, distinct authors/orgs, and metadata (journal, status, etc.).</li>
+          </ul>
+        </div>
+        <div class="help-feature-block">
+          <h5>Filters</h5>
+          <ul>
+            <li><b>Different submitting authors / organisations</b> — exclude homogeneous clusters.</li>
+            <li><b>Only flagged clusters</b>, <b>hide all-rejected clusters</b>, <b>low name/email similarity</b>.</li>
+            <li><b>Journal</b> and <b>status</b> (rejected only / active only).</li>
+            <li><b>Min papers</b> and sort by size, distinct authors, or distinct orgs.</li>
+            <li><b>Search</b> — paste article IDs (comma, tab, or line separated) or a connection value to jump to it.</li>
+          </ul>
+        </div>
+        <div class="help-feature-block">
+          <h5>Graph</h5>
+          <ul>
+            <li><b>Overview</b> — top clusters by size; double-click a hub to focus.</li>
+            <li><b>Focus</b> — one cluster expanded: hub(s) for shared values, papers as nodes, edges for membership.</li>
+            <li>Paper size = papermill score band (grey → green → orange → red).</li>
+            <li>Dashed lines between papers = two or more shared attributes beyond the focused cluster.</li>
+            <li>Red outline = flagged; cyan ring / 👁 on hub = all papers in cluster seen.</li>
+            <li><b>Re-layout</b> re-runs the force layout; hover nodes for tooltips.</li>
+          </ul>
+        </div>
+        <div class="help-feature-block">
+          <h5>Rejection reasons</h5>
+          <ul>
+            <li>Rejected papers include a <b>rejection reason</b> from the editorial system (e.g. Ethical issues, Below Standard, Author request).</li>
+            <li>In the <b>compare table</b>, the status column uses short codes (REJ) with colour by risk:
+              <b style="color:#D51A2C">red</b> high (ethical issues, below standard, prescreening),
+              <b style="color:#E87626">orange</b> mid (out of scope, not sufficiently revised, other),
+              <b style="color:#6B6B6B">grey</b> low (author or editorial withdrawal).</li>
+            <li>Hover the status cell for the full reason (e.g. “Rejected · Ethical issues”).</li>
+            <li>The <b>detail panel</b> shows status and a separate rejection-reason row when recorded.</li>
+            <li>Withdrawn papers appear as <b>Rejected</b> with reason Author request or EOF withdrawn — not a separate stage.</li>
+          </ul>
+        </div>
+        <div class="help-feature-block">
+          <h5>Detail panel</h5>
+          <ul>
+            <li>Paper metadata, papermill score, rejection reason (when rejected), connections to other papers in the cluster.</li>
+            <li>Click shared connection rows to focus that sub-cluster on the graph.</li>
+            <li><b>Flag as manufactured</b> with optional comment; resolves and flags are mutually exclusive.</li>
+            <li>Article IDs link to Frontiers review; opening a link records <b>checked</b>.</li>
+          </ul>
+        </div>
+        <div class="help-feature-block">
+          <h5>Compare table</h5>
+          <ul>
+            <li>All papers in the current cluster; shared values highlighted in connection-type colours.</li>
+            <li>Sort by any column; drag headers to reorder (saved in this browser).</li>
+            <li>Shift + scroll wheel or ← → for horizontal scroll; hover for full cell/header text.</li>
+            <li>Status column: risk colour on rejected rows; hover for the full rejection reason.</li>
+            <li><b>Copy</b> exports the visible table as TSV for spreadsheets.</li>
+            <li>Rejected rows sort to the bottom when sorting by papermill score.</li>
+          </ul>
+        </div>
+        <div class="help-feature-block">
+          <h5>Dataset field filter</h5>
+          <ul>
+            <li>Select a row, then click a cell to filter the <b>entire snapshot</b> by that field value.</li>
+            <li>Filter bar appears in Filters; clear it to return to the full dataset.</li>
+            <li>Compare subtitle shows match count across the snapshot.</li>
+          </ul>
+        </div>
+        <div class="help-feature-block">
+          <h5>Team tracking</h5>
+          <ul>
+            <li><b>👁 Seen</b> — auto on row scroll, detail view, or graph click (unless incognito).</li>
+            <li><b>↗ Checked</b> — review link opened from compare or detail.</li>
+            <li><b>✓ Resolved</b> — marked non-problematic; clears flag.</li>
+            <li><b>⚑ Flagged</b> — marked manufactured; clears resolve.</li>
+            <li>Click any icon for full history (user + timestamp). Hover for a quick list.</li>
+            <li>Bulk: resolve, flag, unflag, clear resolve, mark unseen, mark unchecked.</li>
+            <li>Cluster 👁 when every paper has a seen record; lists who viewed what.</li>
+          </ul>
+        </div>
+        <div class="help-feature-block">
+          <h5>Flags &amp; exports</h5>
+          <ul>
+            <li><b>⚑</b> toolbar — list all flagged papers in the snapshot.</li>
+            <li><b>↓ CSV</b> — all flag records (active and removed): id, flagger, comment, timestamps.</li>
+            <li><b>⟳</b> reloads flags and workflow data from the server.</li>
+          </ul>
+        </div>
+        <div class="help-feature-block">
+          <h5>Manager summary</h5>
+          <ul>
+            <li>Password-protected panel under <b>Reviewer</b> (remembered in this browser).</li>
+            <li>Per-user counts: seen, checked, resolved, flagged articles.</li>
+          </ul>
+        </div>
+        <div class="help-feature-block">
+          <h5>URL sharing</h5>
+          <ul>
+            <li>URL updates live: connection types, filters, focused cluster, selected article, compare panel.</li>
+            <li>Bookmark or share the link to restore the same view for a colleague.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <div class="submodal-actions">
+      <button type="button" class="btn" id="helpClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="namePromptModal" class="submodal" aria-hidden="true">
+  <div class="submodal-box">
+    <h3>Enter your name</h3>
+    <p class="muted" style="font-size:12px;margin:0 0 10px">Your name is stored locally and attached to seen, checked, resolve, and flag actions.</p>
+    <input type="text" id="namePromptInput" placeholder="First and last name" style="width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:inherit">
+    <div class="submodal-actions">
+      <button type="button" class="btn" id="namePromptSave">Continue</button>
+    </div>
+  </div>
+</div>
+
+<div id="managerAuthModal" class="submodal" aria-hidden="true">
+  <div class="submodal-box">
+    <h3>Manager mode</h3>
+    <p class="muted" style="font-size:12px;margin:0 0 10px">Enter the manager password. Access is remembered in this browser until local storage is cleared.</p>
+    <input type="password" id="managerPwInput" style="width:100%;box-sizing:border-box;padding:8px;border-radius:6px;border:1px solid var(--line);background:var(--panel2);color:var(--text);font:inherit">
+    <div class="submodal-actions">
+      <button type="button" class="btn" id="managerPwCancel">Cancel</button>
+      <button type="button" class="btn" id="managerPwOk">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<div id="trackDetailModal" class="submodal" aria-hidden="true">
+  <div class="submodal-box">
+    <h3 id="trackDetailTitle">Article tracking</h3>
+    <div id="trackDetailBody"></div>
+    <div class="submodal-actions">
+      <button type="button" class="btn" id="trackDetailClose">Close</button>
+    </div>
+  </div>
 </div>
 
 <script src="flags-config.js"></script>
@@ -333,18 +638,52 @@ const nameEmailSimHtml = (sim) => {
   const title = sty ? ` title="${escapeHtml(sty.hint)}"` : "";
   return `<span style="color:${sty.color};font-weight:600"${title}>${escapeHtml(nameEmailSimText(sim))}</span>`;
 };
-const STATUS_COLORS = { rejected: "#D51A2C", accepted: "#65C161" };
+const STATUS_COLORS = { rejected: "#D51A2C", accepted: "#65C161", published: "#65C161" };
+const REJ_RISK_HIGH = [/ETHICAL/i, /BELOW_STANDARD/i, /OBJECTIVE_ERROR/i, /PRESCREENING/i, /BEFORE_REVIEW/i];
+const REJ_RISK_LOW = [/AUTHOR_REQUEST/i, /WITHDRAWN/i];
+const REJ_RISK_MID = [/NOT_SUFFICIENTLY_REVISED/i, /OUT_OF_SCOPE/i, /_OTHER/i, /OTHER/i];
+const REJ_COLOR = { high: "#D51A2C", mid: "#E87626", low: "#6B6B6B" };
 const statusColor = (s) => {
   if (!s) return "";
   const key = s.trim().toLowerCase();
   return STATUS_COLORS[key] || "";
+};
+const artRejectionReason = (r) => (D.articles.rejectionReason ? artStr("rejectionReason", r) : "");
+const artRejectionCode = (r) => (D.articles.rejectionCode ? artStr("rejectionCode", r) : "");
+const rejectionRiskTier = (r) => {
+  const code = artRejectionCode(r), name = artRejectionReason(r);
+  if (!code && !name) return null;
+  const hay = `${code} ${name}`;
+  if (REJ_RISK_HIGH.some(re => re.test(hay))) return "high";
+  if (REJ_RISK_LOW.some(re => re.test(hay))) return "low";
+  if (REJ_RISK_MID.some(re => re.test(hay))) return "mid";
+  return "mid";
+};
+const statusCellColor = (r) => {
+  const st = artStatus(r);
+  if (!st) return "";
+  if (st.toLowerCase() === "rejected") {
+    const tier = rejectionRiskTier(r);
+    if (tier) return REJ_COLOR[tier];
+    return REJ_COLOR.mid;
+  }
+  return statusColor(st);
+};
+const statusCellTip = (r) => {
+  const st = artStatus(r);
+  if (!st) return "";
+  const reason = artRejectionReason(r);
+  if (st.toLowerCase() === "rejected") {
+    return reason ? `Rejected · ${reason}` : "Rejected · reason not recorded";
+  }
+  return reason ? `${st} · ${reason}` : st;
 };
 const looksLikeEmail = (s) => /@/.test(String(s || ""));
 const personProxyTip = (s) => looksLikeEmail(s)
   ? "Primary email — name not available in BigQuery for this assignment"
   : "";
 // Bump when snapshot.json.gz is rebuilt — busts browser/CDN caches for the data file.
-const SNAPSHOT_REV = "20260716T141100";
+const SNAPSHOT_REV = "20260717T151800";
 // Preset email regex patterns (tested against the full author email string).
 const EMAIL_REGEX_PRESETS = [
   { label: "Short alpha + digits", pattern: "[a-z]{4,8}\\d{3,6}", hint: "e.g. hilp8387@…" },
@@ -358,8 +697,8 @@ const ATTR_META = {
   ip:         { label: "IP address",         pool: "ips",         color: "#a78bfa" },
   device:     { label: "Device fingerprint", pool: "devices",     color: "#f472b6" },
   locale:     { label: "Language + timezone",pool: "locales",     color: "#60a5fa" },
-  wdAuthor:   { label: "Word: author",       pool: "wdAuthors",   color: "#f59e0b" },
-  wdEditedBy: { label: "Word: last edited by",pool: "wdEditedBys",color: "#fbbf24" },
+  wdAuthor:   { label: "WD author",          pool: "wdAuthors",   color: "#f59e0b" },
+  wdEditedBy: { label: "WD last edited",     pool: "wdEditedBys", color: "#fbbf24" },
   wdCompany:  { label: "Word: company",      pool: "wdCompanies", color: "#fcd34d" },
   authorIp:   { label: "Author-declared IP", pool: "authorIps",   color: "#c084fc" },
 };
@@ -392,7 +731,6 @@ let globalFieldFilter = null;   // { col, matchKey, display, label } — dataset
 const FC = (typeof window !== "undefined" && window.FLAGS_CONFIG) ? window.FLAGS_CONFIG : null;
 let flags = new Map();        // articleId -> { by, utc }
 const tableUrl = (suffix = "") => `https://${FC.account}.table.core.windows.net/${FC.table}${suffix}`;
-const reviewer = () => (($("fReviewer") && $("fReviewer").value.trim()) || "anon");
 async function loadFlags() {
   if (!FC) return;
   try {
@@ -416,6 +754,10 @@ async function setFlag(id, on, comment) {
       const res = await fetch(ent, { method: "PUT", headers: { "Content-Type": "application/json", Accept: "application/json;odata=nometadata" }, body });
       if (!res.ok) throw new Error("HTTP " + res.status);
       flags.set(id, { by, utc, comment: cmt });
+      if (resolvedByArticle.has(+id)) {
+        await tableDelete("resolved", rk);
+        resolvedByArticle.delete(+id);
+      }
     } else {
       const existing = flags.get(id);
       const removedUtc = new Date().toISOString();
@@ -445,6 +787,7 @@ async function setFlag(id, on, comment) {
 }
 async function bulkToggleFlags(rowIndices, on) {
   if (!FC) { alert("Flagging is not configured for this deployment."); return; }
+  if (on && !ensureUserName()) return;
   const rows = [...rowIndices];
   if (!rows.length) { alert("Select one or more papers first."); return; }
   const comment = on ? (($("cmpBulkComment") && $("cmpBulkComment").value.trim()) || "") : "";
@@ -472,10 +815,12 @@ async function bulkToggleFlags(rowIndices, on) {
   if ($("fFlaggedOnly").checked) { renderList(); if (mode === "overview") showOverview(); }
   if ($("modal").classList.contains("open")) { renderCompareTable(); syncCmpBulkBar(); }
   else if (cmpHighlightR != null) showPaperDetail(cmpHighlightR);
+  renderManagerPanel();
 }
 async function toggleFlag(id, after) {
   if (!FC) { alert("Flagging is not configured for this deployment."); return; }
   const on = !flags.has(id);
+  if (on && !ensureUserName()) return;
   const el = document.getElementById("flagComment");
   const comment = on && el ? el.value.trim() : null;
   const msg = on
@@ -493,6 +838,7 @@ async function toggleFlag(id, after) {
   if ($("fFlaggedOnly").checked) { renderList(); if (mode === "overview") showOverview(); }
   if (after) after();
   if ($("modal").classList.contains("open")) renderCompareTable();
+  renderManagerPanel();
 }
 async function saveComment(id, after) {
   if (!FC || !flags.has(id)) return;
@@ -504,6 +850,592 @@ async function saveComment(id, after) {
 const isFlagged = (r) => flags.has(A("id", r));
 const hasFlagged = (rows) => rows.some(isFlagged);
 function updateFlagCount() { const el = $("flagCount"); if (el) el.textContent = flags.size; }
+
+// -------- article workflow (seen / checked / resolved / flagged) --------
+const LS_NAME = "auditReviewer";
+const LS_INCOGNITO = "auditIncognito";
+const LS_MANAGER = "auditManagerUnlock";
+const MANAGER_PW = "Sg9WN2p!";
+let seenByArticle = new Map();     // articleId -> [{ by, utc }]
+let checkedByArticle = new Map();  // articleId -> [{ by, utc }]
+let resolvedByArticle = new Map(); // articleId -> { by, utc }
+let pendingSeenIds = new Set();
+let cmpSeenObserver = null;
+
+const reviewer = () => userName() || "anon";
+function userName() {
+  const fromHidden = ($("fReviewer") && $("fReviewer").value.trim()) || "";
+  return fromHidden || (localStorage.getItem(LS_NAME) || "").trim();
+}
+function setUserName(name) {
+  const n = (name || "").trim();
+  localStorage.setItem(LS_NAME, n);
+  if ($("fReviewer")) $("fReviewer").value = n;
+  renderReviewerDisplay();
+}
+function renderReviewerDisplay() {
+  const el = $("reviewerDisplay");
+  if (!el) return;
+  const n = userName();
+  el.textContent = n || "Not set";
+  el.classList.toggle("muted", !n);
+  el.title = n || "Click ··· to set your name";
+}
+function isIncognito() { return localStorage.getItem(LS_INCOGNITO) === "1"; }
+function isManagerUnlocked() { return localStorage.getItem(LS_MANAGER) === "1"; }
+function userRowKey(name) {
+  return (name || "anon").replace(/[^\w.-]/g, "_").slice(0, 48) || "anon";
+}
+function fmtUtc(utc) { return utc ? String(utc).replace("T", " ").slice(0, 19) : "—"; }
+function articleSeenList(id) { return seenByArticle.get(+id) || []; }
+function articleCheckedList(id) { return checkedByArticle.get(+id) || []; }
+function articleResolved(id) { return resolvedByArticle.get(+id) || null; }
+function isResolvedId(id) { return resolvedByArticle.has(+id); }
+function isResolved(r) { return isResolvedId(A("id", r)); }
+function isArticleSeenId(id) { return articleSeenList(+id).length > 0; }
+function clusterAllPapersSeen(rows) {
+  if (!FC || !rows?.length) return false;
+  return rows.every(r => isArticleSeenId(A("id", r)));
+}
+function clusterSeenViewerMap(rows) {
+  const byUser = new Map();
+  const need = rows?.length || 0;
+  if (!FC || !need) return { need, viewers: [] };
+  for (const r of rows) {
+    for (const entry of articleSeenList(A("id", r))) {
+      const rec = byUser.get(entry.by) || { count: 0, latestUtc: "" };
+      rec.count++;
+      if (!rec.latestUtc || String(entry.utc) > rec.latestUtc) rec.latestUtc = entry.utc;
+      byUser.set(entry.by, rec);
+    }
+  }
+  const viewers = [...byUser.entries()]
+    .map(([by, v]) => ({ by, utc: v.latestUtc, count: v.count, all: v.count >= need }))
+    .sort((a, b) => a.by.localeCompare(b.by));
+  return { need, viewers };
+}
+function clusterSeenByUsers(rows) {
+  return clusterSeenViewerMap(rows).viewers.filter(v => v.all);
+}
+function hubRows(nd) {
+  if (!nd || nd.type !== "hub") return null;
+  return nd.unit ? nd.unit.rows : (nd._rows || (nd.key && bucketMeta.get(nd.key) ? bucketMeta.get(nd.key).rows : null));
+}
+function clusterSeenIconHtml(u) {
+  if (!FC || !clusterAllPapersSeen(u.rows)) return "";
+  return `<span class="cluster-seen-icon track-icon track-seen on" data-cluster-key="${escapeHtml(u.key)}">👁</span>`;
+}
+function clusterSeenPopoverHtml(rows) {
+  const { need, viewers } = clusterSeenViewerMap(rows);
+  let html = `<div class="track-tip-title">Cluster seen</div>`;
+  html += `<div class="track-tip-extra">Every paper in this cluster has been viewed at least once.</div>`;
+  if (!viewers.length) {
+    html += `<div class="track-tip-empty" style="margin-top:5px">No seen records yet.</div>`;
+    return html;
+  }
+  html += `<ul class="track-tip-list" style="margin-top:6px">${viewers.map(u => {
+    const note = u.all ? "all papers" : `${u.count}/${need} papers`;
+    return `<li><span class="track-tip-name">${escapeHtml(u.by)} <span class="muted" style="font-weight:400">(${note})</span></span><span class="track-tip-when">${escapeHtml(fmtUtc(u.utc))}</span></li>`;
+  }).join("")}</ul>`;
+  return html;
+}
+function hubSeenTipLines(nd) {
+  if (!FC || !nd.allSeen) return "";
+  const viewers = nd.viewers || [];
+  if (!viewers.length) {
+    return `<div style="color:#61C4F1;margin-top:3px">👁 All papers seen</div>`;
+  }
+  const list = viewers.map(u => {
+    const note = u.all ? "all" : `${u.count}/${nd.n || viewers.length}`;
+    return `${escapeHtml(u.by)} (${note})`;
+  }).join(", ");
+  return `<div style="color:#61C4F1;margin-top:3px">👁 Cluster seen: ${list}</div>`;
+}
+function bindClusterSeenIcons(box) {
+  if (!box || !FC) return;
+  box.querySelectorAll(".cluster-seen-icon").forEach(el => {
+    el.addEventListener("click", e => e.stopPropagation());
+    el.addEventListener("mouseenter", () => {
+      const u = currentUnits().find(x => x.key === el.dataset.clusterKey);
+      if (!u) return;
+      const tipEl = $("trackTip");
+      tipEl.innerHTML = clusterSeenPopoverHtml(u.rows);
+      tipEl.style.display = "block";
+      tipEl.setAttribute("aria-hidden", "false");
+      positionTrackTip(tipEl, el);
+    });
+    el.addEventListener("mouseleave", hideTrackTip);
+  });
+}
+function refreshClusterSeenUI() {
+  updateHubFlags();
+  draw();
+  const title = $("listTitle") ? $("listTitle").textContent : "";
+  if (title && title !== "Flagged papers" && title !== "Email matches") renderList();
+}
+
+function rowIndexForArticleId(id) {
+  return D && D.articles && D.articles.id ? D.articles.id.indexOf(+id) : -1;
+}
+
+function updateTrackCellForRow(r) {
+  const box = $("modalBody");
+  if (!box || r == null) return;
+  const tr = box.querySelector(`tbody tr[data-r="${r}"]`);
+  if (!tr) return;
+  const td = tr.querySelector(".cmp-track");
+  if (td) {
+    td.innerHTML = trackIconsHtml(r);
+    bindTrackIcons(td);
+  }
+}
+
+function refreshDetailTrackStrip(r) {
+  const strip = document.getElementById("detailTrackStrip");
+  if (!strip || r == null) return;
+  const title = $("detailTitle");
+  if (!title || title.textContent !== "Paper " + A("id", r)) return;
+  strip.innerHTML = trackIconsHtml(r);
+  bindTrackIcons(strip);
+}
+
+function refreshTrackUIForArticle(idNum) {
+  const r = rowIndexForArticleId(idNum);
+  if (r >= 0) {
+    updateTrackCellForRow(r);
+    if (cmpHighlightR === r) refreshDetailTrackStrip(r);
+  }
+  renderManagerPanel();
+}
+
+function refreshTrackUIIfOpen() {
+  if ($("modal") && $("modal").classList.contains("open")) renderCompareTable();
+  renderManagerPanel();
+}
+
+function bindTrackIconClicks(root) {
+  (root || document).querySelectorAll(".track-icon").forEach(el => {
+    el.addEventListener("click", e => {
+      e.stopPropagation();
+      hideTrackTip();
+      openTrackDetail(+el.dataset.r, el.dataset.track);
+    });
+  });
+}
+
+function trackListPopoverHtml(title, entries, emptyMsg) {
+  if (!entries.length) {
+    return `<div class="track-tip-title">${escapeHtml(title)}</div><div class="track-tip-empty">${escapeHtml(emptyMsg)}</div>`;
+  }
+  const items = entries.map(x =>
+    `<li><span class="track-tip-name">${escapeHtml(x.by || "?")}</span><span class="track-tip-when">${escapeHtml(fmtUtc(x.utc))}</span></li>`
+  ).join("");
+  return `<div class="track-tip-title">${escapeHtml(title)}</div><ul class="track-tip-list">${items}</ul>`;
+}
+
+function showTrackTip(el, kind, r) {
+  const tipEl = $("trackTip");
+  if (!tipEl || !el) return;
+  const id = A("id", r);
+  let html = "";
+  if (kind === "seen") html = trackListPopoverHtml("Seen by", articleSeenList(id), "No one has seen this article yet.");
+  else if (kind === "checked") html = trackListPopoverHtml("Checked by", articleCheckedList(id), "No one has opened the review link yet.");
+  else return;
+  tipEl.innerHTML = html;
+  tipEl.style.display = "block";
+  tipEl.setAttribute("aria-hidden", "false");
+  positionTrackTip(tipEl, el);
+}
+
+function hideTrackTip() {
+  const tipEl = $("trackTip");
+  if (!tipEl) return;
+  tipEl.style.display = "none";
+  tipEl.setAttribute("aria-hidden", "true");
+}
+
+function positionTrackTip(tipEl, anchor) {
+  const r = anchor.getBoundingClientRect(), pad = 6;
+  tipEl.style.display = "block";
+  const tw = tipEl.offsetWidth, th = tipEl.offsetHeight;
+  let left = r.left + r.width / 2 - tw / 2;
+  let top = r.top - th - pad;
+  if (top < 4) top = r.bottom + pad;
+  tipEl.style.left = Math.max(8, Math.min(left, window.innerWidth - tw - 8)) + "px";
+  tipEl.style.top = top + "px";
+}
+
+function bindTrackIconHovers(root) {
+  (root || document).querySelectorAll(".track-icon.track-seen, .track-icon.track-checked").forEach(el => {
+    el.addEventListener("mouseenter", () => showTrackTip(el, el.dataset.track, +el.dataset.r));
+    el.addEventListener("mouseleave", hideTrackTip);
+  });
+}
+
+function bindTrackIcons(root) {
+  bindTrackIconClicks(root);
+  bindTrackIconHovers(root);
+}
+
+function disconnectCmpSeenObserver() {
+  if (cmpSeenObserver) { cmpSeenObserver.disconnect(); cmpSeenObserver = null; }
+}
+
+function bindCmpSeenObserver(box) {
+  disconnectCmpSeenObserver();
+  if (!FC || isIncognito() || !box) return;
+  const rows = box.querySelectorAll("tbody tr[data-r]");
+  if (!rows.length) return;
+  cmpSeenObserver = new IntersectionObserver(entries => {
+    for (const ent of entries) {
+      if (!ent.isIntersecting || ent.intersectionRatio < 0.4) continue;
+      markSeenByRow(+ent.target.dataset.r);
+    }
+  }, { root: box, threshold: [0, 0.4, 0.75, 1] });
+  rows.forEach(tr => cmpSeenObserver.observe(tr));
+}
+
+function markSeenByRow(r) {
+  if (r == null || !Number.isFinite(r)) return;
+  markSeen(A("id", r)).catch(() => {});
+}
+
+async function flushPendingSeen() {
+  if (!pendingSeenIds.size) return;
+  const ids = [...pendingSeenIds];
+  pendingSeenIds.clear();
+  for (const id of ids) await markSeen(id);
+}
+
+function rebuildWorkflowMaps(seenE, checkedE, resolvedE) {
+  seenByArticle = new Map();
+  for (const e of seenE) {
+    const id = +String(e.RowKey).split("_")[0];
+    if (!Number.isFinite(id)) continue;
+    const list = seenByArticle.get(id) || [];
+    list.push({ by: e.seenBy || e.by || "", utc: e.seenUtc || e.utc || e.Timestamp || "" });
+    seenByArticle.set(id, list);
+  }
+  checkedByArticle = new Map();
+  for (const e of checkedE) {
+    const id = +String(e.RowKey).split("_")[0];
+    if (!Number.isFinite(id)) continue;
+    const list = checkedByArticle.get(id) || [];
+    list.push({ by: e.checkedBy || e.by || "", utc: e.checkedUtc || e.utc || e.Timestamp || "" });
+    checkedByArticle.set(id, list);
+  }
+  resolvedByArticle = new Map();
+  for (const e of resolvedE) {
+    const id = +e.RowKey;
+    if (!Number.isFinite(id)) continue;
+    resolvedByArticle.set(id, { by: e.resolvedBy || e.by || "", utc: e.resolvedUtc || e.utc || e.Timestamp || "" });
+  }
+}
+
+async function loadWorkflow() {
+  if (!FC) return;
+  try {
+    const [seenE, checkedE, resolvedE] = await Promise.all([
+      fetchPartitionEntities("seen"),
+      fetchPartitionEntities("checked"),
+      fetchPartitionEntities("resolved"),
+    ]);
+    rebuildWorkflowMaps(seenE, checkedE, resolvedE);
+  } catch (e) { console.warn("[workflow] load failed:", e); }
+  renderManagerPanel();
+  refreshClusterSeenUI();
+}
+
+async function tablePut(entity) {
+  const rk = entity.RowKey, pk = entity.PartitionKey;
+  const url = tableUrl(`(PartitionKey='${pk}',RowKey='${encodeURIComponent(rk).replace(/'/g, "%27")}')?${FC.sas}`);
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", Accept: "application/json;odata=nometadata" },
+    body: JSON.stringify(entity),
+  });
+  if (!res.ok) throw new Error("HTTP " + res.status);
+}
+
+async function tableDelete(pk, rk) {
+  const url = tableUrl(`(PartitionKey='${pk}',RowKey='${encodeURIComponent(rk).replace(/'/g, "%27")}')?${FC.sas}`);
+  const res = await fetch(url, { method: "DELETE", headers: { "If-Match": "*" } });
+  if (!res.ok && res.status !== 404) throw new Error("HTTP " + res.status);
+}
+
+async function markSeen(id) {
+  if (!FC || isIncognito()) return;
+  const idNum = +id;
+  if (!Number.isFinite(idNum)) return;
+  const name = userName();
+  if (!name) { pendingSeenIds.add(idNum); promptForName(); return; }
+  if (articleSeenList(idNum).some(x => x.by === name)) return;
+  const utc = new Date().toISOString();
+  const list = articleSeenList(idNum).slice();
+  list.push({ by: name, utc });
+  seenByArticle.set(idNum, list);
+  refreshTrackUIForArticle(idNum);
+  refreshClusterSeenUI();
+  try {
+    const rk = `${idNum}_${userRowKey(name)}`;
+    await tablePut({ PartitionKey: "seen", RowKey: rk, seenBy: name, seenUtc: utc });
+  } catch (e) {
+    const rolled = articleSeenList(idNum).filter(x => x.by !== name);
+    if (rolled.length) seenByArticle.set(idNum, rolled); else seenByArticle.delete(idNum);
+    refreshTrackUIForArticle(idNum);
+    refreshClusterSeenUI();
+    console.warn("[workflow] seen failed:", e);
+  }
+}
+
+async function markChecked(id) {
+  if (!FC || isIncognito()) return;
+  const name = userName();
+  if (!name) { promptForName(); return; }
+  const rk = `${id}_${userRowKey(name)}`;
+  const utc = new Date().toISOString();
+  if (articleCheckedList(id).some(x => x.by === name)) return;
+  await tablePut({ PartitionKey: "checked", RowKey: rk, checkedBy: name, checkedUtc: utc });
+  const list = articleCheckedList(id).slice();
+  list.push({ by: name, utc });
+  checkedByArticle.set(+id, list);
+  refreshTrackUIIfOpen();
+}
+
+async function setResolved(id, on) {
+  if (!FC) return false;
+  const name = userName();
+  if (!name) { promptForName(); return false; }
+  const rk = String(id);
+  try {
+    if (on) {
+      const utc = new Date().toISOString();
+      await tablePut({ PartitionKey: "resolved", RowKey: rk, resolvedBy: name, resolvedUtc: utc });
+      resolvedByArticle.set(+id, { by: name, utc });
+      if (flags.has(+id)) await setFlag(+id, false, null);
+    } else {
+      await tableDelete("resolved", rk);
+      resolvedByArticle.delete(+id);
+    }
+    return true;
+  } catch (e) { console.warn("[workflow] resolve failed:", e); return false; }
+}
+
+async function clearSeenForArticles(ids) {
+  if (!FC) return;
+  for (const id of ids) {
+    for (const entry of articleSeenList(id)) {
+      const rk = `${id}_${userRowKey(entry.by)}`;
+      await tableDelete("seen", rk);
+    }
+    seenByArticle.delete(+id);
+  }
+  refreshClusterSeenUI();
+}
+
+async function clearCheckedForArticles(ids) {
+  if (!FC) return;
+  for (const id of ids) {
+    for (const entry of articleCheckedList(id)) {
+      const rk = `${id}_${userRowKey(entry.by)}`;
+      await tableDelete("checked", rk);
+    }
+    checkedByArticle.delete(+id);
+  }
+}
+
+function trackIconsHtml(r) {
+  if (!FC) return "";
+  const id = A("id", r);
+  const seen = articleSeenList(id).length > 0;
+  const checked = articleCheckedList(id).length > 0;
+  const resolved = isResolvedId(id);
+  const flagged = flags.has(id);
+  return `<span class="track-icon track-seen${seen ? " on" : ""}" data-r="${r}" data-track="seen">👁</span>` +
+    `<span class="track-icon track-checked${checked ? " on" : ""}" data-r="${r}" data-track="checked">↗</span>` +
+    `<span class="track-icon track-resolved${resolved ? " on" : ""}" data-r="${r}" data-track="resolved" title="Resolved">✓</span>` +
+    `<span class="track-icon track-flagged${flagged ? " on" : ""}" data-r="${r}" data-track="flagged" title="Flagged">⚑</span>`;
+}
+
+function trackDetailTable(title, rows, cols) {
+  if (!rows.length) return `<p class="muted" style="font-size:12px">No ${title.toLowerCase()} records.</p>`;
+  return `<table class="detail"><thead><tr>${cols.map(c => `<th>${escapeHtml(c)}</th>`).join("")}</tr></thead><tbody>` +
+    rows.map(row => `<tr>${row.map(c => `<td>${escapeHtml(String(c))}</td>`).join("")}</tr>`).join("") +
+    `</tbody></table>`;
+}
+
+function openTrackDetail(r, focusKind) {
+  const id = A("id", r);
+  $("trackDetailTitle").textContent = `Article ${id} — tracking`;
+  const seenRows = articleSeenList(id).map(x => [x.by, fmtUtc(x.utc)]);
+  const checkedRows = articleCheckedList(id).map(x => [x.by, fmtUtc(x.utc)]);
+  const res = articleResolved(id);
+  const flag = flags.get(id);
+  let html = "";
+  if (!focusKind || focusKind === "seen") {
+    html += `<h4 style="margin:12px 0 6px;font-size:13px">Seen</h4>${trackDetailTable("seen", seenRows, ["User", "When"])}`;
+  }
+  if (!focusKind || focusKind === "checked") {
+    html += `<h4 style="margin:12px 0 6px;font-size:13px">Checked (review link)</h4>${trackDetailTable("checked", checkedRows, ["User", "When"])}`;
+  }
+  if (!focusKind || focusKind === "resolved") {
+    html += `<h4 style="margin:12px 0 6px;font-size:13px">Resolved</h4>` +
+      (res ? trackDetailTable("resolved", [[res.by, fmtUtc(res.utc)]], ["User", "When"])
+           : `<p class="muted" style="font-size:12px">Not resolved.</p>`);
+  }
+  if (!focusKind || focusKind === "flagged") {
+    html += `<h4 style="margin:12px 0 6px;font-size:13px">Flagged</h4>` +
+      (flag ? trackDetailTable("flagged", [[flag.by, fmtUtc(flag.utc), flag.comment || ""]], ["User", "When", "Comment"])
+           : `<p class="muted" style="font-size:12px">Not flagged.</p>`);
+  }
+  $("trackDetailBody").innerHTML = html;
+  const m = $("trackDetailModal");
+  m.classList.add("open");
+  m.setAttribute("aria-hidden", "false");
+}
+
+function closeTrackDetail() {
+  const m = $("trackDetailModal");
+  m.classList.remove("open");
+  m.setAttribute("aria-hidden", "true");
+}
+
+function promptForName() {
+  const m = $("namePromptModal");
+  $("namePromptInput").value = userName();
+  m.classList.add("open");
+  m.setAttribute("aria-hidden", "false");
+  $("namePromptInput").focus();
+}
+
+function closeNamePrompt() {
+  const m = $("namePromptModal");
+  m.classList.remove("open");
+  m.setAttribute("aria-hidden", "true");
+}
+
+function ensureUserName() {
+  if (!FC) return true;
+  if (userName()) return true;
+  promptForName();
+  return false;
+}
+
+function renderManagerPanel() {
+  const panel = $("managerPanel");
+  if (!panel || !isManagerUnlocked()) return;
+  const byUser = new Map();
+  const bump = (who, field) => {
+    if (!who) return;
+    const u = byUser.get(who) || { seen: 0, checked: 0, resolved: 0, flagged: 0 };
+    u[field]++;
+    byUser.set(who, u);
+  };
+  for (const list of seenByArticle.values()) for (const x of list) bump(x.by, "seen");
+  for (const list of checkedByArticle.values()) for (const x of list) bump(x.by, "checked");
+  for (const x of resolvedByArticle.values()) bump(x.by, "resolved");
+  for (const x of flags.values()) bump(x.by, "flagged");
+  const users = [...byUser.keys()].sort();
+  const rows = users.map(u => {
+    const s = byUser.get(u);
+    return `<tr><td>${escapeHtml(u)}</td><td>${s.seen}</td><td>${s.checked}</td><td>${s.resolved}</td><td>${s.flagged}</td></tr>`;
+  }).join("");
+  panel.innerHTML = `<div class="muted" style="font-size:11px;margin-bottom:6px">Manager summary (all time, this table)</div>
+    <div class="mgr-stat">Articles seen: <b>${seenByArticle.size.toLocaleString()}</b> · checked: <b>${checkedByArticle.size.toLocaleString()}</b> · resolved: <b>${resolvedByArticle.size.toLocaleString()}</b> · flagged: <b>${flags.size.toLocaleString()}</b></div>
+    <table class="mgr"><thead><tr><th>User</th><th>Seen</th><th>Checked</th><th>Resolved</th><th>Flagged</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="muted">No activity yet</td></tr>'}</tbody></table>
+    <button type="button" class="btn" id="btnManagerLock" style="margin-top:8px;width:100%">Lock manager mode</button>`;
+  panel.classList.add("open");
+  $("btnManagerLock").addEventListener("click", () => {
+    localStorage.removeItem(LS_MANAGER);
+    panel.classList.remove("open");
+    panel.innerHTML = "";
+  });
+}
+
+function openManagerAuth() {
+  if (isManagerUnlocked()) { renderManagerPanel(); return; }
+  $("managerPwInput").value = "";
+  const m = $("managerAuthModal");
+  m.classList.add("open");
+  m.setAttribute("aria-hidden", "false");
+  $("managerPwInput").focus();
+}
+
+function closeManagerAuth() {
+  const m = $("managerAuthModal");
+  m.classList.remove("open");
+  m.setAttribute("aria-hidden", "true");
+}
+
+async function bulkResolve(rowIndices, on) {
+  if (!FC) return;
+  if (!ensureUserName()) return;
+  const ids = [...new Set(rowIndices.map(r => A("id", r)))];
+  if (!ids.length) return;
+  const msg = on ? `Mark ${ids.length} paper(s) as resolved (non-problematic)?` : `Clear resolved status for ${ids.length} paper(s)?`;
+  if (!confirm(msg)) return;
+  let ok = 0, fail = 0;
+  for (const id of ids) {
+    if (await setResolved(id, on)) ok++; else fail++;
+  }
+  if (fail) alert(`${ok} updated · ${fail} failed`);
+  updateFlagCount(); draw();
+  if ($("modal").classList.contains("open")) renderCompareTable();
+  renderManagerPanel();
+}
+
+async function bulkClearSeen(rowIndices) {
+  if (!FC) return;
+  const ids = [...new Set(rowIndices.map(r => A("id", r)))];
+  if (!ids.length) return;
+  if (!confirm(`Remove all seen records for ${ids.length} paper(s)?`)) return;
+  await clearSeenForArticles(ids);
+  if ($("modal").classList.contains("open")) renderCompareTable();
+  renderManagerPanel();
+}
+
+async function bulkClearChecked(rowIndices) {
+  if (!FC) return;
+  const ids = [...new Set(rowIndices.map(r => A("id", r)))];
+  if (!ids.length) return;
+  if (!confirm(`Remove all checked records for ${ids.length} paper(s)?`)) return;
+  await clearCheckedForArticles(ids);
+  if ($("modal").classList.contains("open")) renderCompareTable();
+  renderManagerPanel();
+}
+
+function bindWorkflowUI() {
+  if (!FC) return;
+  $("incognitoRow").style.display = "";
+  $("btnManager").style.display = "";
+  $("fIncognito").checked = isIncognito();
+  $("fIncognito").addEventListener("change", () => {
+    localStorage.setItem(LS_INCOGNITO, $("fIncognito").checked ? "1" : "0");
+  });
+  $("btnEditReviewer").addEventListener("click", () => promptForName());
+  $("namePromptSave").addEventListener("click", async () => {
+    const n = $("namePromptInput").value.trim();
+    if (!n) { alert("Please enter your name."); return; }
+    setUserName(n);
+    closeNamePrompt();
+    await flushPendingSeen();
+  });
+  $("btnManager").addEventListener("click", openManagerAuth);
+  $("managerPwCancel").addEventListener("click", closeManagerAuth);
+  $("managerPwOk").addEventListener("click", () => {
+    if ($("managerPwInput").value === MANAGER_PW) {
+      localStorage.setItem(LS_MANAGER, "1");
+      closeManagerAuth();
+      renderManagerPanel();
+    } else alert("Incorrect password.");
+  });
+  $("trackDetailClose").addEventListener("click", closeTrackDetail);
+  $("trackDetailModal").addEventListener("click", e => { if (e.target.id === "trackDetailModal") closeTrackDetail(); });
+  if ($("cmpBulkResolve")) $("cmpBulkResolve").addEventListener("click", () => bulkResolve([...cmpSelected], true));
+  if ($("cmpBulkUnresolve")) $("cmpBulkUnresolve").addEventListener("click", () => bulkResolve([...cmpSelected], false));
+  if ($("cmpBulkUnseen")) $("cmpBulkUnseen").addEventListener("click", () => bulkClearSeen([...cmpSelected]));
+  if ($("cmpBulkUnchecked")) $("cmpBulkUnchecked").addEventListener("click", () => bulkClearChecked([...cmpSelected]));
+}
 function flagControlHtml(r) {
   if (!FC) return "";
   const id = A("id", r), on = flags.has(id), f = flags.get(id);
@@ -555,13 +1487,14 @@ function buildFlagExportRows(activeEntities, removedEntities) {
   for (const e of activeEntities) {
     const id = +e.RowKey;
     if (!Number.isFinite(id)) continue;
+    const mem = flags.get(id);
     rows.push({
       articleId: id,
+      flaggedByName: (e.flaggedBy || (mem && mem.by) || "").trim(),
       status: "active",
-      comment: e.comment || "",
-      flaggedAt: e.flaggedUtc || e.Timestamp || "",
+      comment: e.comment || (mem && mem.comment) || "",
+      flaggedAt: e.flaggedUtc || e.Timestamp || (mem && mem.utc) || "",
       removedAt: "",
-      flaggedBy: e.flaggedBy || "",
       removedBy: "",
       inSnapshot: articleInSnapshot(id) ? "yes" : "no",
     });
@@ -571,12 +1504,12 @@ function buildFlagExportRows(activeEntities, removedEntities) {
     if (!Number.isFinite(id)) continue;
     rows.push({
       articleId: id,
+      flaggedByName: (e.flaggedBy || "").trim(),
       status: "removed",
       comment: e.comment || "",
       flaggedAt: e.flaggedUtc || "",
       removedAt: e.removedUtc || e.Timestamp || "",
-      flaggedBy: e.flaggedBy || "",
-      removedBy: e.removedBy || "",
+      removedBy: (e.removedBy || "").trim(),
       inSnapshot: articleInSnapshot(id) ? "yes" : "no",
     });
   }
@@ -611,7 +1544,7 @@ async function downloadFlaggedList() {
     ]);
     const rows = buildFlagExportRows(activeEntities, removedEntities);
     if (!rows.length) { alert("No flag records to download."); return; }
-    const headers = ["articleId", "status", "comment", "flaggedAt", "removedAt", "flaggedBy", "removedBy", "inSnapshot"];
+    const headers = ["articleId", "flaggedByName", "status", "comment", "flaggedAt", "removedAt", "removedBy", "inSnapshot"];
     const lines = [headers.map(csvCell).join(",")];
     for (const r of rows) lines.push(headers.map(h => csvCell(r[h])).join(","));
     const stamp = new Date().toISOString().slice(0, 10);
@@ -641,7 +1574,8 @@ const A = (c, r) => D.articles[c][r];
 const POOLS = { title:"titles", authorName:"names", authorEmail:"emails", authorOrg:"orgs",
   platform:"platforms", uaFamily:"uaFamilies", ip:"ips", device:"devices", locale:"locales",
   wdAuthor:"wdAuthors", wdEditedBy:"wdEditedBys", wdCompany:"wdCompanies", authorIp:"authorIps",
-  status:"statuses", journal:"journals", section:"sections", articleType:"articleTypes",
+  status:"statuses", rejectionReason:"rejectionReasons", rejectionCode:"rejectionCodes",
+  journal:"journals", section:"sections", articleType:"articleTypes",
   editors:"editors", reviewers:"reviewers" };
 const artStr = (f, r) => (D.articles[f] === undefined ? "" : str(POOLS[f], A(f, r)));
 const cmpCols = () => [...CMP_PRIORITY, ...CMP_REST].filter(f => D.articles[f] !== undefined);
@@ -671,20 +1605,55 @@ function resetCmpColOrder() {
   cmpColOrder = null;
   try { localStorage.removeItem("auditCmpColOrder"); } catch (_) {}
 }
-const cmpColDefs = () => activeCmpColOrder().map(k => [k, k === "id" ? "Article" : cmpFieldLabel(k)]);
+const CMP_HEADER_ABBREV = new Set([
+  "id", "status", "articleType", "nameEmailSim", "pmScore", "wdStatus",
+  "ip", "device", "locale", "platform", "uaFamily",
+]);
+const cmpColDefs = () => activeCmpColOrder().map(k => [k, cmpColHeaderLabel(k)]);
 const cmpFieldLabel = (f) => {
   if (ATTR_META[f]) {
-    if (f === "wdEditedBy") return "Word: last edited";
+    if (f === "wdCompany") return "WD co";
+    if (f === "ip") return "IP";
+    if (f === "device") return "Device";
+    if (f === "locale") return "Locale";
     return ATTR_META[f].label;
   }
-  return ({ authorName: "Author", authorEmail: "Email", authorOrg: "Organisation", status: "Status",
-    articleType: "Type", journal: "Journal", section: "Section", pmScore: "Score", wdStatus: "Word-doc status",
-    editors: "Editor", reviewers: "Reviewers", nameEmailSim: "Aut/Email Sim" })[f] || f;
+  return ({ authorName: "Author", authorEmail: "Email", authorOrg: "Org", status: "St",
+    articleType: "Ty", journal: "Journal", section: "Sec", pmScore: "Sc", wdStatus: "WD",
+    editors: "Ed", reviewers: "Rev", nameEmailSim: "Sim" })[f] || f;
 };
-const cmpColTitle = (f) => {
-  if (f === "editors" || f === "reviewers") return "Name when available; otherwise primary email from BigQuery";
+const cmpColHeaderLabel = (f) => {
+  if (f === "id") return "ID";
+  if (CMP_HEADER_ABBREV.has(f)) return cmpFieldLabel(f);
+  return cmpFieldFullLabel(f);
+};
+const cmpFieldFullLabel = (f) => {
+  if (f === "id") return "Article ID";
+  if (ATTR_META[f]) {
+    if (f === "wdEditedBy") return "Word: last edited by";
+    if (f === "wdAuthor") return "Word document author";
+    if (f === "wdCompany") return "Word document company";
+    return ATTR_META[f].label;
+  }
+  return ({
+    authorName: "Author", authorEmail: "Email", authorOrg: "Organisation",
+    status: "Submission status", articleType: "Article type",
+    journal: "Journal", section: "Section", pmScore: "Papermill score",
+    wdStatus: "Word-doc status", editors: "Editor", reviewers: "Reviewers",
+    nameEmailSim: "Aut/Email Sim",
+  })[f] || f;
+};
+const cmpColExtraInfo = (f) => {
+  if (f === "editors" || f === "reviewers") return "Name when available; otherwise primary email from BigQuery.";
+  if (f === "nameEmailSim") return "Similarity between author name and email local-part.";
+  if (f === "pmScore") return "Higher values indicate stronger papermill signals.";
+  if (f === "status") return "Short codes in cells. Rejected rows are colour-coded by rejection reason (red = high risk, orange = mid, grey = withdrawal). Hover for the full reason.";
+  if (f === "articleType") return "Short initials in cells; full type on row hover.";
+  if (f === "journal") return "“Frontiers in …” prefix omitted in cells; full name on row hover.";
+  if (f === "ip" || f === "device") return "Hashed identifiers; full value on row hover.";
   return "";
 };
+const cmpColTitle = (f) => cmpFieldFullLabel(f);
 const cmpDisplay = (r, key) => {
   if (key === "id") return String(A("id", r));
   if (key === "pmScore") return bandLabel(r);
@@ -696,9 +1665,9 @@ const cmpDisplay = (r, key) => {
 };
 // Compare table: compact cell text; full values stay in title + clipboard + sort.
 const CMP_TRUNC = {
-  journal: 32, section: 28, authorName: 26, authorEmail: 30, authorOrg: 32,
-  editors: 24, reviewers: 28,
-  wdAuthor: 20, wdEditedBy: 20, wdCompany: 20, locale: 18, authorIp: 14,
+  journal: 24, section: 22, authorName: 20, authorEmail: 24, authorOrg: 22,
+  editors: 18, reviewers: 20,
+  wdAuthor: 16, wdEditedBy: 16, wdCompany: 16, locale: 14, authorIp: 12,
 };
 const typeInitials = (s) => {
   if (!s) return "";
@@ -751,26 +1720,86 @@ const cmpDisplayShort = (r, key) => {
   const max = CMP_TRUNC[key];
   return max ? truncateText(full, max) : full;
 };
-function positionCmpTip(tipEl, td) {
-  const r = td.getBoundingClientRect(), pad = 6;
+function positionCmpTip(tipEl, anchor) {
+  if (!tipEl || !anchor) return;
   tipEl.style.display = "block";
-  const tw = tipEl.offsetWidth, th = tipEl.offsetHeight;
-  let left = r.left + r.width / 2 - tw / 2;
-  let top = r.top - th - pad;
-  if (top < 4) top = r.bottom + pad;
-  tipEl.style.left = Math.max(8, Math.min(left, window.innerWidth - tw - 8)) + "px";
-  tipEl.style.top = top + "px";
+  tipEl.style.visibility = "hidden";
+  requestAnimationFrame(() => {
+    const r = anchor.getBoundingClientRect(), pad = 8;
+    const tw = tipEl.offsetWidth, th = tipEl.offsetHeight;
+    let left = r.left + r.width / 2 - tw / 2;
+    let top = r.top - th - pad;
+    if (top < 8) top = r.bottom + pad;
+    tipEl.style.left = Math.max(8, Math.min(left, window.innerWidth - tw - 8)) + "px";
+    tipEl.style.top = Math.max(8, Math.min(top, window.innerHeight - th - 8)) + "px";
+    tipEl.style.visibility = "visible";
+  });
 }
-function bindCmpTooltips() {
+function cmpHeaderTipHtml(kind, fieldKey) {
+  let title, extra, meta = "Click to sort · drag header to reorder";
+  if (kind === "pick") {
+    title = "Select rows";
+    extra = "Check rows for bulk resolve, flag, unseen, and unchecked actions.";
+    meta = "";
+  } else if (kind === "track") {
+    title = "Tracking";
+    extra = "Seen · Checked (review link opened) · Resolved · Flagged. Click an icon for full history.";
+    meta = "";
+  } else {
+    title = cmpFieldFullLabel(fieldKey);
+    extra = cmpColExtraInfo(fieldKey);
+  }
+  let html = `<div class="cmp-tip-title">${escapeHtml(title)}</div>`;
+  if (extra) html += `<div class="cmp-tip-extra">${escapeHtml(extra)}</div>`;
+  if (meta) html += `<div class="cmp-tip-meta">${escapeHtml(meta)}</div>`;
+  return html;
+}
+function showCmpHeaderTip(el, kind, fieldKey) {
+  const tipEl = $("cmpTip");
+  if (!tipEl || !el) return;
+  tipEl.innerHTML = cmpHeaderTipHtml(kind, fieldKey);
+  positionCmpTip(tipEl, el);
+}
+function hideCmpTip() {
   const tipEl = $("cmpTip");
   if (!tipEl) return;
-  const hide = () => { tipEl.style.display = "none"; };
-  $("modalBody").querySelectorAll("td[data-full]").forEach(td => {
-    td.addEventListener("mouseenter", () => {
-      tipEl.textContent = td.dataset.full;
-      positionCmpTip(tipEl, td);
-    });
-    td.addEventListener("mouseleave", hide);
+  tipEl.style.display = "none";
+  tipEl.style.visibility = "";
+  tipEl.innerHTML = "";
+  cmpTipHoverEl = null;
+}
+let cmpTipHoverEl = null;
+function cmpTipTargetFrom(el) {
+  if (!el) return null;
+  return el.closest("td[data-full], th[data-sort], th.cmp-pick, th.cmp-track");
+}
+function showCmpCellTip(td) {
+  const tipEl = $("cmpTip");
+  if (!tipEl || !td) return;
+  tipEl.textContent = td.dataset.full || "";
+  positionCmpTip(tipEl, td);
+}
+function bindCmpTipDelegation() {
+  const body = $("modalBody");
+  if (!body || body.dataset.cmpTipDelegation) return;
+  body.dataset.cmpTipDelegation = "1";
+  body.addEventListener("mouseover", e => {
+    if (!$("modal").classList.contains("open")) return;
+    const el = cmpTipTargetFrom(e.target);
+    if (!el || !body.contains(el) || el === cmpTipHoverEl) return;
+    cmpTipHoverEl = el;
+    if (el.matches("td[data-full]")) showCmpCellTip(el);
+    else if (el.matches("th.cmp-pick")) showCmpHeaderTip(el, "pick");
+    else if (el.matches("th.cmp-track")) showCmpHeaderTip(el, "track");
+    else if (el.matches("th[data-sort]")) showCmpHeaderTip(el, "sort", el.dataset.sort);
+  });
+  body.addEventListener("mouseout", e => {
+    const from = cmpTipTargetFrom(e.target);
+    if (!from || from !== cmpTipHoverEl) return;
+    const to = e.relatedTarget;
+    if (to && from.contains(to)) return;
+    if (cmpTipTargetFrom(to) === from) return;
+    hideCmpTip();
   });
 }
 const cmpShareKey = (r, key) => {
@@ -879,10 +1908,14 @@ async function boot() {
   updateFlagCount();
   if (FC) {
     ["btnFlagged", "btnFlagDownload", "btnFlagRefresh"].forEach(id => $(id).style.display = "");
-    $("reviewerRow").style.display = "";
-    $("fReviewer").value = localStorage.getItem("auditReviewer") || "";
+    $("secReviewer").style.display = "";
+    $("fReviewer").value = localStorage.getItem(LS_NAME) || localStorage.getItem("auditReviewer") || "";
+    renderReviewerDisplay();
+    bindWorkflowUI();
     await loadFlags();
+    await loadWorkflow();
     pruneCmpBulkPickStorage();
+    if (!userName()) promptForName();
   } else if ($("cmpBulkBar")) {
     $("cmpBulkBar").style.display = "none";
   }
@@ -930,7 +1963,7 @@ const COLLAPSE_KEY = "auditSectionCollapse";
 function initCollapsibleSections() {
   let saved = {};
   try { saved = JSON.parse(localStorage.getItem(COLLAPSE_KEY) || "{}"); } catch (_) {}
-  [["secConnTypes", "conn"], ["secFilters", "filters"]].forEach(([id, key]) => {
+  [["secConnTypes", "conn"], ["secFilters", "filters"], ["secReviewer", "reviewer"]].forEach(([id, key]) => {
     const sec = $(id), head = $(id + "Head");
     if (!sec || !head) return;
     const collapsed = saved[key] === true;
@@ -972,12 +2005,6 @@ function renderEmailRegexSuggest(q) {
   }));
 }
 function initEmailRegexPresets() {
-  const chips = $("emailRegexChips");
-  chips.innerHTML = EMAIL_REGEX_PRESETS.map(p =>
-    `<button type="button" class="regex-chip" title="/${escapeHtml(p.pattern)}/ — ${escapeHtml(p.hint)}" data-pat="${escapeHtml(p.pattern)}">${escapeHtml(p.label)}</button>`
-  ).join("");
-  chips.querySelectorAll(".regex-chip").forEach(btn => btn.addEventListener("click", () => applyEmailRegexPreset(btn.dataset.pat)));
-
   const inp = $("fEmailRegex"), suggest = $("emailRegexSuggest");
   let suggestIdx = -1;
   const closeSuggest = () => { suggest.classList.remove("open"); suggestIdx = -1; };
@@ -1005,6 +2032,36 @@ function initEmailRegexPresets() {
   });
 }
 
+function bindCmpTableScroll() {
+  const box = $("modalBody");
+  if (!box || box.dataset.cmpScrollBound) return;
+  box.dataset.cmpScrollBound = "1";
+  box.tabIndex = 0;
+  box.addEventListener("wheel", e => {
+    if (!e.shiftKey || e.deltaY === 0) return;
+    if (box.scrollWidth <= box.clientWidth + 1) return;
+    box.scrollLeft += e.deltaY;
+    e.preventDefault();
+  }, { passive: false });
+}
+
+function cmpScrollStep(sc) {
+  return Math.max(120, Math.round(sc.clientWidth * 0.35));
+}
+
+function openHelpModal() {
+  const m = $("helpModal");
+  if (!m) return;
+  m.classList.add("open");
+  m.setAttribute("aria-hidden", "false");
+}
+function closeHelpModal() {
+  const m = $("helpModal");
+  if (!m) return;
+  m.classList.remove("open");
+  m.setAttribute("aria-hidden", "true");
+}
+
 function bindUI() {
   const onFilterChange = () => {
     renderList();
@@ -1019,13 +2076,25 @@ function bindUI() {
   ["fDiffAuthors","fDiffOrgs","fFlaggedOnly","fHideAllRejected","fLowNameEmailSim","fJournal","fStatus","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", onFilterChange));
   $("fEmailRegex").addEventListener("input", () => { rebuildEmailFilter(); onFilterChange(); });
   initEmailRegexPresets();
+  bindCmpTableScroll();
+  bindCmpTipDelegation();
+  $("btnHelp").addEventListener("click", openHelpModal);
+  $("helpClose").addEventListener("click", closeHelpModal);
+  $("helpModal").addEventListener("click", e => { if (e.target.id === "helpModal") closeHelpModal(); });
   $("btnOverview").addEventListener("click", showOverview);
   $("btnRelayout").addEventListener("click", () => { if (nodes.length) runLayout(); });
   $("btnCompare").addEventListener("click", openCompare);
   $("btnFlagged").addEventListener("click", showFlaggedList);
   $("btnFlagDownload").addEventListener("click", downloadFlaggedList);
-  $("btnFlagRefresh").addEventListener("click", async () => { await loadFlags(); updateHubFlags(); renderList(); if (mode === "overview") showOverview(); draw(); });
-  if ($("fReviewer")) $("fReviewer").addEventListener("input", () => localStorage.setItem("auditReviewer", $("fReviewer").value.trim()));
+  $("btnFlagRefresh").addEventListener("click", async () => {
+    await loadFlags();
+    await loadWorkflow();
+    updateHubFlags();
+    renderList();
+    if (mode === "overview") showOverview();
+    draw();
+    if ($("modal").classList.contains("open")) renderCompareTable();
+  });
   $("modalClose").addEventListener("click", closeModal);
   $("modalCopy").addEventListener("click", copyCompareTable);
   $("modalBackdrop").addEventListener("click", closeModal);
@@ -1035,7 +2104,7 @@ function bindUI() {
   });
   $("modalBody").addEventListener("click", e => {
     if (!$("modal").classList.contains("open")) return;
-    if (e.target.closest("a.aid") || e.target.closest(".flagcell") || e.target.closest(".cmp-pick")) return;
+    if (e.target.closest("a.aid") || e.target.closest(".cmp-pick") || e.target.closest(".track-icon")) return;
     const td = e.target.closest("td[data-col]");
     const tr = e.target.closest("tbody tr[data-r]");
     if (td && tr && tr.classList.contains("sel") && cmpHighlightR != null) {
@@ -1055,11 +2124,22 @@ function bindUI() {
   });
   if ($("btnClearFieldFilter")) $("btnClearFieldFilter").addEventListener("click", clearGlobalFieldFilter);
   if ($("cmpBulkUnflag")) $("cmpBulkUnflag").addEventListener("click", () => bulkToggleFlags(cmpSelected, false));
+  if ($("cmpBulkFlag")) $("cmpBulkFlag").addEventListener("click", () => bulkToggleFlags(cmpSelected, true));
   window.addEventListener("keydown", e => {
-    if (e.key !== "Escape") return;
-    const pop = $("cmpFilterPop");
-    if (pop && pop.style.display !== "none") { hideCmpFieldFilterPop(); return; }
-    closeModal();
+    if (e.key === "Escape") {
+      const help = $("helpModal");
+      if (help && help.classList.contains("open")) { closeHelpModal(); return; }
+      const pop = $("cmpFilterPop");
+      if (pop && pop.style.display !== "none") { hideCmpFieldFilterPop(); return; }
+      closeModal();
+      return;
+    }
+    if (!$("modal").classList.contains("open")) return;
+    if (e.target.closest("textarea, input, select")) return;
+    const sc = $("modalBody");
+    if (!sc || sc.scrollWidth <= sc.clientWidth + 1) return;
+    if (e.key === "ArrowLeft") { sc.scrollLeft -= cmpScrollStep(sc); e.preventDefault(); }
+    else if (e.key === "ArrowRight") { sc.scrollLeft += cmpScrollStep(sc); e.preventDefault(); }
   });
 }
 
@@ -1070,6 +2150,7 @@ function buildLegend() {
   for (const a of attrs) parts.push(`<span><i class="sq" style="background:${ATTR_META[a].color}"></i>${ATTR_META[a].label}</span>`);
   parts.push(`<span><i class="sq" style="background:${COMBO_COLOR}"></i>multi-type (AND)</span>`);
   if (FC) parts.push(`<span><i class="dot" style="background:transparent;border:2px solid #D51A2C"></i>flagged manufactured</span>`);
+  if (FC) parts.push(`<span><i class="dot" style="background:transparent;border:2px solid #61C4F1"></i>cluster fully seen</span>`);
   $("legend").innerHTML = parts.join("");
 }
 
@@ -1383,22 +2464,24 @@ function renderUnits() {
     frag.appendChild(el);
   }
   box.appendChild(frag);
+  bindClusterSeenIcons(box);
 }
 function unitRowInner(u) {
+  const seenIcon = clusterSeenIconHtml(u);
   const authPill = u.nNames >= 2 ? `<span class="pill bad">${u.nNames} authors</span>` : (u.nNames ? `<span class="pill">1 author</span>` : "");
   const orgPill = u.nOrgs >= 2 ? `<span class="pill warn">${u.nOrgs} orgs</span>` : "";
   const metaPills = clusterMetaPills(u.rows);
   const metaHtml = metaPills ? `<div class="b2">${metaPills}</div>` : "";
   if (u.kind === "emailrx") {
     return `<div class="b1"><span class="attrsq" style="background:${ATTR_META.email.color}"></span>
-        <span class="muted" style="font-size:11px">Email pattern</span></div>
+        <span class="muted" style="font-size:11px">Email pattern</span>${seenIcon}</div>
       <div class="val" title="${escapeHtml(u.label)}">${escapeHtml(u.label)}</div>
       <div class="b2"><span class="pill">${u.rows.length} papers</span>${authPill}${orgPill}</div>${metaHtml}`;
   }
   if (u.kind === "single") {
     const meta = ATTR_META[u.attr], full = strFull(meta.pool, u.ref), val = str(meta.pool, u.ref) || "(empty)";
     return `<div class="b1"><span class="attrsq" style="background:${meta.color}"></span>
-        <span class="muted" style="font-size:11px">${meta.label}</span></div>
+        <span class="muted" style="font-size:11px">${meta.label}</span>${seenIcon}</div>
       <div class="val" title="${escapeHtml(full)}">${escapeHtml(val)}</div>
       <div class="b2"><span class="pill">${u.rows.length} papers</span>${authPill}${orgPill}</div>${metaHtml}`;
   }
@@ -1408,7 +2491,7 @@ function unitRowInner(u) {
     const shown = str(ATTR_META[p.attr].pool, p.ref) || "(empty)";
     return `<div class="val" title="${escapeHtml(full)}"><span class="muted" style="font-size:10px">${ATTR_META[p.attr].label}:</span> ${escapeHtml(shown)}</div>`;
   }).join("");
-  return `<div class="b1">${dots}<span class="muted" style="font-size:11px">${u.parts.length} types shared</span></div>
+  return `<div class="b1">${dots}<span class="muted" style="font-size:11px">${u.parts.length} types shared</span>${seenIcon}</div>
     ${lines}
     <div class="b2"><span class="pill bad">${u.rows.length} papers</span>${authPill}${orgPill}</div>${metaHtml}`;
 }
@@ -1564,8 +2647,19 @@ function buildSimEdges() {
 function updateHubFlags() {
   for (const nd of nodes) {
     if (nd.type !== "hub") continue;
-    const rows = nd.unit ? nd.unit.rows : (nd._rows || (nd.key && bucketMeta.get(nd.key) ? bucketMeta.get(nd.key).rows : null));
-    if (rows) { nd.flagged = rows.some(isFlagged); nd.nFlagged = rows.reduce((c, r) => c + (isFlagged(r) ? 1 : 0), 0); }
+    const rows = hubRows(nd);
+    if (!rows) continue;
+    nd.flagged = rows.some(isFlagged);
+    nd.nFlagged = rows.reduce((c, r) => c + (isFlagged(r) ? 1 : 0), 0);
+    nd.allSeen = clusterAllPapersSeen(rows);
+    if (nd.allSeen) {
+      const { viewers } = clusterSeenViewerMap(rows);
+      nd.seenBy = viewers.filter(v => v.all);
+      nd.viewers = viewers;
+    } else {
+      nd.seenBy = [];
+      nd.viewers = [];
+    }
   }
 }
 function finishGraph() {
@@ -1656,6 +2750,13 @@ function hoverTip(px, py) {
     html = `<b>Multi-type cluster</b><div class="muted">${escapeHtml(nd.label || "")}</div>`
       + `<div class="muted">${nd.n} papers · shares ${nd.unit.parts.length} types</div>`
       + (nd.nFlagged ? `<div style="color:#ff8a8a">⚑ ${nd.nFlagged} flagged</div>` : "")
+      + hubSeenTipLines(nd)
+      + `<div class="muted">click to drill in</div>`;
+  } else if (nd.type === "hub" && nd.label && !ATTR_META[nd.attr]) {
+    html = `<b>Email pattern</b><div class="muted">${escapeHtml(nd.label)}</div>`
+      + `<div class="muted">${nd.n} papers</div>`
+      + (nd.nFlagged ? `<div style="color:#ff8a8a">⚑ ${nd.nFlagged} flagged</div>` : "")
+      + hubSeenTipLines(nd)
       + `<div class="muted">click to drill in</div>`;
   } else if (nd.type === "hub" && ATTR_META[nd.attr]) {
     const full = strFull(ATTR_META[nd.attr].pool, nd.ref) || "";
@@ -1663,6 +2764,7 @@ function hoverTip(px, py) {
     html = `<b>${ATTR_META[nd.attr].label}</b><div class="muted" title="${escapeHtml(full)}">${escapeHtml(shown)}</div>`
       + `<div class="muted">${nd.n} papers</div>`
       + (nd.nFlagged ? `<div style="color:#ff8a8a">⚑ ${nd.nFlagged} flagged</div>` : "")
+      + hubSeenTipLines(nd)
       + `<div class="muted">click to drill in</div>`;
   }
   if (!html) { tip.style.display = "none"; return; }
@@ -1719,6 +2821,7 @@ function draw() {
       const R = hubRadius(nd) * Math.min(Math.max(view.k, .6), 1.4);
       ctx.fillStyle = nd.color || (ATTR_META[nd.attr] ? ATTR_META[nd.attr].color : "#889");
       roundRect(x - R, y - R, R * 2, R * 2, 4); ctx.fill();
+      if (nd.allSeen) { ctx.strokeStyle = "#61C4F1"; ctx.lineWidth = 2.4; roundRect(x - R - 2, y - R - 2, (R + 2) * 2, (R + 2) * 2, 5); ctx.stroke(); }
       if (nd.flagged) { ctx.strokeStyle = "#D51A2C"; ctx.lineWidth = 2.6; roundRect(x - R - 3, y - R - 3, (R + 3) * 2, (R + 3) * 2, 6); ctx.stroke(); }
       if (i === selected) { ctx.strokeStyle = "#fff"; ctx.lineWidth = 2.5; roundRect(x - R, y - R, R * 2, R * 2, 4); ctx.stroke(); }
     } else {
@@ -1771,8 +2874,16 @@ function paperRowHtml(r) {
   const nm = artStr("authorName", r), t = artStr("title", r);
   const st = artStatus(r), jn = artJournal(r), jnShort = jn ? journalShort(jn) : "";
   const sim = A("nameEmailSim", r);
+  const rej = artRejectionReason(r);
   const metaParts = [];
-  if (st) metaParts.push(escapeHtml(st));
+  if (st) {
+    const color = statusCellColor(r);
+    const tip = statusCellTip(r);
+    const label = rej && st.toLowerCase() === "rejected" ? tip : st;
+    metaParts.push(color
+      ? `<span style="color:${color};font-weight:600" title="${escapeHtml(tip)}">${escapeHtml(label)}</span>`
+      : escapeHtml(st));
+  }
   if (jnShort) {
     metaParts.push(jn !== jnShort
       ? `<span title="${escapeHtml(jn)}">${escapeHtml(jnShort)}</span>`
@@ -1787,11 +2898,15 @@ function paperRowHtml(r) {
     ${t ? `<div style="font-size:11px">${escapeHtml(t.slice(0, 90))}</div>` : ""}</div>`;
 }
 function showPaperDetail(r) {
+  markSeenByRow(r);
   $("detailTitle").textContent = "Paper " + A("id", r);
   $("detailSub").textContent = artStr("title", r) || "no title";
+  const trackStrip = FC ? `<div class="section" id="detailTrackStrip" style="padding:8px 0 4px">${trackIconsHtml(r)}</div>` : "";
   const rows = [
     ["Submitted", A("date", r)],
-    ["Status", artStatus(r) || "—"], ["Article type", artStr("articleType", r) || "—"],
+    ["Status", artStatus(r) || "—", statusCellTip(r) || ""],
+    ...(artRejectionReason(r) ? [["Rejection reason", artRejectionReason(r)]] : []),
+    ["Article type", artStr("articleType", r) || "—"],
     ["Journal", journalShort(artJournal(r)) || "—", artJournal(r) || ""],
     ["Section", artStr("section", r) || "—"],
     ["Editor", artStr("editors", r) || "—", personProxyTip(artStr("editors", r)) || ""],
@@ -1802,12 +2917,12 @@ function showPaperDetail(r) {
     ["Email pattern", PATTERN_NAMES[A("emailPattern", r)] || "—"], ["Papermill score", bandLabel(r)],
     ["Word-doc status", STATUS_NAMES[A("wdStatus", r)] || "—"],
     ["Word-doc match", A("wdMatch", r) === 1 ? "matches author" : A("wdMatch", r) === 0 ? "does NOT match" : "—"],
-    ["Word author", artStr("wdAuthor", r) || "—"], ["Word edited by", artStr("wdEditedBy", r) || "—"], ["Word company", artStr("wdCompany", r) || "—"],
+    ["WD author", artStr("wdAuthor", r) || "—"], ["WD last edited", artStr("wdEditedBy", r) || "—"], ["Word company", artStr("wdCompany", r) || "—"],
     ["Device", artStr("device", r) || "—", artStr("device", r) !== strFull("devices", A("device", r)) ? strFull("devices", A("device", r)) : ""],
     ["IP", artStr("ip", r) || "—", artStr("ip", r) !== strFull("ips", A("ip", r)) ? strFull("ips", A("ip", r)) : ""], ["Locale", artStr("locale", r) || "—"],
     ["Platform / UA", [artStr("platform", r), artStr("uaFamily", r)].filter(Boolean).join(" / ") || "—"], ["Submission IP (author record)", artStr("authorIp", r) || "—"],
   ];
-  $("detail").innerHTML = flagControlHtml(r) + `<div class="section"><dl class="dl">${rows.map(([k, v, tip, html]) => {
+  $("detail").innerHTML = trackStrip + flagControlHtml(r) + `<div class="section"><dl class="dl">${rows.map(([k, v, tip, html]) => {
     if (html) return `<div><dt>${k}</dt><dd>${html}</dd></div>`;
     const titleAttr = tip ? ` title="${escapeHtml(tip)}"` : "";
     const mono = (k === "Editor" || k === "Reviewers") && looksLikeEmail(String(v)) ? ' class="val"' : "";
@@ -1815,6 +2930,7 @@ function showPaperDetail(r) {
   }).join("")}</dl></div>
     <div class="section"><h2>Shared connections</h2>${connectionsHtml(r)}</div>`;
   bindAidClicks();
+  bindTrackIcons($("detail"));
   const fb = document.getElementById("flagBtn");
   if (fb) fb.addEventListener("click", () => toggleFlag(A("id", r), () => showPaperDetail(r)));
   const fcb = document.getElementById("flagCommentBtn");
@@ -1922,11 +3038,14 @@ let cmpSort = { key: "pmScore", dir: -1 };  // dir: 1 asc, -1 desc
 const selectedPaperRow = () => (selected != null && nodes[selected] && nodes[selected].type === "paper") ? nodes[selected].r : null;
 function syncCmpHighlight() {
   if (!$("modal").classList.contains("open")) return;
+  const prev = cmpHighlightR;
   cmpHighlightR = selectedPaperRow();
+  if (cmpHighlightR != null && cmpHighlightR !== prev) markSeenByRow(cmpHighlightR);
   renderCompareTable();
 }
 function selectCompareRow(r) {
   cmpHighlightR = r;
+  markSeenByRow(r);
   hideCmpFieldFilterPop();
   renderCompareTable();
   const idx = nodes.findIndex(n => n.type === "paper" && n.r === r);
@@ -1953,8 +3072,10 @@ function syncCmpBulkBar() {
   if (bar) bar.classList.toggle("visible", n > 0);
   const el = $("cmpBulkCount");
   if (el) el.textContent = n ? `${n} selected` : "0 selected";
-  if ($("cmpBulkFlag")) $("cmpBulkFlag").disabled = n === 0;
-  if ($("cmpBulkUnflag")) $("cmpBulkUnflag").disabled = n === 0;
+  for (const id of ["cmpBulkFlag", "cmpBulkUnflag", "cmpBulkResolve", "cmpBulkUnresolve", "cmpBulkUnseen", "cmpBulkUnchecked"]) {
+    const b = $(id);
+    if (b) b.disabled = n === 0;
+  }
 }
 function cmpVisibleRows() {
   if (!cmpState) return [];
@@ -1964,7 +3085,7 @@ function syncCmpModalSub() {
   if (!cmpState) return;
   const pool = cmpState.rs.length;
   const shown = compareSortedRows().length;
-  let sub = `${pool.toLocaleString()} papers · check rows to bulk-flag · click header to sort · drag header to reorder · <a href="#" class="aid" id="cmpColReset">reset columns</a>`;
+  let sub = `${pool.toLocaleString()} papers · check rows for bulk actions · Shift+scroll or ← → to scroll columns · click header to sort · drag header to reorder · <a href="#" class="aid" id="cmpColReset">reset columns</a>`;
   if (globalFieldFilter) {
     const total = globalFieldFilterRows().length;
     const val = truncateText(globalFieldFilter.display || "—", 48);
@@ -2077,11 +3198,15 @@ function openCompare() {
   updateGlobalFieldFilterUI();
   $("modal").classList.add("open");
   $("modal").setAttribute("aria-hidden", "false");
+  if (cmpHighlightR != null) markSeenByRow(cmpHighlightR);
   syncCmpBulkBar();
   syncShare();
 }
 function closeModal() {
   if (!$("modal").classList.contains("open")) return;
+  hideTrackTip();
+  hideCmpTip();
+  disconnectCmpSeenObserver();
   $("modal").classList.remove("open");
   $("modal").setAttribute("aria-hidden", "true");
   if ($("cmpBulkBar")) $("cmpBulkBar").classList.remove("visible");
@@ -2121,11 +3246,20 @@ async function copyCompareTable() {
   if (!cmpState) return;
   const sorted = compareSortedRows();
   const cols = cmpColDefs();
-  const headers = (FC ? ["Flagged"] : []).concat(cols.map(([, lbl]) => lbl));
+  const headers = (FC ? ["Track"] : []).concat(cols.map(([, lbl]) => lbl));
   const lines = [headers.map(tsvCell).join("\t")];
   for (const r of sorted) {
-    const cells = FC ? [flags.has(A("id", r)) ? "yes" : ""] : [];
-    for (const [k] of cols) cells.push(tsvCell(k === "id" ? A("id", r) : cmpDisplay(r, k)));
+    const id = A("id", r);
+    const track = FC ? [
+      [
+        articleSeenList(id).length ? "seen" : "",
+        articleCheckedList(id).length ? "checked" : "",
+        isResolvedId(id) ? "resolved" : "",
+        flags.has(id) ? "flagged" : "",
+      ].filter(Boolean).join(";") || "",
+    ] : [];
+    const cells = track;
+    for (const [k] of cols) cells.push(tsvCell(k === "id" ? id : cmpDisplay(r, k)));
     lines.push(cells.map(tsvCell).join("\t"));
   }
   const text = lines.join("\n");
@@ -2150,22 +3284,19 @@ function renderCompareTable() {
   const cols = cmpColDefs();
   const visible = sorted.slice(0, 300);
   const allPicked = visible.length > 0 && visible.every(r => cmpSelected.has(r));
-  const pickTh = FC ? `<th class="cmp-pick" title="Select for bulk flag"><input type="checkbox" id="cmpSelectAll"${allPicked ? " checked" : ""}></th>` : "";
-  const flagTh = FC ? "<th>⚑</th>" : "";
-  const head = "<tr>" + pickTh + flagTh + cols.map(([k, lbl]) => {
-    const extra = cmpColTitle(k);
-    const thTitle = (extra ? extra + " · " : "") + `Sort by ${lbl} · drag to reorder`;
-    return `<th draggable="true" data-sort="${k}" style="cursor:grab;user-select:none" title="${escapeHtml(thTitle)}">${lbl}${arrow(k)}</th>`;
+  const pickTh = FC ? `<th class="cmp-pick cmp-th-tip"><input type="checkbox" id="cmpSelectAll"${allPicked ? " checked" : ""}></th>` : "";
+  const trackTh = FC ? `<th class="cmp-track cmp-th-tip">Track</th>` : "";
+  const head = "<tr>" + pickTh + trackTh + cols.map(([k, lbl]) => {
+    return `<th draggable="true" class="cmp-th-tip" data-sort="${k}" style="cursor:grab;user-select:none">${lbl}${arrow(k)}</th>`;
   }).join("") + "</tr>";
   const body = visible.map(r => {
-    const ff = flags.get(A("id", r));
     const picked = cmpSelected.has(r);
     const pickTd = FC ? `<td class="cmp-pick"><input type="checkbox" class="cmp-pick-cb" data-r="${r}"${picked ? " checked" : ""}></td>` : "";
-    const flagTd = FC ? `<td class="flagcell" data-fr="${r}" style="cursor:pointer;text-align:center" title="${ff && ff.comment ? escapeHtml(ff.comment) : "Toggle manufactured flag"}">${ff ? '<span style="color:#D51A2C">⚑</span>' : '<span class="muted">⚐</span>'}</td>` : "";
+    const trackTd = FC ? `<td class="cmp-track">${trackIconsHtml(r)}</td>` : "";
     const cells = cols.map(([k]) => {
       if (k === "id") {
         const aid = A("id", r);
-        return `<td><a class="aid" href="${reviewUrl(aid)}" target="_blank" rel="noopener" title="Open in Frontiers review">${aid}</a></td>`;
+        return `<td><a class="aid cmp-review-link" href="${reviewUrl(aid)}" target="_blank" rel="noopener" data-aid="${aid}" title="Open in Frontiers review">${aid}</a></td>`;
       }
       const sk = cmpShareKey(r, k);
       const sh = sk != null && shared[k] && shared[k].get(sk) >= 2;
@@ -2181,12 +3312,11 @@ function renderCompareTable() {
         return `<td data-col="${k}" class="${tipCls}" style="${colorStyle}"${dataFull}>${inner}</td>`;
       }
       if (k === "status") {
-        const full = cmpDisplay(r, k);
         const shown = cmpDisplayShort(r, k);
-        const color = statusColor(full);
+        const color = statusCellColor(r);
+        const tip = statusCellTip(r);
         const inner = shown ? escapeHtml(shown) : '<span class="muted">—</span>';
         const colorStyle = color ? `color:${color};font-weight:600` : "";
-        const tip = full && shown !== full ? full : "";
         const tipCls = tip ? " cmp-tip" : "";
         const dataFull = tip ? ` data-full="${escapeHtml(tip)}"` : "";
         return `<td data-col="${k}" class="${tipCls}" style="${colorStyle}"${dataFull}>${inner}</td>`;
@@ -2210,10 +3340,11 @@ function renderCompareTable() {
       const inner = shown ? escapeHtml(shown) : '<span class="muted">—</span>';
       return `<td data-col="${k}" class="${sh ? "share" : ""}${tipCls}" style="${sh ? `color:${cc}` : ""}"${dataFull}>${inner}</td>`;
     }).join("");
-    return `<tr data-r="${r}" class="${r === cmpHighlightR ? "sel" : ""}${picked ? " cmp-picked" : ""}">${pickTd}${flagTd}${cells}</tr>`;
+    return `<tr data-r="${r}" class="${r === cmpHighlightR ? "sel" : ""}${picked ? " cmp-picked" : ""}">${pickTd}${trackTd}${cells}</tr>`;
   }).join("");
   const box = $("modalBody");
   box.innerHTML = `<table class="cmp"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+  disconnectCmpSeenObserver();
   if (cmpHighlightR != null) requestAnimationFrame(() => {
     const row = box.querySelector("tbody tr.sel");
     if (row) row.scrollIntoView({ block: "nearest" });
@@ -2251,7 +3382,12 @@ function renderCompareTable() {
       renderCompareTable();
     });
   });
-  box.querySelectorAll(".flagcell").forEach(td => td.addEventListener("click", () => toggleFlag(A("id", +td.dataset.fr))));
+  box.querySelectorAll(".cmp-review-link").forEach(a => {
+    a.addEventListener("click", () => markChecked(+a.dataset.aid).catch(() => {}));
+  });
+  bindTrackIcons(box);
+  bindCmpSeenObserver(box);
+  if (cmpHighlightR != null) markSeenByRow(cmpHighlightR);
   const selAll = box.querySelector("#cmpSelectAll");
   if (selAll) {
     selAll.addEventListener("click", e => {
@@ -2278,9 +3414,13 @@ function renderCompareTable() {
       if (all) all.checked = visible.length > 0 && visible.every(x => cmpSelected.has(x));
     });
   });
-  bindCmpTooltips();
   syncCmpBulkBar();
   syncCmpModalSub();
+  const modalBody = $("modalBody");
+  if (modalBody && !modalBody.dataset.trackTipScroll) {
+    modalBody.dataset.trackTipScroll = "1";
+    modalBody.addEventListener("scroll", () => { hideTrackTip(); hideCmpTip(); }, { passive: true });
+  }
 }
 const reviewUrl = (id) => `https://review.frontiersin.org/review/${id}/0/0`;
 
