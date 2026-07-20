@@ -1,4 +1,4 @@
-# Network Analysis — Paper Connection Audit
+# Network Analysis — Paper Networks Audit
 
 A standalone, zero-build web app for auditing hidden connections between manuscripts,
 plus the Python pipeline that produces its data snapshot from `service-aira`.

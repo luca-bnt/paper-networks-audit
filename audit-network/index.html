@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Paper Connection Audit</title>
+<title>Paper Networks Audit</title>
 <style>
   :root {
     --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2a2f3a;
@@ -455,7 +455,7 @@
 
 <div id="helpModal" class="submodal" aria-hidden="true">
   <div class="submodal-box help-box">
-    <h3>How to use Paper Connection Audit</h3>
+    <h3>How to use Paper Networks Audit</h3>
     <div class="help-body">
       <p>Find groups of papers that share suspicious connection attributes (IP, email, device fingerprint, Word metadata, and more) to support papermill investigation.</p>
       <h4>Quick start</h4>
@@ -469,7 +469,7 @@
         <div class="help-feature-block">
           <h5>Connection types &amp; clustering</h5>
           <ul>
-            <li>Toggle attributes: email, IP, device fingerprint, locale, Word author/editor/company, author-declared IP.</li>
+            <li>Toggle attributes: email, IP, device fingerprint, locale, WD author / last edited / company, author-declared IP.</li>
             <li><b>Single-type clusters</b> — papers sharing one value (e.g. same hashed IP).</li>
             <li><b>Multi-type (AND) clusters</b> — papers sharing the same value on every selected type; shown in lime on the graph.</li>
             <li><b>Email regex</b> — filter to matching author emails; combines with other types as AND, or lists matches alone.</li>
@@ -699,7 +699,7 @@ const ATTR_META = {
   locale:     { label: "Language + timezone",pool: "locales",     color: "#60a5fa" },
   wdAuthor:   { label: "WD author",          pool: "wdAuthors",   color: "#f59e0b" },
   wdEditedBy: { label: "WD last edited",     pool: "wdEditedBys", color: "#fbbf24" },
-  wdCompany:  { label: "Word: company",      pool: "wdCompanies", color: "#fcd34d" },
+  wdCompany:  { label: "WD company",         pool: "wdCompanies", color: "#fcd34d" },
   authorIp:   { label: "Author-declared IP", pool: "authorIps",   color: "#c084fc" },
 };
 const ATTR_COL = { email: "authorEmail" };
@@ -1630,9 +1630,7 @@ const cmpColHeaderLabel = (f) => {
 const cmpFieldFullLabel = (f) => {
   if (f === "id") return "Article ID";
   if (ATTR_META[f]) {
-    if (f === "wdEditedBy") return "Word: last edited by";
-    if (f === "wdAuthor") return "Word document author";
-    if (f === "wdCompany") return "Word document company";
+    if (f === "wdCompany") return "WD company";
     return ATTR_META[f].label;
   }
   return ({
@@ -2917,7 +2915,7 @@ function showPaperDetail(r) {
     ["Email pattern", PATTERN_NAMES[A("emailPattern", r)] || "—"], ["Papermill score", bandLabel(r)],
     ["Word-doc status", STATUS_NAMES[A("wdStatus", r)] || "—"],
     ["Word-doc match", A("wdMatch", r) === 1 ? "matches author" : A("wdMatch", r) === 0 ? "does NOT match" : "—"],
-    ["WD author", artStr("wdAuthor", r) || "—"], ["WD last edited", artStr("wdEditedBy", r) || "—"], ["Word company", artStr("wdCompany", r) || "—"],
+    ["WD author", artStr("wdAuthor", r) || "—"], ["WD last edited", artStr("wdEditedBy", r) || "—"], ["WD company", artStr("wdCompany", r) || "—"],
     ["Device", artStr("device", r) || "—", artStr("device", r) !== strFull("devices", A("device", r)) ? strFull("devices", A("device", r)) : ""],
     ["IP", artStr("ip", r) || "—", artStr("ip", r) !== strFull("ips", A("ip", r)) ? strFull("ips", A("ip", r)) : ""], ["Locale", artStr("locale", r) || "—"],
     ["Platform / UA", [artStr("platform", r), artStr("uaFamily", r)].filter(Boolean).join(" / ") || "—"], ["Submission IP (author record)", artStr("authorIp", r) || "—"],
