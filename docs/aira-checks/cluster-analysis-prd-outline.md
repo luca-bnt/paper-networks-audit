@@ -171,12 +171,8 @@ Only **active** flags; removals delete or tombstone so B1 no longer sees them.
 
 ## Delivery
 
-Thin Jira trackers (QM): [QM-2480](https://jira.frontiersin.net/browse/QM-2480) — this PRD is the source of truth.
+Thin Jira trackers (QM): [QM-2480](https://jira.frontiersin.net/browse/QM-2480) — this PRD is the source of truth. Two vertical slices (tests/rollout folded in):
 
-1. `[Cluster Analysis] Daily hub store + flag sync` — [QM-2481](https://jira.frontiersin.net/browse/QM-2481)  
-2. `[Cluster Analysis] Evaluator BLOCK/PASS (B1 + B2)` — [QM-2482](https://jira.frontiersin.net/browse/QM-2482)  
-3. `[Cluster Analysis] AIRA card UI` — [QM-2483](https://jira.frontiersin.net/browse/QM-2483)  
-4. `[Cluster Analysis] Deep-link to cluster investigation` — [QM-2484](https://jira.frontiersin.net/browse/QM-2484)  
-5. `[Cluster Analysis] Parity tests + freshness` — [QM-2485](https://jira.frontiersin.net/browse/QM-2485)  
-6. `[Cluster Analysis] Rollout — replace fingerprint/metadata check` — [QM-2486](https://jira.frontiersin.net/browse/QM-2486)
+1. `[Cluster Analysis] Daily hub store + BLOCK/PASS engine` — [QM-2481](https://jira.frontiersin.net/browse/QM-2481)  
+2. `[Cluster Analysis] In-review card, deep-link, and cutover` — [QM-2482](https://jira.frontiersin.net/browse/QM-2482)
 
