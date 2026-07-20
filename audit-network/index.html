@@ -1436,6 +1436,28 @@ function bindWorkflowUI() {
   if ($("cmpBulkUnseen")) $("cmpBulkUnseen").addEventListener("click", () => bulkClearSeen([...cmpSelected]));
   if ($("cmpBulkUnchecked")) $("cmpBulkUnchecked").addEventListener("click", () => bulkClearChecked([...cmpSelected]));
 }
+function workflowStatusHtml(r) {
+  if (!FC) return "";
+  const id = A("id", r);
+  const seen = articleSeenList(id);
+  const checked = articleCheckedList(id);
+  const res = articleResolved(id);
+  const flag = flags.get(id);
+  const lastSeen = seen.slice().sort((a, b) => String(b.utc).localeCompare(String(a.utc)))[0];
+  const lastChecked = checked.slice().sort((a, b) => String(b.utc).localeCompare(String(a.utc)))[0];
+  const lines = [];
+  if (lastSeen) lines.push(`Last seen by <b>${escapeHtml(lastSeen.by || "?")}</b> · ${escapeHtml(fmtUtc(lastSeen.utc))}`);
+  else lines.push(`<span class="muted">Not seen yet</span>`);
+  if (lastChecked) lines.push(`Checked by <b>${escapeHtml(lastChecked.by || "?")}</b> · ${escapeHtml(fmtUtc(lastChecked.utc))}`);
+  if (res) lines.push(`Resolved by <b>${escapeHtml(res.by || "?")}</b> · ${escapeHtml(fmtUtc(res.utc))}`);
+  if (flag) lines.push(`Flagged by <b>${escapeHtml(flag.by || "?")}</b> · ${escapeHtml(fmtUtc(flag.utc))}`);
+  const resolvedOn = !!res;
+  return `<div class="section" id="detailWorkflow">
+    <div style="font-size:12px;line-height:1.55;margin-bottom:8px">${lines.join("<br>")}</div>
+    <button type="button" class="btn" id="resolveBtn" style="width:100%;font-weight:600;${resolvedOn ? "background:#65C161;border-color:#65C161;color:#fff" : ""}">${resolvedOn ? "✓ Resolved — click to clear" : "✓ Mark resolved (non-problematic)"}</button>
+  </div>`;
+}
+
 function flagControlHtml(r) {
   if (!FC) return "";
   const id = A("id", r), on = flags.has(id), f = flags.get(id);
@@ -1446,7 +1468,7 @@ function flagControlHtml(r) {
       (cmt ? `<div style="font-size:12px;font-style:italic;margin-top:2px">“${cmt}”</div>`
            : `<div class="muted" style="font-size:11px;font-style:italic;margin-top:2px">(none yet)</div>`)
     : `<div class="muted" style="font-size:11px;margin-top:6px">Comment (optional)</div>`;
-  return `<div class="section"><button class="btn" id="flagBtn" title="${btnTip}" style="width:100%;font-weight:600;${on ? "background:#D51A2C;border-color:#D51A2C;color:#fff" : ""}">${on ? "⚑ Flagged as manufactured — click to unflag" : "⚐ Flag as manufactured (papermill)"}</button>
+  return workflowStatusHtml(r) + `<div class="section"><button class="btn" id="flagBtn" title="${btnTip}" style="width:100%;font-weight:600;${on ? "background:#D51A2C;border-color:#D51A2C;color:#fff" : ""}">${on ? "⚑ Flagged as manufactured — click to unflag" : "⚐ Flag as manufactured (papermill)"}</button>
     ${commentBlock}
     <textarea id="flagComment" placeholder="Comment (optional)" style="width:100%;box-sizing:border-box;margin-top:4px;min-height:42px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:inherit;font-size:12px;resize:vertical">${cmt}</textarea>
     <button class="btn" id="flagCommentBtn" style="margin-top:4px;width:100%;${on ? "" : "display:none"}">Save comment</button>
