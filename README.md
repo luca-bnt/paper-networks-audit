@@ -1,9 +1,24 @@
-# Network Analysis — Paper Networks Audit
+# Paper Networks Audit
 
-A standalone, zero-build web app for auditing hidden connections between manuscripts,
-plus the Python pipeline that produces its data snapshot from `service-aira`.
+Independent local repository for the **Paper Networks Audit** prototype, demo video,
+snapshot pipeline, and production planning docs.
 
-**Live:** https://network-analysis.temporary-static-webapp.frontiersin.net/
+**Live prototype:** https://network-analysis.temporary-static-webapp.frontiersin.net/  
+**GitHub:** https://github.com/luca-bnt/network-analysis  
+**Local path:** `/Users/luca.bontempi/Documents/Code/paper-networks-audit`
+
+## Repository layout
+
+```
+audit-network/          # static web app (deploy this folder)
+audit-network-demo/     # HyperFrames product demo video
+audit-pipeline/         # local pipeline cache (git-ignored dumps)
+docs/                   # PRD and production planning (start here)
+audit_snapshot.py       # service-aira → snapshot builder
+*.py                    # pipeline helpers
+```
+
+Product docs for the production implementation live in [`docs/`](./docs/) — begin with [`docs/PRD.md`](./docs/PRD.md).
 
 ## What it does
 
@@ -25,12 +40,14 @@ attributes, and drill down to validate them:
 - **Click-to-highlight** a node to isolate its connections (avoids clique noise).
 - **Compare** — a tabular modal of the papers in view, with shared values highlighted.
 
-## Layout
+## Layout (detail)
 
 ```
+docs/                   # PRD and production planning
 audit-network/          # the static app (deploy this folder)
   index.html            #   single-file vanilla JS + Canvas UI
   data/snapshot.json.gz #   dictionary-encoded, columnar, gzipped snapshot
+audit-network-demo/     # HyperFrames demo (narration.md = TTS script)
 audit_snapshot.py       # pipeline: fetch from service-aira -> build snapshot
 device_profile_id.py    # device fingerprint hashing (pipeline dep)
 papermill_scoring.py    # name/email similarity + scoring helpers (pipeline dep)
