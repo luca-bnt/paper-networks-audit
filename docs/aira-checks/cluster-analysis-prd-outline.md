@@ -171,10 +171,12 @@ Only **active** flags; removals delete or tombstone so B1 no longer sees them.
 
 ## Delivery
 
-1. Daily hub store build + flag sync  
-2. Evaluator (B1 / B2 → BLOCK \| PASS)  
-3. AIRA card UI  
-4. Deep-link to cluster investigation  
-5. Tests: field derivation; B1 / B2 / PASS; freshness  
-6. Rollout: replace old fingerprint / metadata-analysis check id
+Thin Jira trackers (QM): [QM-2480](https://jira.frontiersin.net/browse/QM-2480) — this PRD is the source of truth.
+
+1. Daily hub store build + flag sync — [QM-2481](https://jira.frontiersin.net/browse/QM-2481)  
+2. Evaluator (B1 / B2 → BLOCK \| PASS) — [QM-2482](https://jira.frontiersin.net/browse/QM-2482)  
+3. AIRA card UI — [QM-2483](https://jira.frontiersin.net/browse/QM-2483)  
+4. Deep-link to cluster investigation — [QM-2484](https://jira.frontiersin.net/browse/QM-2484)  
+5. Tests: field derivation; B1 / B2 / PASS; freshness — [QM-2485](https://jira.frontiersin.net/browse/QM-2485)  
+6. Rollout: replace old fingerprint / metadata-analysis check id — [QM-2486](https://jira.frontiersin.net/browse/QM-2486)
 
