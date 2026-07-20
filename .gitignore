@@ -18,3 +18,8 @@ flags-config.js
 
 # OS
 .DS_Store
+
+# HyperFrames demo
+audit-network-demo/output/
+audit-network-demo/node_modules/
+audit-network-demo/.media/

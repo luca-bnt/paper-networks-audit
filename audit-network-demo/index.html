@@ -1,0 +1,536 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>Paper Networks Audit — Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      :root {
+        --glass: rgba(255, 255, 255, 0.1);
+        --glass-border: rgba(255, 255, 255, 0.22);
+        --text: #ffffff;
+        --text-soft: rgba(255, 255, 255, 0.78);
+        --skel: rgba(255, 255, 255, 0.22);
+        --skel-hi: rgba(255, 255, 255, 0.34);
+        --cyan: #7ee8ff;
+        --mint: #9dffb8;
+        --coral: #ff7b9c;
+        --lavender: #c4b5ff;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: #0b1670;
+        font-family: Inter, system-ui, sans-serif;
+        color: var(--text);
+      }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+      #brand-bar {
+        position: absolute; top: 0; left: 0; right: 0; z-index: 20;
+        display: flex; align-items: center; gap: 14px;
+        padding: 32px 72px; pointer-events: none;
+      }
+      #brand-bar img { height: 28px; width: auto; display: block; }
+      .scene { position: absolute; inset: 0; }
+      .scene-bg {
+        position: absolute; inset: 0;
+        background:
+          radial-gradient(1200px 760px at 50% -12%, rgba(255, 255, 255, 0.22), transparent 56%),
+          radial-gradient(1000px 680px at 86% 116%, rgba(90, 130, 230, 0.32), transparent 60%),
+          radial-gradient(ellipse 640px 420px at 10% 88%, rgba(60, 100, 210, 0.22) 0%, transparent 58%),
+          linear-gradient(162deg, #0e1878 0%, #101e93 28%, #1a32c4 58%, #1e38b0 100%);
+      }
+      .scene-head {
+        position: absolute; top: 90px; left: 72px; right: 72px; z-index: 2;
+      }
+      .scene-label-wrap {
+        position: absolute; top: 30px; right: 72px; z-index: 21;
+        overflow: hidden; margin: 0; text-align: right;
+      }
+      .scene-label {
+        display: inline-flex; align-items: center; justify-content: center;
+        height: 32px; padding: 0 16px; border-radius: 999px;
+        font-size: 12px; font-weight: 600;
+        letter-spacing: 0.16em; text-transform: uppercase; color: var(--cyan);
+        background: rgba(126, 232, 255, 0.16);
+        border: 1px solid rgba(126, 232, 255, 0.45);
+        box-shadow: 0 0 20px rgba(126, 232, 255, 0.12);
+      }
+      .title-wrap { overflow: hidden; padding-bottom: 0.06em; }
+      .scene-title {
+        font-size: 48px; font-weight: 700; letter-spacing: -0.035em;
+        line-height: 1.05; max-width: 860px;
+      }
+      .sub-wrap { overflow: hidden; margin-top: 10px; max-width: 760px; }
+      .scene-sub { font-size: 17px; color: var(--text-soft); line-height: 1.45; }
+      .mock {
+        position: absolute; border: 1px solid var(--glass-border); border-radius: 24px;
+        background: var(--glass);
+        box-shadow: 0 28px 90px rgba(4, 30, 100, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        overflow: hidden;
+      }
+      .skel { display: block; height: 9px; border-radius: 999px; background: var(--skel); }
+      .skel.h12 { height: 11px; }
+      .skel.w48 { width: 48px; } .skel.w64 { width: 64px; } .skel.w80 { width: 80px; }
+      .skel.w96 { width: 96px; } .skel.w120 { width: 120px; } .skel.w140 { width: 140px; }
+      .skel.w160 { width: 160px; }
+      .skel-row { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+      .chip {
+        display: inline-flex; align-items: center; justify-content: center;
+        min-width: 32px; height: 26px; padding: 0 10px; border-radius: 999px;
+        font-size: 11px; font-weight: 600;
+        background: rgba(255, 255, 255, 0.14); border: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .chip.on { background: rgba(126, 232, 255, 0.28); border-color: rgba(126, 232, 255, 0.5); color: var(--cyan); }
+      .chip.sq { border-radius: 4px; width: 11px; min-width: 11px; height: 11px; padding: 0; }
+      .track { display: inline-flex; gap: 3px; font-size: 11px; }
+      .track i { font-style: normal; opacity: 0.22; }
+      .track i.on { opacity: 1; }
+      .track .seen.on { color: var(--cyan); }
+      .track .chk.on { color: var(--lavender); }
+      .track .flag.on { color: var(--coral); }
+      .ui-label { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(255,255,255,0.55); }
+      .ui-text { font-size: 13px; color: var(--text); }
+      .ui-muted { font-size: 12px; color: var(--text-soft); }
+
+      #intro-center {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        text-align: center; gap: 22px;
+      }
+      #intro-logo img {
+        height: 68px; width: auto; display: block;
+        filter: drop-shadow(0 8px 28px rgba(0, 0, 0, 0.28));
+      }
+      #intro-title { font-size: 72px; font-weight: 700; letter-spacing: -0.04em; line-height: 1; }
+      #intro-title .w { display: inline-block; margin: 0 0.12em; }
+      #intro-tag-wrap { overflow: hidden; max-width: 680px; }
+      #intro-tag { font-size: 20px; color: var(--text-soft); line-height: 1.45; }
+
+      #mock-app-clusters {
+        left: 72px; right: 72px; top: 220px; height: 788px;
+        display: grid; grid-template-columns: 288px 1fr 296px;
+      }
+      .pane { padding: 26px 22px; border-right: 1px solid rgba(255, 255, 255, 0.1);
+        display: flex; flex-direction: column; }
+      .pane:last-child { border-right: none; }
+      .pane-label { margin-bottom: 18px; }
+      .filter-item { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+      .toggle {
+        width: 16px; height: 16px; border-radius: 5px; flex: none;
+        border: 1px solid rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.08);
+      }
+      .toggle.on { background: rgba(126, 232, 255, 0.45); border-color: var(--cyan); }
+      .list-item { padding: 18px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08); }
+      .list-item.sel {
+        background: rgba(255, 255, 255, 0.06); margin: 0 -22px; padding: 18px 22px;
+        border-left: 3px solid var(--cyan);
+      }
+      .graph-area { position: relative; background: rgba(0, 20, 80, 0.2); }
+      .graph-svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+      .graph-svg line { stroke: rgba(255, 255, 255, 0.38); stroke-width: 2; stroke-linecap: round; }
+      .graph-node {
+        position: absolute; border-radius: 50%;
+        border: 2px solid rgba(255, 255, 255, 0.4);
+        box-shadow: 0 6px 20px rgba(0, 40, 120, 0.28);
+        transform: translate(-50%, -50%);
+      }
+      .graph-node.hub {
+        border-radius: 12px; border-color: var(--lavender);
+        background: rgba(196, 181, 255, 0.4);
+      }
+      .graph-node.p1 { background: var(--coral); }
+      .graph-node.p2 { background: #ffb86c; }
+      .graph-node.p3 { background: var(--mint); }
+
+      #mock-compare {
+        left: 72px; right: 72px; top: 220px; height: 788px; padding: 28px 34px;
+        display: flex; flex-direction: column;
+      }
+      .cmp-head { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; }
+      .cmp-head h4 { font-size: 15px; font-weight: 600; margin-right: auto; }
+      .btn {
+        padding: 6px 12px; border-radius: 8px; font-size: 12px;
+        border: 1px solid rgba(255,255,255,0.2); background: rgba(255,255,255,0.1); color: var(--text);
+      }
+      .cmp-grid {
+        display: grid;
+        grid-template-columns: 68px 84px 48px 1.1fr 1.2fr 52px 88px 88px;
+        gap: 0 14px; align-items: center;
+        flex: 1; grid-auto-rows: min-content; align-content: space-between;
+      }
+      .cmp-grid .hdr {
+        padding: 8px 0 10px; font-size: 10px; font-weight: 600;
+        letter-spacing: 0.04em; text-transform: uppercase; color: rgba(255,255,255,0.5);
+        border-bottom: 1px solid rgba(255,255,255,0.12);
+      }
+      .cmp-row { display: contents; }
+      .cmp-row > div {
+        padding: 14px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        min-height: 52px; display: flex; align-items: center;
+      }
+      .cmp-row.sel > div {
+        background: rgba(255, 255, 255, 0.07); margin: 0 -6px; padding: 11px 6px;
+        border-radius: 10px; border-bottom-color: transparent;
+      }
+      .cmp-row .share .skel { background: rgba(126, 232, 255, 0.4); }
+
+      #mock-tracking {
+        left: 72px; right: 72px; top: 220px; height: 788px; padding: 40px 44px;
+        display: flex; flex-direction: column;
+      }
+      .track-grid {
+        flex: 1; display: grid; grid-template-columns: repeat(2, 1fr);
+        grid-auto-rows: 1fr; gap: 28px;
+      }
+      .track-card {
+        border: 1px solid rgba(255, 255, 255, 0.16); border-radius: 20px;
+        background: rgba(255, 255, 255, 0.08); padding: 34px 38px;
+        display: flex; flex-direction: column; justify-content: center; gap: 14px;
+      }
+      .track-card .icon { font-size: 46px; line-height: 1; }
+      .track-card h5 { font-size: 24px; font-weight: 600; }
+      .track-card p { font-size: 15px; color: var(--text-soft); line-height: 1.5; max-width: 34ch; }
+
+      #mock-flags {
+        left: 72px; right: 72px; top: 220px; height: 788px; padding: 36px 44px;
+        display: flex; flex-direction: column;
+      }
+      .flag-toolbar { display: flex; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+      .flag-toolbar .btn { font-size: 14px; padding: 10px 18px; }
+      .btn.hot { background: rgba(255, 123, 156, 0.35); border-color: rgba(255, 123, 156, 0.55); }
+      .flag-list { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+      .flag-row {
+        display: grid; grid-template-columns: 24px 96px 120px 1fr;
+        gap: 18px; align-items: center;
+        padding: 18px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        font-size: 15px;
+      }
+      .flag-row:last-child { border-bottom: none; }
+      .flag-dot { color: var(--coral); font-size: 18px; }
+      .flag-by { color: var(--text-soft); }
+      .flag-cmt { color: var(--text); line-height: 1.4; }
+
+      #outro-box {
+        position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+        text-align: center; width: 880px;
+      }
+      #outro-title { font-size: 52px; font-weight: 700; letter-spacing: -0.035em; line-height: 1.08; }
+      #outro-sub { margin-top: 16px; font-size: 18px; color: var(--text-soft); line-height: 1.45; }
+      #outro-url {
+        margin: 24px auto 0; max-width: 680px; padding: 16px 24px; border-radius: 14px;
+        border: 1px solid rgba(255, 255, 255, 0.25); background: rgba(255, 255, 255, 0.12);
+        font-size: 14px; font-weight: 500; color: #c8f4ff;
+      }
+      #outro-note-wrap { overflow: hidden; margin-top: 14px; }
+      #outro-note { font-size: 14px; color: var(--text-soft); text-transform: uppercase; letter-spacing: 0.08em; }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="51.71" data-width="1920" data-height="1080">
+      <div id="brand-bar">
+        <img src="assets/frontiers.png" alt="Frontiers" />
+      </div>
+
+      <audio id="bgm" class="clip" src="assets/bgm/track.wav" data-start="0" data-duration="51.71" data-volume="0.12"></audio>
+      <audio id="vo-intro" class="clip" src="assets/voice/intro.wav" data-start="0.4" data-duration="9.02" data-volume="1"></audio>
+      <audio id="vo-clusters" class="clip" src="assets/voice/clusters.wav" data-start="9.77" data-duration="7.98" data-volume="1"></audio>
+      <audio id="vo-compare" class="clip" src="assets/voice/compare.wav" data-start="18.1" data-duration="7.85" data-volume="1"></audio>
+      <audio id="vo-tracking" class="clip" src="assets/voice/tracking.wav" data-start="26.3" data-duration="7.74" data-volume="1"></audio>
+      <audio id="vo-flags" class="clip" src="assets/voice/flags.wav" data-start="34.4" data-duration="7.45" data-volume="1"></audio>
+      <audio id="vo-outro" class="clip" src="assets/voice/outro.wav" data-start="42.19" data-duration="7.98" data-volume="1"></audio>
+
+      <section id="scene-intro" class="clip scene" data-start="0.0" data-duration="9.97" data-track-index="1">
+        <div class="scene-bg"></div>
+        <div id="intro-center">
+          <div id="intro-logo"><img src="assets/frontiers.png" alt="Frontiers" /></div>
+          <h1 id="intro-title"><span class="w">Paper</span><span class="w">Networks</span><span class="w">Audit</span></h1>
+          <div id="intro-tag-wrap"><p id="intro-tag">Find suspicious paper clusters — shared IP, email, device, and Word metadata</p></div>
+        </div>
+      </section>
+
+      <section id="scene-clusters" class="clip scene" data-start="9.37" data-duration="8.93" data-track-index="2">
+        <div class="scene-bg"></div>
+        <div class="scene-head">
+          <div class="scene-label-wrap"><span class="scene-label" id="lbl-clusters">Explore</span></div>
+          <div class="title-wrap"><h2 class="scene-title" id="title-clusters">Discover clusters</h2></div>
+          <div class="sub-wrap"><p class="scene-sub" id="sub-clusters">Filter by journal, status, and connection type. View clusters on the graph.</p></div>
+        </div>
+        <div id="mock-app-clusters" class="mock">
+          <div class="pane" id="cluster-filters">
+            <div class="pane-label ui-label">Connection type</div>
+            <div class="filter-item"><span class="toggle on"></span><span class="ui-text">IP address</span></div>
+            <div class="filter-item"><span class="toggle on"></span><span class="ui-text">Device fingerprint</span></div>
+            <div class="filter-item"><span class="toggle on"></span><span class="ui-text">Locale</span></div>
+            <div class="filter-item"><span class="toggle on"></span><span class="ui-text">WD author</span></div>
+            <div class="pane-label ui-label" style="margin-top:18px">Filters</div>
+            <div class="filter-item"><span class="toggle on"></span><span class="ui-text">Different authors</span></div>
+            <div class="filter-item"><span class="toggle on"></span><span class="ui-text">Different orgs</span></div>
+          </div>
+          <div class="graph-area" id="cluster-graph">
+            <svg class="graph-svg" viewBox="0 0 720 520" preserveAspectRatio="xMidYMid meet">
+              <line class="graph-edge" x1="360" y1="260" x2="210" y2="130"/>
+              <line class="graph-edge" x1="360" y1="260" x2="248" y2="390"/>
+              <line class="graph-edge" x1="360" y1="260" x2="470" y2="118"/>
+              <line class="graph-edge" x1="360" y1="260" x2="528" y2="318"/>
+              <line class="graph-edge" x1="360" y1="260" x2="558" y2="418"/>
+            </svg>
+            <div class="graph-node hub" style="left:50%;top:50%;width:68px;height:68px"></div>
+            <div class="graph-node p1" style="left:29.2%;top:25%;width:28px;height:28px"></div>
+            <div class="graph-node p2" style="left:34.4%;top:75%;width:26px;height:26px"></div>
+            <div class="graph-node p2" style="left:65.3%;top:22.7%;width:28px;height:28px"></div>
+            <div class="graph-node p3" style="left:73.3%;top:61.2%;width:24px;height:24px"></div>
+            <div class="graph-node p1" style="left:77.5%;top:80.4%;width:30px;height:30px"></div>
+          </div>
+          <div class="pane" id="cluster-list">
+            <div class="pane-label ui-label">Connections</div>
+            <div class="list-item sel">
+              <div class="skel-row"><span class="chip sq" style="background:var(--lavender)"></span><span class="chip sq" style="background:#ffb86c"></span><span class="ui-muted">2 types</span></div>
+              <div class="skel-row"><span class="skel w160 h12"></span></div>
+              <div class="skel-row"><span class="chip on">6 papers</span><span class="chip">4 authors</span></div>
+            </div>
+            <div class="list-item">
+              <div class="skel-row"><span class="chip sq" style="background:var(--lavender)"></span><span class="ui-muted">IP</span></div>
+              <div class="skel-row"><span class="skel w120 h12"></span></div>
+              <div class="skel-row"><span class="chip">4 papers</span></div>
+            </div>
+            <div class="list-item">
+              <div class="skel-row"><span class="chip sq" style="background:var(--mint)"></span><span class="chip sq" style="background:var(--cyan)"></span><span class="ui-muted">2 types</span></div>
+              <div class="skel-row"><span class="skel w140 h12"></span></div>
+              <div class="skel-row"><span class="chip">5 papers</span><span class="chip">3 orgs</span></div>
+            </div>
+            <div class="list-item">
+              <div class="skel-row"><span class="chip sq" style="background:#ffb86c"></span><span class="ui-muted">Device</span></div>
+              <div class="skel-row"><span class="skel w120 h12"></span></div>
+              <div class="skel-row"><span class="chip">3 papers</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-compare" class="clip scene" data-start="17.7" data-duration="8.8" data-track-index="3">
+        <div class="scene-bg"></div>
+        <div class="scene-head">
+          <div class="scene-label-wrap"><span class="scene-label" id="lbl-compare">Compare</span></div>
+          <div class="title-wrap"><h2 class="scene-title" id="title-compare">Side-by-side review</h2></div>
+          <div class="sub-wrap"><p class="scene-sub" id="sub-compare">Shared attributes light up in colour. Sort columns, bulk flag, or resolve.</p></div>
+        </div>
+        <div id="mock-compare" class="mock">
+          <div class="cmp-head">
+            <h4>Compare papers · 6 rows</h4>
+            <span class="btn">Copy</span><span class="btn">Close</span>
+          </div>
+          <div class="cmp-grid" id="cmp-grid">
+            <div class="hdr">Trk</div><div class="hdr">ID</div><div class="hdr">St</div>
+            <div class="hdr">Author</div><div class="hdr">Email</div><div class="hdr">Sim</div>
+            <div class="hdr">IP</div><div class="hdr">Device</div>
+            <div class="cmp-row sel" id="cmp-row-1">
+              <div><span class="track"><i class="seen on">👁</i><i class="chk on">↗</i><i class="flag">⚑</i></span></div>
+              <div><span class="chip on">1911972</span></div>
+              <div><span class="skel w48"></span></div>
+              <div><span class="skel w96"></span></div>
+              <div class="share"><span class="skel w140"></span></div>
+              <div><span class="skel w48"></span></div>
+              <div class="share"><span class="skel w80"></span></div>
+              <div class="share"><span class="skel w80"></span></div>
+            </div>
+            <div class="cmp-row" id="cmp-row-2">
+              <div><span class="track"><i class="seen on">👁</i><i class="flag on">⚑</i></span></div>
+              <div><span class="chip">1912044</span></div>
+              <div><span class="skel w48"></span></div>
+              <div><span class="skel w96"></span></div>
+              <div class="share"><span class="skel w120"></span></div>
+              <div><span class="skel w48"></span></div>
+              <div class="share"><span class="skel w80"></span></div>
+              <div class="share"><span class="skel w80"></span></div>
+            </div>
+            <div class="cmp-row" id="cmp-row-3">
+              <div><span class="track"><i class="seen on">👁</i><i class="chk">↗</i><i class="flag">⚑</i></span></div>
+              <div><span class="chip">1868615</span></div>
+              <div><span class="skel w48"></span></div>
+              <div><span class="skel w96"></span></div>
+              <div class="share"><span class="skel w140"></span></div>
+              <div><span class="skel w48"></span></div>
+              <div><span class="skel w80"></span></div>
+              <div class="share"><span class="skel w80"></span></div>
+            </div>
+            <div class="cmp-row" id="cmp-row-4">
+              <div><span class="track"><i class="seen on">👁</i><i class="chk">↗</i><i class="flag">⚑</i></span></div>
+              <div><span class="chip">1900442</span></div>
+              <div><span class="skel w48"></span></div>
+              <div><span class="skel w96"></span></div>
+              <div class="share"><span class="skel w120"></span></div>
+              <div><span class="skel w48"></span></div>
+              <div class="share"><span class="skel w80"></span></div>
+              <div class="share"><span class="skel w80"></span></div>
+            </div>
+            <div class="cmp-row" id="cmp-row-5">
+              <div><span class="track"><i class="seen">👁</i><i class="chk">↗</i><i class="flag">⚑</i></span></div>
+              <div><span class="chip">1887301</span></div>
+              <div><span class="skel w48"></span></div>
+              <div><span class="skel w96"></span></div>
+              <div><span class="skel w140"></span></div>
+              <div><span class="skel w48"></span></div>
+              <div class="share"><span class="skel w80"></span></div>
+              <div><span class="skel w80"></span></div>
+            </div>
+            <div class="cmp-row" id="cmp-row-6">
+              <div><span class="track"><i class="seen on">👁</i><i class="chk">↗</i><i class="flag on">⚑</i></span></div>
+              <div><span class="chip">1893550</span></div>
+              <div><span class="skel w48"></span></div>
+              <div><span class="skel w96"></span></div>
+              <div class="share"><span class="skel w140"></span></div>
+              <div><span class="skel w48"></span></div>
+              <div class="share"><span class="skel w80"></span></div>
+              <div class="share"><span class="skel w80"></span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-tracking" class="clip scene" data-start="25.9" data-duration="8.69" data-track-index="4">
+        <div class="scene-bg"></div>
+        <div class="scene-head">
+          <div class="scene-label-wrap"><span class="scene-label" id="lbl-tracking">Collaborate</span></div>
+          <div class="title-wrap"><h2 class="scene-title" id="title-tracking">Team tracking</h2></div>
+          <div class="sub-wrap"><p class="scene-sub" id="sub-tracking">See who opened, checked, resolved, or flagged each paper — synced for the whole team.</p></div>
+        </div>
+        <div id="mock-tracking" class="mock">
+          <div class="track-grid">
+            <div class="track-card" id="card-seen">
+              <div class="icon" style="color:var(--cyan)">👁</div>
+              <h5>Seen</h5>
+              <p>Auto-recorded when a paper is opened in compare, detail, or the graph.</p>
+            </div>
+            <div class="track-card" id="card-checked">
+              <div class="icon" style="color:var(--lavender)">↗</div>
+              <h5>Checked</h5>
+              <p>Review link opened — someone entered the Frontiers review workflow.</p>
+            </div>
+            <div class="track-card" id="card-resolved">
+              <div class="icon" style="color:var(--mint)">✓</div>
+              <h5>Resolved</h5>
+              <p>Marked non-problematic after investigation.</p>
+            </div>
+            <div class="track-card" id="card-flagged">
+              <div class="icon" style="color:var(--coral)">⚑</div>
+              <h5>Flagged</h5>
+              <p>Marked manufactured with optional comment and flagger name.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-flags" class="clip scene" data-start="34.0" data-duration="8.4" data-track-index="5">
+        <div class="scene-bg"></div>
+        <div class="scene-head">
+          <div class="scene-label-wrap"><span class="scene-label" id="lbl-flags">Export</span></div>
+          <div class="title-wrap"><h2 class="scene-title" id="title-flags">Flags &amp; audit trail</h2></div>
+          <div class="sub-wrap"><p class="scene-sub" id="sub-flags">Full flag history for audits — who flagged, when, and why.</p></div>
+        </div>
+        <div id="mock-flags" class="mock">
+          <div class="flag-toolbar">
+            <span class="btn hot">⚑ 24 flagged</span>
+            <span class="btn">↓ CSV export</span>
+            <span class="btn">Manager summary</span>
+          </div>
+          <div class="flag-list">
+            <div class="flag-row"><span class="flag-dot">⚑</span><span class="chip on">1912044</span><span class="flag-by">Anna K.</span><span class="flag-cmt">Shared device + low name/email similarity</span></div>
+            <div class="flag-row"><span class="flag-dot">⚑</span><span class="chip">1868615</span><span class="flag-by">Luca B.</span><span class="flag-cmt">Identical Word author metadata across cluster</span></div>
+            <div class="flag-row"><span class="flag-dot">⚑</span><span class="chip">1900442</span><span class="flag-by">Team audit</span><span class="flag-cmt">IP overlap with known papermill ring</span></div>
+            <div class="flag-row"><span class="flag-dot">⚑</span><span class="chip">1887301</span><span class="flag-by">Marco R.</span><span class="flag-cmt">Same IP + locale across four unrelated submissions</span></div>
+            <div class="flag-row"><span class="flag-dot">⚑</span><span class="chip">1893550</span><span class="flag-by">Anna K.</span><span class="flag-cmt">Reused corresponding-author email on distinct manuscripts</span></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="scene-outro" class="clip scene" data-start="41.79" data-duration="9.92" data-track-index="6">
+        <div class="scene-bg"></div>
+        <div id="outro-box">
+          <div class="title-wrap" style="overflow:hidden"><h2 id="outro-title">Shareable state</h2></div>
+          <p id="outro-sub">Filters, focused cluster, compare panel, and selected article — all encoded in the URL.</p>
+          <div id="outro-url">network-analysis · filters · cluster · compare</div>
+          <div id="outro-note-wrap"><p id="outro-note">Paper Networks Audit</p></div>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      const revealTitle = (sel, t) => {
+        tl.from(sel, { yPercent: 110, opacity: 0, rotateX: -14, transformOrigin: "50% 100%", duration: 0.72, ease: "expo.out" }, t);
+      };
+      const revealLabel = (sel, t) => {
+        tl.from(sel, { x: -22, opacity: 0, filter: "blur(8px)", duration: 0.55, ease: "power4.out" }, t);
+      };
+      const revealSub = (sel, t) => {
+        tl.from(sel, { y: 18, opacity: 0, filter: "blur(6px)", duration: 0.6, ease: "power3.out" }, t);
+      };
+      const fadeScene = (sel, t) => {
+        tl.to(sel, { opacity: 0, duration: 0.38, ease: "power2.inOut" }, t);
+      };
+
+      // Intro (0–9.37s)
+      tl.from("#brand-bar", { y: -16, opacity: 0, duration: 0.55, ease: "power3.out" }, 0);
+      tl.from("#intro-logo img", { scale: 0.45, opacity: 0, rotation: -10, duration: 0.65, ease: "elastic.out(1, 0.7)" }, 0.08);
+      tl.from("#intro-title .w", { yPercent: 115, opacity: 0, rotateX: -22, transformOrigin: "50% 100%", duration: 0.75, stagger: 0.07, ease: "expo.out" }, 0.22);
+      tl.from("#intro-tag", { y: 16, opacity: 0, filter: "blur(8px)", duration: 0.55, ease: "power3.out" }, 0.55);
+      fadeScene("#scene-intro", 9.49);
+
+      // Clusters (9.37–17.70s)
+      revealLabel("#lbl-clusters", 9.42);
+      revealTitle("#title-clusters", 9.52);
+      revealSub("#sub-clusters", 9.65);
+      tl.from("#mock-app-clusters", { y: 56, opacity: 0, scale: 0.97, duration: 0.75, ease: "expo.out" }, 9.72);
+      tl.from("#cluster-filters .filter-item", { x: -18, opacity: 0, duration: 0.32, stagger: 0.04, ease: "power3.out" }, 10.02);
+      tl.from("#cluster-graph .graph-node", { scale: 0, opacity: 0, duration: 0.38, stagger: 0.05, ease: "back.out(2)" }, 10.19);
+      tl.from("#cluster-graph .graph-edge", { opacity: 0, duration: 0.35, stagger: 0.05, ease: "power2.out" }, 10.25);
+      tl.from("#cluster-list .list-item", { x: 20, opacity: 0, duration: 0.32, stagger: 0.08, ease: "power3.out" }, 10.42);
+      fadeScene("#scene-clusters", 17.82);
+
+      // Compare (17.70–25.90s)
+      revealLabel("#lbl-compare", 17.75);
+      revealTitle("#title-compare", 17.85);
+      revealSub("#sub-compare", 17.95);
+      tl.from("#mock-compare", { y: 48, opacity: 0, scale: 0.98, duration: 0.68, ease: "expo.out" }, 18.02);
+      tl.from("#mock-compare .hdr", { y: 10, opacity: 0, duration: 0.28, stagger: 0.03, ease: "power2.out" }, 18.35);
+      tl.from("#cmp-row-1 > div, #cmp-row-2 > div", { y: 12, opacity: 0, duration: 0.3, stagger: 0.02, ease: "power3.out" }, 18.55);
+      tl.from("#cmp-row-3 > div, #cmp-row-4 > div, #cmp-row-5 > div, #cmp-row-6 > div", { y: 10, opacity: 0, duration: 0.28, stagger: 0.015, ease: "power2.out" }, 18.75);
+      tl.fromTo("#cmp-row-1 .share .skel", { backgroundColor: "rgba(126,232,255,0.12)" }, { backgroundColor: "rgba(126,232,255,0.5)", duration: 0.4, repeat: 1, yoyo: true, ease: "sine.inOut" }, 19.25);
+      fadeScene("#scene-compare", 26.02);
+
+      // Tracking (25.90–34.00s)
+      revealLabel("#lbl-tracking", 25.95);
+      revealTitle("#title-tracking", 26.05);
+      revealSub("#sub-tracking", 26.15);
+      tl.from("#mock-tracking", { scale: 0.94, opacity: 0, duration: 0.65, ease: "expo.out" }, 26.22);
+      tl.from(".track-card", { y: 28, opacity: 0, duration: 0.48, stagger: 0.07, ease: "back.out(1.4)" }, 26.55);
+      tl.to("#card-seen", { boxShadow: "0 0 0 2px rgba(126,232,255,0.75), 0 0 32px rgba(126,232,255,0.3)", duration: 0.35, ease: "power2.out" }, 27.25);
+      tl.to("#card-flagged", { boxShadow: "0 0 0 2px rgba(255,123,156,0.75), 0 0 32px rgba(255,123,156,0.28)", duration: 0.35, ease: "power2.out" }, 27.55);
+      fadeScene("#scene-tracking", 34.11);
+
+      // Flags (34.00–41.79s)
+      revealLabel("#lbl-flags", 34.05);
+      revealTitle("#title-flags", 34.15);
+      revealSub("#sub-flags", 34.25);
+      tl.from("#mock-flags", { y: 36, opacity: 0, duration: 0.65, ease: "expo.out" }, 34.32);
+      tl.from(".flag-toolbar .btn", { y: 10, opacity: 0, scale: 0.92, duration: 0.32, stagger: 0.06, ease: "back.out(1.3)" }, 34.60);
+      tl.from(".flag-row", { x: 24, opacity: 0, duration: 0.32, stagger: 0.08, ease: "power3.out" }, 34.75);
+      fadeScene("#scene-flags", 41.92);
+
+      // Outro (41.79–51.71s)
+      revealTitle("#outro-title", 41.84);
+      revealSub("#outro-sub", 42.14);
+      tl.from("#outro-url", { y: 18, opacity: 0, scale: 0.94, filter: "blur(6px)", duration: 0.65, ease: "expo.out" }, 42.34);
+      tl.from("#outro-note", { y: 12, opacity: 0, duration: 0.5, ease: "power3.out" }, 42.69);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
