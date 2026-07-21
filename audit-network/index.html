@@ -483,6 +483,7 @@
             <li><b>Only flagged clusters</b>, <b>hide all-rejected clusters</b>, <b>low name/email similarity</b>.</li>
             <li><b>Journal</b> and <b>status</b> (rejected only / active only).</li>
             <li><b>Min papers</b> and sort by size, distinct authors, or distinct orgs.</li>
+            <li>List header shows <b>cluster count</b> and <b>unique papers</b> across those filtered clusters (a paper in several clusters is counted once).</li>
             <li><b>Search</b> — paste article IDs (comma, tab, or line separated) or a connection value to jump to it.</li>
           </ul>
         </div>
@@ -2455,11 +2456,23 @@ function maybeFocusArticleSearch() {
   return true;
 }
 
+/** Unique manuscripts across a list of cluster units (papers may sit in several clusters). */
+function uniquePaperCount(units) {
+  const seen = new Set();
+  for (const u of units) for (const r of u.rows) seen.add(r);
+  return seen.size;
+}
+function formatClusterPaperCount(nClusters, nPapers) {
+  const c = nClusters.toLocaleString(), p = nPapers.toLocaleString();
+  const cl = nClusters === 1 ? "cluster" : "clusters";
+  const pl = nPapers === 1 ? "paper" : "papers";
+  return `(${c} ${cl} · ${p} ${pl})`;
+}
 function renderUnits() {
   const list = currentUnits();
   const rxOnly = regexOn() && activeAttrs().length === 0;
   $("listTitle").textContent = rxOnly ? "Emails matching pattern" : andMode() ? "Multi-type clusters" : "Connections";
-  $("bucketCount").textContent = `(${list.length.toLocaleString()})`;
+  $("bucketCount").textContent = formatClusterPaperCount(list.length, uniquePaperCount(list));
   const box = $("bucketList"); box.innerHTML = "";
   if (!list.length) {
     const idSearch = parseArticleIdSearch($("fSearch").value);
