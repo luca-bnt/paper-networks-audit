@@ -46,52 +46,50 @@ Do **not** use `email`, `wdCompany`, or `authorIp`.
 | `wdAuthor`, `wdEditedBy` | Parsed from indicator definition **75** (Word doc properties). Generic values dropped via `GENERIC_WD` stoplist                                                                                                                                                                                                                                                                                                  |
 
 
-A **hub** = articles sharing the same non-empty value for one field, size between 5 and the field cap (`ip`/`device`: 120; `wd`*: 40; `locale`: 25).
+A **hub** = articles sharing the same non-empty value for one field, size between 5 and the field cap (`ip`/`device`: 120; `wd*`: 40; `locale`: 25).
 
 ---
 
+## Attached filters (fixed preset)
 
+Same meaning as the explorer filters below. A hub is **kept** for the subject only if **all** hold; otherwise the subject is **excluded** from that hub for this check.
 
-## Hub filters
+**Connection types in scope:** `ip`, `device`, `locale`, `wdAuthor`, `wdEditedBy` (not `email`, not `wdCompany`).
 
-A hub is usable for the subject article only if all hold:
+| Filter | Rule |
+| ------ | ---- |
+| Different submitting authors | Hub has ≥ 2 distinct submitting authors |
+| Different organisations | Hub has ≥ 2 distinct organisations |
+| Author dominance | Subject’s submitting author appears on **≤ 50%** of hub members. If share **> 50%**, discard the hub for this subject |
+| Window / size | 90-day window; hub size within field min…cap |
 
-1. ≥ 2 distinct submitting authors
-2. ≥ 2 distinct organisations
-3. Subject’s submitting author appears on **≤ 50%** of hub members
-4. Hub is within the 90-day window and within the field cap
-
-`locale` hubs may appear on the card (chips / matches) but **do not** satisfy the network/device half of BLOCK rule B1.
+`locale` hubs may appear on the card (chips / matches) but **do not** satisfy the network/device half of B1.
 
 ---
-
-
 
 ## Outcomes
 
+### BLOCK — any of the following
 
-
-### BLOCK — either condition
+**B0 — Not excluded by attached filters**  
+Subject belongs to **at least one** hub that passes the attached filters above (including author share ≤ 50%).  
+If every candidate hub is discarded by those filters, B0 does not fire.
 
 **B1 — Flagged peer**  
-Exists peer `P` that is **integrity-flagged** (active flag record for `P`), and subject shares with `P`:
+Exists peer `P` that is **integrity-flagged**, and subject shares with `P`:
 
-- `(ip OR device)`   
-**and**  
-- `(wdAuthor OR wdEditedBy)`
+- `(ip OR device)` **and** `(wdAuthor OR wdEditedBy)`  
 
-on hubs that pass the filters above.
+on hubs that pass the attached filters.
 
 **B2 — Word document properties**  
 The existing standalone Word-document-properties check already returned **BLOCK** for this article.
 
 ### PASS
 
-Neither B1 nor B2. Qualifying hubs alone do not change the outcome.
+None of B0, B1, B2.
 
 ---
-
-
 
 ## Evaluator
 
@@ -101,11 +99,14 @@ output:  BLOCK | PASS, card payload, deep-link
 
 1. If no record for A → PASS (or N/A per platform convention).
 2. If wdPropsOutcome(A) == BLOCK → BLOCK (B2).
-3. Collect qualifying hubs for A on {ip, device, locale, wdAuthor, wdEditedBy}.
-4. For each flagged peer P in those hubs:
+3. Collect hubs for A on {ip, device, locale, wdAuthor, wdEditedBy}.
+4. Keep only hubs that pass attached filters
+   (nAuthors≥2, nOrgs≥2, authorShare(A)≤0.5, size/caps/window).
+5. If any hub remains → BLOCK (B0).
+6. For each flagged peer P in remaining hubs:
      if shares(A,P,{ip,device}) and shares(A,P,{wdAuthor,wdEditedBy}) → BLOCK (B1).
-5. Else → PASS.
-6. On BLOCK: card fields above; chips = shared fields with each listed peer;
+7. Else if not already BLOCK → PASS.
+8. On BLOCK: card fields above; chips = shared fields with each listed peer;
    deep-link focuses A and the strongest evidence hub
    (prefer larger hub; then device > ip > wdAuthor > wdEditedBy > locale).
 ```
