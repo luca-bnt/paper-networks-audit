@@ -1910,6 +1910,9 @@ async function fetchSnapshot(url) {
 async function boot() {
   try { D = await fetchSnapshot("data/snapshot.json.gz"); }
   catch (e) { $("meta").textContent = "Failed to load snapshot — serve over http (not file://). " + e.message; return; }
+  articleIdToRow = null;
+  articleIdScope = null;
+  articleIdScopeRaw = null;
   attrs = D.meta.attributes.filter(a => a !== "authorIp");
   for (const attr of attrs)
     for (const [ref, rows, nN, nO] of (D.index[attr] || [])) {
@@ -2236,13 +2239,53 @@ function parseArticleIdSearch(raw) {
   }
   return { ids, ordered };
 }
+let articleIdToRow = null; // Map<articleId, rowIdx> — built once per snapshot
+function rowForArticleId(aid) {
+  if (!articleIdToRow) {
+    articleIdToRow = new Map();
+    const ids = D.articles.id;
+    for (let r = 0; r < ids.length; r++) articleIdToRow.set(ids[r], r);
+  }
+  const r = articleIdToRow.get(aid);
+  return r == null ? -1 : r;
+}
+/** All search ids that exist in the snapshot and pass meta filters (not capped). */
 function searchArticleRows(idSearch) {
   const rows = [];
   for (const aid of idSearch.ordered) {
-    const r = D.articles.id.indexOf(aid);
-    if (r >= 0) rows.push(r);
+    const r = rowForArticleId(aid);
+    if (r < 0) continue;
+    if (!paperMatchesMetaFilter(r)) continue;
+    if ($("fFlaggedOnly").checked && !isFlagged(r)) continue;
+    rows.push(r);
   }
-  return rows.filter(r => paperMatchesMetaFilter(r) && (!$("fFlaggedOnly").checked || isFlagged(r))).slice(0, NODE_CAP);
+  return rows;
+}
+/** Counts for crumb / empty states: searched vs present in snapshot vs after filters. */
+function searchArticleStats(idSearch) {
+  let inSnapshot = 0;
+  const rows = [];
+  for (const aid of idSearch.ordered) {
+    const r = rowForArticleId(aid);
+    if (r < 0) continue;
+    inSnapshot++;
+    if (!paperMatchesMetaFilter(r)) continue;
+    if ($("fFlaggedOnly").checked && !isFlagged(r)) continue;
+    rows.push(r);
+  }
+  return { nSearched: idSearch.ordered.length, nInSnapshot: inSnapshot, rows };
+}
+function formatSearchSetCrumb(stats, extra) {
+  const { nSearched, nInSnapshot, rows } = stats;
+  let s = `<b>Search set</b> · ${rows.length.toLocaleString()} paper${rows.length === 1 ? "" : "s"} in scope`;
+  if (nInSnapshot < nSearched || rows.length < nInSnapshot) {
+    s += ` · ${nInSnapshot.toLocaleString()} of ${nSearched.toLocaleString()} searched ids in snapshot`;
+    if (rows.length < nInSnapshot) s += ` (${(nInSnapshot - rows.length).toLocaleString()} hidden by filters)`;
+  } else {
+    s += ` · ${nSearched.toLocaleString()} searched`;
+  }
+  if (extra) s += extra;
+  return s;
 }
 function sharedAttrsBetween(r1, r2) {
   const out = [];
@@ -2419,50 +2462,63 @@ function currentUnits() {
   return units;
 }
 
-// Article-id search: show a direct paper graph when clusters do not connect the set.
-function showArticleSearchGraph(papers, idSearch) {
-  const key = "search:" + idSearch.ordered.join(",");
+// Article-id search: show a direct paper graph when no connection types are selected.
+function showArticleSearchGraph(papers, idSearch, stats) {
+  const key = "search:" + idSearch.ordered.length + ":" + (papers[0] != null ? A("id", papers[0]) : "x");
   mode = "focus"; focusKey = key; selectedBucketKey = key; selected = null;
   renderList();
   $("btnOverview").disabled = false;
-  nodes = papers.map(r => ({ type: "paper", r, x: 0, y: 0 }));
+  // Graph render cap only — counts / scope use the full match set.
+  const graphPapers = papers.length > NODE_CAP ? papers.slice(0, NODE_CAP) : papers;
+  nodes = graphPapers.map(r => ({ type: "paper", r, x: 0, y: 0 }));
   edges = [];
-  for (let i = 0; i < papers.length; i++) for (let j = i + 1; j < papers.length; j++) {
-    const shared = sharedAttrsBetween(papers[i], papers[j]);
+  for (let i = 0; i < graphPapers.length; i++) for (let j = i + 1; j < graphPapers.length; j++) {
+    const shared = sharedAttrsBetween(graphPapers[i], graphPapers[j]);
     if (shared.length) edges.push({ a: i, b: j, w: shared.length, attr: shared[0], shared });
   }
   simEdges = [];
   const linkN = edges.length;
-  $("crumb").innerHTML = `<b>Search set</b> · ${papers.length} paper${papers.length > 1 ? "s" : ""}`
-    + (linkN ? ` · ${linkN} shared-attribute link${linkN > 1 ? "s" : ""}` : " · no shared attributes (check caps / connection types)");
+  const st = stats || { nSearched: idSearch.ordered.length, nInSnapshot: papers.length, rows: papers };
+  let extra = linkN ? ` · ${linkN} shared-attribute link${linkN > 1 ? "s" : ""}` : " · no shared attributes (check caps / connection types)";
+  if (papers.length > NODE_CAP) extra += ` · graph shows first ${NODE_CAP.toLocaleString()}`;
+  $("crumb").innerHTML = formatSearchSetCrumb(st, extra);
   updateHubFlags();
   finishGraph();
-  showSearchSetDetail(papers);
+  showSearchSetDetail(papers, st, graphPapers.length);
   syncShare();
 }
-function showSearchSetDetail(papers) {
+function showSearchSetDetail(papers, stats, graphN) {
   $("detailTitle").textContent = "Search set";
-  $("detailSub").textContent = `${papers.length} papers · lines on graph = any shared retained attribute`;
+  const st = stats || { nSearched: papers.length, nInSnapshot: papers.length, rows: papers };
+  const missing = st.nSearched - st.nInSnapshot;
+  $("detailSub").textContent = `${papers.length.toLocaleString()} in scope`
+    + (missing > 0 ? ` · ${missing.toLocaleString()} searched ids not in this snapshot` : "")
+    + (graphN != null && graphN < papers.length ? ` · graph capped at ${graphN.toLocaleString()}` : "")
+    + ` · lines = shared retained attributes`;
   const linkLines = [];
-  for (let i = 0; i < papers.length; i++) for (let j = i + 1; j < papers.length; j++) {
-    const shared = sharedAttrsBetween(papers[i], papers[j]);
+  const linkSrc = papers.length > NODE_CAP ? papers.slice(0, NODE_CAP) : papers;
+  for (let i = 0; i < linkSrc.length; i++) for (let j = i + 1; j < linkSrc.length; j++) {
+    const shared = sharedAttrsBetween(linkSrc[i], linkSrc[j]);
     if (!shared.length) continue;
-    linkLines.push(`<div class="conn muted" style="font-size:11px"><span class="aid" data-r="${papers[i]}">${A("id", papers[i])}</span> ↔ <span class="aid" data-r="${papers[j]}">${A("id", papers[j])}</span> · ${shared.map(a => ATTR_META[a].label).join(", ")}</div>`);
+    linkLines.push(`<div class="conn muted" style="font-size:11px"><span class="aid" data-r="${linkSrc[i]}">${A("id", linkSrc[i])}</span> ↔ <span class="aid" data-r="${linkSrc[j]}">${A("id", linkSrc[j])}</span> · ${shared.map(a => ATTR_META[a].label).join(", ")}</div>`);
   }
   const linkN = linkLines.length;
   $("detail").innerHTML = `<div class="section"><dl class="dl">
-      <div><dt>Papers</dt><dd>${papers.length}</dd></div>
-      <div><dt>Pair links</dt><dd>${linkN}</dd></div>
+      <div><dt>Searched ids</dt><dd>${st.nSearched.toLocaleString()}</dd></div>
+      <div><dt>In snapshot</dt><dd>${st.nInSnapshot.toLocaleString()}</dd></div>
+      <div><dt>In scope (after filters)</dt><dd>${papers.length.toLocaleString()}</dd></div>
+      <div><dt>Pair links</dt><dd>${linkN}${papers.length > NODE_CAP ? " (among graph cap)" : ""}</dd></div>
     </dl><div style="margin-top:8px"><button class="btn" onclick="openCompare()">Compare these papers</button></div></div>
     ${linkN ? `<div class="section"><h2>Shared attributes</h2>${linkLines.slice(0, 80).join("")}</div>`
       : `<div class="section muted">No shared retained attributes between these papers. They may still relate through values dropped by build caps or unchecked connection types.</div>`}
-    <div class="section"><h2>Papers</h2>${papers.map(paperRowHtml).join("")}</div>`;
+    <div class="section"><h2>Papers</h2>${papers.slice(0, 600).map(paperRowHtml).join("")}${papers.length > 600 ? `<div class="muted" style="margin-top:6px">Showing 600 of ${papers.length.toLocaleString()}.</div>` : ""}</div>`;
   bindAidClicks();
 }
 function maybeFocusArticleSearch() {
   const idSearch = parseArticleIdSearch($("fSearch").value);
   if (!idSearch) return false;
-  const papers = searchArticleRows(idSearch);
+  const stats = searchArticleStats(idSearch);
+  const papers = stats.rows;
   if (!papers.length) return false;
   // With connection types (or email regex): search only scopes the data source —
   // clusters / overview come from currentUnits(); do not replace with a flat search graph.
@@ -2472,7 +2528,7 @@ function maybeFocusArticleSearch() {
       mode = "overview"; focusKey = null; selectedBucketKey = null; selected = null;
       renderList();
       $("btnOverview").disabled = true;
-      $("crumb").innerHTML = `<b>Search set</b> · ${papers.length.toLocaleString()} paper${papers.length === 1 ? "" : "s"} in scope · none in clusters for the selected connection types`;
+      $("crumb").innerHTML = formatSearchSetCrumb(stats, " · none in clusters for the selected connection types");
       nodes = []; edges = []; adj = [];
       drawOverlay("No papers from the article-id search appear in clusters for the selected connection types. Clear connection types to see the full search set.");
       syncShare();
@@ -2481,8 +2537,8 @@ function maybeFocusArticleSearch() {
     showOverview();
     return true;
   }
-  // No connection type: show every in-scope search paper.
-  showArticleSearchGraph(papers, idSearch);
+  // No connection type: show in-scope search papers (graph may be capped).
+  showArticleSearchGraph(papers, idSearch, stats);
   focusPaper(papers[0]);
   requestAnimationFrame(() => {
     const hit = document.querySelector("#detail .conn.hit");
@@ -2629,16 +2685,12 @@ function showOverview() {
   mode = "overview"; focusKey = null; selectedBucketKey = null; selected = null;
   renderList();
   $("btnOverview").disabled = true;
-  $("crumb").innerHTML = (regexOn() && activeAttrs().length === 0)
-    ? `<b>Overview</b> — one cluster per email matching the pattern. Click one to drill in.`
-    : andMode()
-    ? `<b>Overview</b> — each cluster = papers sharing all ${activeAttrs().length + (regexOn() ? 1 : 0)} selected types. Click to drill in.`
-    : `<b>Overview</b> — clusters linked when they share papers. Click one to drill in.`;
   const list = currentUnits().slice(0, OVERVIEW_HUBS);
   const idSearch = parseArticleIdSearch($("fSearch").value);
-  const searchPapers = idSearch ? searchArticleRows(idSearch) : [];
+  const searchStats = idSearch ? searchArticleStats(idSearch) : null;
+  const searchPapers = searchStats ? searchStats.rows : [];
   if (!list.length && searchPapers.length && !(activeAttrs().length || regexOn())) {
-    showArticleSearchGraph(searchPapers, idSearch);
+    showArticleSearchGraph(searchPapers, idSearch, searchStats);
     return;
   }
   if (!list.length) {
@@ -2649,6 +2701,16 @@ function showOverview() {
     drawOverlay(msg);
     return;
   }
+  const nInClusters = uniquePaperCount(currentUnits());
+  let crumb = (regexOn() && activeAttrs().length === 0)
+    ? `<b>Overview</b> — one cluster per email matching the pattern. Click one to drill in.`
+    : andMode()
+    ? `<b>Overview</b> — each cluster = papers sharing all ${activeAttrs().length + (regexOn() ? 1 : 0)} selected types. Click to drill in.`
+    : `<b>Overview</b> — clusters linked when they share papers. Click one to drill in.`;
+  if (searchStats) {
+    crumb = formatSearchSetCrumb(searchStats, ` · ${nInClusters.toLocaleString()} in clusters with selected connection types`);
+  }
+  $("crumb").innerHTML = crumb;
   nodes = list.map(u => u.kind === "single"
     ? { type: "hub", unit: u, key: u.key, attr: u.attr, ref: u.ref, n: u.rows.length, x: 0, y: 0 }
     : u.kind === "emailrx"
