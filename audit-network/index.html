@@ -484,7 +484,7 @@
             <li><b>Journal</b> and <b>status</b> (rejected only / active only).</li>
             <li><b>Min papers</b> and sort by size, distinct authors, or distinct orgs.</li>
             <li>List header shows <b>cluster count</b> and <b>unique papers</b> across those filtered clusters (a paper in several clusters is counted once).</li>
-            <li><b>Search</b> — paste article IDs (comma, tab, or line separated) or a connection value to jump to it.</li>
+            <li><b>Search</b> — paste article IDs (comma, tab, or line separated) to narrow the data source to those papers; then connection types cluster within that set. With no connection type selected, all search papers appear. Or type a connection value to jump to it.</li>
           </ul>
         </div>
         <div class="help-feature-block">
@@ -1953,7 +1953,13 @@ function buildAttrToggles() {
       <span class="attrsq" style="background:${meta.color}"></span>${meta.label}`;
     box.appendChild(l);
   }
-  box.addEventListener("change", () => { showOverview(); });
+  box.addEventListener("change", () => {
+    // Re-run search scoping + cluster view when connection types change.
+    if (parseArticleIdSearch($("fSearch").value)) {
+      if (maybeFocusArticleSearch()) return;
+    }
+    showOverview();
+  });
 }
 const activeAttrs = () => [...document.querySelectorAll("#attrToggles input:checked")].map(i => i.dataset.attr);
 
@@ -2176,7 +2182,22 @@ function buildLegend() {
 }
 
 // -------- bucket list --------
-// Journal / status filters apply per paper (not “cluster has at least one match”).
+// Journal / status filters apply per paper. Article-id search scopes the working
+// set: no connection types → all search papers; with connection types → only
+// search papers that sit in qualifying clusters (hubs still judged on full data).
+let articleIdScope = null;      // Set<articleId> or null
+let articleIdScopeRaw = null;
+function ensureArticleIdScope() {
+  const raw = $("fSearch") ? $("fSearch").value : "";
+  if (raw === articleIdScopeRaw) return;
+  articleIdScopeRaw = raw;
+  const s = parseArticleIdSearch(raw);
+  articleIdScope = s ? s.ids : null;
+}
+function paperInArticleSearch(r) {
+  ensureArticleIdScope();
+  return !articleIdScope || articleIdScope.has(A("id", r));
+}
 function paperMatchesMetaFilter(r) {
   if (globalFieldFilter && !rowMatchesGlobalFieldFilter(r)) return false;
   const jr = $("fJournal") ? $("fJournal").value : "";
@@ -2193,6 +2214,13 @@ function paperMatchesMetaFilter(r) {
 function metaFilteredRows(rows) {
   return rows.filter(paperMatchesMetaFilter);
 }
+/** Meta filters, then intersect with article-id search when active. */
+function scopedClusterRows(rows) {
+  const full = metaFilteredRows(rows);
+  ensureArticleIdScope();
+  if (!articleIdScope) return full;
+  return full.filter(paperInArticleSearch);
+}
 // Article-id search: comma, tab, or line break separated numeric ids (spaces stripped).
 const SEARCH_ID_SPLIT = /[\s,;\t]+/;
 function parseArticleIdSearch(raw) {
@@ -2207,9 +2235,6 @@ function parseArticleIdSearch(raw) {
     if (!ids.has(aid)) { ids.add(aid); ordered.push(aid); }
   }
   return { ids, ordered };
-}
-function rowsMatchArticleSearch(rows, idSearch) {
-  return rows.some(r => idSearch.ids.has(A("id", r)));
 }
 function searchArticleRows(idSearch) {
   const rows = [];
@@ -2237,24 +2262,26 @@ function currentBuckets() {
   const diffA = $("fDiffAuthors").checked, diffO = $("fDiffOrgs").checked;
   const onlyFlagged = $("fFlaggedOnly").checked;
   const minSize = Math.max(2, parseInt($("fMinSize").value) || 2);
-  const idSearch = parseArticleIdSearch($("fSearch").value);
   const q = searchTextQuery();
   const sort = $("fSort").value;
+  ensureArticleIdScope();
   let list = buckets.filter(b => {
     if (!act.has(b.attr)) return false;
-    const rows = metaFilteredRows(b.rows);
-    if (rows.length < minSize) return false;
-    const dc = distinctCounts(rows);
+    const full = metaFilteredRows(b.rows);
+    if (full.length < minSize) return false;
+    const dc = distinctCounts(full);
     if (diffA && dc.nNames < 2) return false;
     if (diffO && dc.nOrgs < 2) return false;
-    if (onlyFlagged && !rows.some(isFlagged)) return false;
-    if (shouldHideAllRejectedCluster(rows)) return false;
-    if (idSearch && !rowsMatchArticleSearch(rows, idSearch)) return false;
+    if (onlyFlagged && !full.some(isFlagged)) return false;
+    if (shouldHideAllRejectedCluster(full)) return false;
     if (q && !(strFull(ATTR_META[b.attr].pool, b.ref) || str(ATTR_META[b.attr].pool, b.ref) || "").toLowerCase().includes(q)) return false;
+    // Article-id search: keep cluster only if at least one searched paper is in it.
+    if (articleIdScope && !full.some(paperInArticleSearch)) return false;
     return true;
   }).map(b => {
-    const rows = metaFilteredRows(b.rows);
-    const dc = distinctCounts(rows);
+    const full = metaFilteredRows(b.rows);
+    const rows = articleIdScope ? full.filter(paperInArticleSearch) : full;
+    const dc = distinctCounts(full);
     return { attr: b.attr, ref: b.ref, rows, nNames: dc.nNames, nOrgs: dc.nOrgs };
   });
   list.sort((a, b) => sort === "authors" ? b.nNames - a.nNames || b.rows.length - a.rows.length
@@ -2320,6 +2347,7 @@ const comboLabel = (u) => { const v = str(ATTR_META[u.parts[0].attr].pool, u.par
 // AND: group papers that share the SAME value on EVERY selected attribute.
 function computeCombos() {
   const act = activeAttrs(), cols = act.map(a => D.articles[col(a)]), n = D.articles.id.length;
+  ensureArticleIdScope();
   const groups = new Map();
   for (let r = 0; r < n; r++) {
     if (emailMatch && !emailMatch.has(r)) continue; // email regex acts as an AND filter
@@ -2334,7 +2362,9 @@ function computeCombos() {
     if (rows.length < 2) continue;
     const parts = act.map(a => ({ attr: a, ref: D.articles[col(a)][rows[0]] }));
     const dc = distinctCounts(rows);
-    units.push({ kind: "combo", key: "combo|" + key, parts, rows, nNames: dc.nNames, nOrgs: dc.nOrgs });
+    const scoped = articleIdScope ? rows.filter(paperInArticleSearch) : rows;
+    if (articleIdScope && !scoped.length) continue;
+    units.push({ kind: "combo", key: "combo|" + key, parts, rows: scoped, fullRows: rows, nNames: dc.nNames, nOrgs: dc.nOrgs });
   }
   return units;
 }
@@ -2347,18 +2377,18 @@ function currentUnits() {
     const byEmail = new Map();
     for (const r of emailMatch) { const ref = D.articles.authorEmail[r]; if (ref < 0) continue; let g = byEmail.get(ref); if (!g) { g = []; byEmail.set(ref, g); } g.push(r); }
     const onlyFlagged = $("fFlaggedOnly").checked;
-    const idSearch = parseArticleIdSearch($("fSearch").value);
     const q = searchTextQuery();
     const sort = $("fSort").value;
     let units = [];
     for (const [ref, rows] of byEmail) {
-      const fr = metaFilteredRows(rows);
+      const full = metaFilteredRows(rows);
+      if (!full.length) continue;
+      if (onlyFlagged && !hasFlagged(full)) continue;
+      if (shouldHideAllRejectedCluster(full)) continue;
+      if (q && !(str("emails", ref) || "").toLowerCase().includes(q)) continue;
+      const fr = scopedClusterRows(rows);
       if (!fr.length) continue;
-      if (onlyFlagged && !hasFlagged(fr)) continue;
-      if (shouldHideAllRejectedCluster(fr)) continue;
-      if (idSearch) { if (!rowsMatchArticleSearch(fr, idSearch)) continue; }
-      else if (q && !(str("emails", ref) || "").toLowerCase().includes(q)) continue;
-      const dc = distinctCounts(fr);
+      const dc = distinctCounts(full);
       units.push({ kind: "single", key: "email:" + ref, attr: "email", ref, rows: fr, nNames: dc.nNames, nOrgs: dc.nOrgs });
     }
     units.sort((a, b) => sort === "authors" ? b.nNames - a.nNames || b.rows.length - a.rows.length
@@ -2371,16 +2401,15 @@ function currentUnits() {
   const diffA = $("fDiffAuthors").checked, diffO = $("fDiffOrgs").checked;
   const onlyFlagged = $("fFlaggedOnly").checked;
   const minSize = Math.max(2, parseInt($("fMinSize").value) || 2);
-  const idSearch = parseArticleIdSearch($("fSearch").value);
   const q = searchTextQuery();
   const sort = $("fSort").value;
   let units = computeCombos().filter(u => {
-    if (u.rows.length < minSize) return false;
+    const full = u.fullRows || u.rows;
+    if (full.length < minSize) return false;
     if (diffA && u.nNames < 2) return false;
     if (diffO && u.nOrgs < 2) return false;
-    if (onlyFlagged && !hasFlagged(u.rows)) return false;
-    if (shouldHideAllRejectedCluster(u.rows)) return false;
-    if (idSearch) return rowsMatchArticleSearch(u.rows, idSearch);
+    if (onlyFlagged && !hasFlagged(full)) return false;
+    if (shouldHideAllRejectedCluster(full)) return false;
     if (q) return u.parts.some(p => (str(ATTR_META[p.attr].pool, p.ref) || "").toLowerCase().includes(q));
     return true;
   });
@@ -2435,21 +2464,27 @@ function maybeFocusArticleSearch() {
   if (!idSearch) return false;
   const papers = searchArticleRows(idSearch);
   if (!papers.length) return false;
-  const units = currentUnits().filter(u => u.rows.some(r => papers.includes(r)));
-  if (papers.length >= 2 || !units.length) {
-    showArticleSearchGraph(papers, idSearch);
-    focusPaper(papers[0]);
-    requestAnimationFrame(() => {
-      const hit = document.querySelector("#detail .conn.hit");
-      if (hit) hit.scrollIntoView({ block: "nearest" });
-    });
+  // With connection types (or email regex): search only scopes the data source —
+  // clusters / overview come from currentUnits(); do not replace with a flat search graph.
+  if (activeAttrs().length || regexOn()) {
+    const units = currentUnits();
+    if (!units.length) {
+      mode = "overview"; focusKey = null; selectedBucketKey = null; selected = null;
+      renderList();
+      $("btnOverview").disabled = true;
+      $("crumb").innerHTML = `<b>Search set</b> · ${papers.length.toLocaleString()} paper${papers.length === 1 ? "" : "s"} in scope · none in clusters for the selected connection types`;
+      nodes = []; edges = []; adj = [];
+      drawOverlay("No papers from the article-id search appear in clusters for the selected connection types. Clear connection types to see the full search set.");
+      syncShare();
+      return true;
+    }
+    showOverview();
     return true;
   }
-  focusUnit(units[0]);
+  // No connection type: show every in-scope search paper.
+  showArticleSearchGraph(papers, idSearch);
   focusPaper(papers[0]);
   requestAnimationFrame(() => {
-    const el = document.querySelector("#bucketList .bucket.sel");
-    if (el) el.scrollIntoView({ block: "nearest" });
     const hit = document.querySelector("#detail .conn.hit");
     if (hit) hit.scrollIntoView({ block: "nearest" });
   });
@@ -2477,8 +2512,12 @@ function renderUnits() {
   if (!list.length) {
     const idSearch = parseArticleIdSearch($("fSearch").value);
     const papers = idSearch ? searchArticleRows(idSearch) : [];
-    if (papers.length) {
-      box.innerHTML = `<div class="empty">No precomputed clusters for this search.<br><span class="muted">${papers.length} paper${papers.length > 1 ? "s" : ""} on the graph — lines show shared attributes between pairs.</span></div>`;
+    if (papers.length && !(activeAttrs().length || regexOn())) {
+      box.innerHTML = `<div class="empty">Article-id search · ${papers.length.toLocaleString()} paper${papers.length === 1 ? "" : "s"} in scope.<br><span class="muted">Select connection types to narrow to papers that share those attributes within this set.</span></div>`;
+      return;
+    }
+    if (papers.length && (activeAttrs().length || regexOn())) {
+      box.innerHTML = `<div class="empty">No clusters for this search with the selected connection types.<br><span class="muted">${papers.length.toLocaleString()} paper${papers.length === 1 ? "" : "s"} in search scope — none share a qualifying cluster.</span></div>`;
       return;
     }
     box.innerHTML = rxOnly
@@ -2598,11 +2637,18 @@ function showOverview() {
   const list = currentUnits().slice(0, OVERVIEW_HUBS);
   const idSearch = parseArticleIdSearch($("fSearch").value);
   const searchPapers = idSearch ? searchArticleRows(idSearch) : [];
-  if (!list.length && searchPapers.length) {
+  if (!list.length && searchPapers.length && !(activeAttrs().length || regexOn())) {
     showArticleSearchGraph(searchPapers, idSearch);
     return;
   }
-  if (!list.length) { nodes = []; edges = []; adj = []; drawOverlay((activeAttrs().length || regexOn()) ? "No connections match the filters." : "Select at least one connection type."); return; }
+  if (!list.length) {
+    nodes = []; edges = []; adj = [];
+    const msg = searchPapers.length && (activeAttrs().length || regexOn())
+      ? "No papers from the article-id search appear in clusters for the selected connection types."
+      : ((activeAttrs().length || regexOn()) ? "No connections match the filters." : "Select at least one connection type.");
+    drawOverlay(msg);
+    return;
+  }
   nodes = list.map(u => u.kind === "single"
     ? { type: "hub", unit: u, key: u.key, attr: u.attr, ref: u.ref, n: u.rows.length, x: 0, y: 0 }
     : u.kind === "emailrx"
