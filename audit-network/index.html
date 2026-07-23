@@ -392,7 +392,10 @@
         <div id="managerPanel"></div>
       </div>
     </div>
-    <div class="section" style="padding-bottom:6px"><h2 style="margin:0"><span id="listTitle">Connections</span> <span class="count" id="bucketCount"></span></h2></div>
+    <div class="section" style="padding-bottom:6px;display:flex;align-items:center;gap:8px">
+      <h2 style="margin:0;flex:1;min-width:0"><span id="listTitle">Connections</span> <span class="count" id="bucketCount"></span></h2>
+      <button type="button" class="btn" id="btnClustersCsv" title="Download current filtered clusters as CSV (id, URL, counts)">↓ CSV</button>
+    </div>
     <div class="scroll" id="bucketList"></div>
   </div>
 
@@ -484,6 +487,7 @@
             <li><b>Journal</b> and <b>status</b> (rejected only / active only).</li>
             <li><b>Min papers</b> and sort by size, distinct authors, or distinct orgs.</li>
             <li>List header shows <b>cluster count</b> and <b>unique papers</b> across those filtered clusters (a paper in several clusters is counted once).</li>
+            <li><b>↓ CSV</b> next to the list — download the current filtered clusters (cluster id, shareable URL, paper/flagged/author/org counts) for assignment.</li>
             <li><b>Search</b> — paste article IDs (comma, tab, or line separated) to narrow the data source to those papers; then connection types cluster within that set. With no connection type selected, all search papers appear. Or type a connection value to jump to it.</li>
           </ul>
         </div>
@@ -1579,6 +1583,81 @@ async function downloadFlaggedList() {
   }
 }
 
+function clusterTypeLabel(u) {
+  if (u.kind === "emailrx") return "Email pattern";
+  if (u.kind === "single") return (ATTR_META[u.attr] || {}).label || u.attr;
+  if (u.kind === "combo") return u.parts.map(p => (ATTR_META[p.attr] || {}).label || p.attr).join(" + ");
+  return u.kind || "";
+}
+function clusterValueLabel(u) {
+  if (u.kind === "emailrx") return u.label || "";
+  if (u.kind === "single") {
+    const meta = ATTR_META[u.attr] || {};
+    return strFull(meta.pool, u.ref) || "";
+  }
+  if (u.kind === "combo") {
+    return u.parts.map(p => {
+      const meta = ATTR_META[p.attr] || {};
+      return `${meta.label || p.attr}=${strFull(meta.pool, p.ref) || ""}`;
+    }).join(" | ");
+  }
+  return "";
+}
+function countFlaggedInRows(rows) {
+  let n = 0;
+  for (const r of rows) if (isFlagged(r)) n++;
+  return n;
+}
+/** Share params for the current filter state (same fields as the live URL). */
+function buildShareParams(extra) {
+  const p = new URLSearchParams();
+  const act = activeAttrs();
+  if (act.slice().sort().join(",") !== [...DEFAULT_ACTIVE_ATTRS].sort().join(",")) p.set("at", act.join(","));
+  if (!$("fDiffAuthors").checked) p.set("da", "0");
+  if (!$("fDiffOrgs").checked) p.set("do", "0");
+  if ($("fFlaggedOnly").checked) p.set("fl", "1");
+  if (!$("fHideAllRejected").checked) p.set("har", "0");
+  if ($("fLowNameEmailSim")?.checked) p.set("nes", "1");
+  const jn = $("fJournal") ? $("fJournal").value : ""; if (jn) p.set("jn", jn);
+  const sta = $("fStatus") ? $("fStatus").value : ""; if (sta) p.set("sta", sta);
+  const ms = $("fMinSize").value; if (ms && ms !== "2") p.set("ms", ms);
+  const st = $("fSort").value; if (st && st !== "size") p.set("st", st);
+  const q = $("fSearch").value.trim(); if (q) p.set("q", q);
+  const re = $("fEmailRegex").value.trim(); if (re) p.set("re", re);
+  if (extra) for (const [k, v] of Object.entries(extra)) {
+    if (v == null || v === "") p.delete(k);
+    else p.set(k, v);
+  }
+  return p;
+}
+function clusterShareUrl(clusterKey) {
+  const p = buildShareParams({ c: clusterKey });
+  p.delete("a");
+  p.delete("cmp");
+  const qs = p.toString();
+  return `${location.origin}${location.pathname}${qs ? "?" + qs : ""}`;
+}
+function downloadClustersCsv() {
+  const list = currentUnits();
+  if (!list.length) { alert("No clusters match the current filters."); return; }
+  const headers = ["clusterId", "url", "connectionType", "value", "nPapers", "nFlagged", "nAuthors", "nOrgs"];
+  const lines = [headers.map(csvCell).join(",")];
+  for (const u of list) {
+    lines.push([
+      u.key,
+      clusterShareUrl(u.key),
+      clusterTypeLabel(u),
+      clusterValueLabel(u),
+      u.rows.length,
+      countFlaggedInRows(u.rows),
+      u.nNames || 0,
+      u.nOrgs || 0,
+    ].map(csvCell).join(","));
+  }
+  const stamp = new Date().toISOString().slice(0, 10);
+  downloadTextFile(`clusters-${stamp}.csv`, lines.join("\n") + "\n");
+}
+
 const $ = (id) => document.getElementById(id);
 const strFull = (pool, ref) => (ref == null || ref < 0) ? "" : (D.dict[pool] ? D.dict[pool][ref] : "");
 const HASH_POOLS = new Set(["ips", "devices"]);
@@ -2116,6 +2195,7 @@ function bindUI() {
   $("btnCompare").addEventListener("click", openCompare);
   $("btnFlagged").addEventListener("click", showFlaggedList);
   $("btnFlagDownload").addEventListener("click", downloadFlaggedList);
+  if ($("btnClustersCsv")) $("btnClustersCsv").addEventListener("click", downloadClustersCsv);
   $("btnFlagRefresh").addEventListener("click", async () => {
     await loadFlags();
     await loadWorkflow();
@@ -3567,24 +3647,11 @@ const reviewUrl = (id) => `https://review.frontiersin.org/review/${id}/0/0`;
 
 // -------- share url --------
 function syncShare() {
-  const p = new URLSearchParams();
-  const act = activeAttrs();
-  if (act.slice().sort().join(",") !== [...DEFAULT_ACTIVE_ATTRS].sort().join(",")) p.set("at", act.join(","));
-  if (!$("fDiffAuthors").checked) p.set("da", "0");
-  if (!$("fDiffOrgs").checked) p.set("do", "0");
-  if ($("fFlaggedOnly").checked) p.set("fl", "1");
-  if (!$("fHideAllRejected").checked) p.set("har", "0");
-  if ($("fLowNameEmailSim")?.checked) p.set("nes", "1");
-  const jn = $("fJournal") ? $("fJournal").value : ""; if (jn) p.set("jn", jn);
-  const sta = $("fStatus") ? $("fStatus").value : ""; if (sta) p.set("sta", sta);
-  const ms = $("fMinSize").value; if (ms && ms !== "2") p.set("ms", ms);
-  const st = $("fSort").value; if (st && st !== "size") p.set("st", st);
-  const q = $("fSearch").value.trim(); if (q) p.set("q", q);
-  const re = $("fEmailRegex").value.trim(); if (re) p.set("re", re);
-  if (mode === "focus" && focusKey) p.set("c", focusKey);
-  if (selected != null && nodes[selected] && nodes[selected].type === "paper") p.set("a", A("id", nodes[selected].r));
-  if ($("modal").classList.contains("open")) p.set("cmp", "1");
-  const qs = p.toString();
+  const extra = {};
+  if (mode === "focus" && focusKey) extra.c = focusKey;
+  if (selected != null && nodes[selected] && nodes[selected].type === "paper") extra.a = String(A("id", nodes[selected].r));
+  if ($("modal").classList.contains("open")) extra.cmp = "1";
+  const qs = buildShareParams(extra).toString();
   history.replaceState(null, "", qs ? "?" + qs : location.pathname);
 }
 function applyShareParams() {
@@ -3605,8 +3672,17 @@ function applyShareParams() {
   if (p.get("q")) $("fSearch").value = p.get("q");
   if (p.get("re")) $("fEmailRegex").value = p.get("re");
   rebuildEmailFilter();
-  if (p.get("c") && bucketMeta.has(p.get("c"))) focusHub(p.get("c"));
-  else if (maybeFocusArticleSearch()) { /* article search from q= */ }
+  const c = p.get("c");
+  if (c) {
+    if (bucketMeta.has(c)) focusHub(c);
+    else {
+      const u = currentUnits().find(x => x.key === c);
+      if (u) focusUnit(u);
+      else if (maybeFocusArticleSearch()) { /* q= search */ }
+      else if (p.get("a") && D.articles.id.indexOf(+p.get("a")) >= 0) focusPaper(D.articles.id.indexOf(+p.get("a")));
+      else showOverview();
+    }
+  } else if (maybeFocusArticleSearch()) { /* article search from q= */ }
   else if (p.get("a") && D.articles.id.indexOf(+p.get("a")) >= 0) focusPaper(D.articles.id.indexOf(+p.get("a")));
   else showOverview();
   if (p.get("cmp")) openCompare();
