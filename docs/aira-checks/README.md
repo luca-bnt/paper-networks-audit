@@ -2,5 +2,12 @@
 
 | Doc | Surface |
 |-----|---------|
-| [`cluster-analysis-prd-outline.md`](./cluster-analysis-prd-outline.md) | **Cluster Analysis** — in-review AIRA check |
-| [`../PRD.md`](../PRD.md) | Separate product: network explorer (not required reading for the check) |
+| [`cluster-analysis-prd.md`](./cluster-analysis-prd.md) | **Cluster Analysis** — in-review check (BLOCK / WARN / PASS) |
+| [`../PRD.md`](../PRD.md) | Network explorer (separate product) |
+
+## Local tooling (this repo)
+
+```bash
+python3 simulate_cluster_check.py
+python3 analyze_cluster_features.py --out /tmp/cluster_feature_analysis.json
+```

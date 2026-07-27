@@ -1,7 +1,5 @@
 # Open questions
 
-Capture decisions needed before / during the production PRD.
-
 ## Paper Networks Audit (explorer)
 
 1. Auth model (Frontiers SSO / MyFrontiers / role gates)?
@@ -13,4 +11,10 @@ Capture decisions needed before / during the production PRD.
 
 ## Cluster Analysis (AIRA check)
 
-Requirements are in [`aira-checks/cluster-analysis-prd-outline.md`](./aira-checks/cluster-analysis-prd-outline.md) (BLOCK / PASS; no open scoring decisions).
+Source of truth: [`aira-checks/cluster-analysis-prd.md`](./aira-checks/cluster-analysis-prd.md).
+
+Still open there:
+
+1. Deep-link URL contract with the explorer (`?a=`, hub focus).
+2. Final production table/column names.
+3. Subnet token design (ingest, horizon, cap, weight) when replacing ASN.
