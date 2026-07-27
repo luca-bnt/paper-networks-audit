@@ -43,7 +43,7 @@ attributes, and drill down to validate them:
 ## Layout (detail)
 
 ```
-docs/                   # PRD and production planning
+docs/                   # production planning (aira-checks/cluster-analysis-prd.md)
 audit-network/          # the static app (deploy this folder)
   index.html            #   single-file vanilla JS + Canvas UI
   data/snapshot.json.gz #   dictionary-encoded, columnar, gzipped snapshot
