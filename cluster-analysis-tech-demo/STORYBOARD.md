@@ -40,7 +40,7 @@ Full narration reads as one continuous script — see `voiceover` per frame, in 
 - poster: 0.5s
 - transition_in: cut
 - scene: Cluster Analysis — title
-- voiceover: Hi. Let's take a look at how AIRA's Cluster Analysis works. Papermills don't submit one paper. They submit hundreds, often from the same laptop. This is the check that notices.
+- voiceover: Hi. [[0.85]] Let's take a look at how AIRA's Cluster Analysis works. [[0.70]] Papermills don't submit one paper. They submit hundreds, often from the same laptop. This is the check that notices.
 - narrativeRole: open
 - blueprint: kinetic-title
 
@@ -172,7 +172,7 @@ Struck through: email — too many people share a mail provider for it to mean a
 - duration: 17.2s (starts 66.1s)
 - transition_in: crossfade
 - scene: Popular values get ignored — same machine vs same internet
-- voiceover: Some values are just popular. One campus network can cover a hundred honest papers, so every key has a ceiling — above it we ignore the value completely. Same machine is a signal. Same internet is not.
+- voiceover: Some values are just popular. One campus network can cover a hundred honest papers, so every key has a ceiling. Above it, we ignore the value completely. Same machine is a signal. Same internet is not.
 - narrativeRole: proof
 - blueprint: big-number-hit
 
@@ -214,7 +214,7 @@ Footer: *a shortlist, not a hairball.*
 - duration: 17.9s (starts 97.9s)
 - transition_in: crossfade
 - scene: O(N²) vs O(N · t · c) — 2.03B vs 778k, gap widens with the corpus
-- voiceover: Here's the trade in one line. Compare every pair, and the work grows with the square of the corpus. Look up shared keys, and it grows in a straight line. Two and a half thousand times less work today — and doubling the archive doubles the gap.
+- voiceover: Here's the trade in one line. Compare every pair, and the work grows with the square of the archive. Look up shared keys, and it grows in a straight line. Two and a half thousand times less work today. And doubling the archive doubles the gap.
 - narrativeRole: efficiency proof — the math
 - blueprint: big-number-hit
 
@@ -245,7 +245,7 @@ Growth strip, three columns only — the point is the gap widening, not the tabl
 - duration: 21.1s (starts 115.3s)
 - transition_in: crossfade
 - scene: Measured — 13 candidates, 2.9s a quarter, 20 rows, 6.4% reach a human
-- voiceover: In practice it's smaller still. The typical submission has thirteen candidates worth scoring, out of sixty-three thousand. The whole quarter scores in under three seconds. And ninety-four percent of papers pass without anyone being interrupted — which is the real budget we're protecting.
+- voiceover: In practice it's smaller still. The typical submission has thirteen candidates worth scoring, out of sixty-three thousand. The whole quarter scores in under three seconds. And ninety-four percent of papers pass without anyone being interrupted, which is the real budget we're protecting.
 - narrativeRole: efficiency proof — what it buys
 - blueprint: big-number-hit
 
@@ -321,7 +321,7 @@ Filter strip, one line: a cluster only counts if it looks like a group — **2+ 
 - duration: 11.3s (starts 168.1s)
 - transition_in: crossfade
 - scene: PASS → WARN → BLOCK, and what warn actually means
-- voiceover: Everything strong but incomplete gets a warning instead. Not an accusation — an invitation to look. Same evidence, softer verdict.
+- voiceover: Everything strong but incomplete gets a warning instead. Not an accusation, an invitation to look. Same evidence, softer verdict.
 - narrativeRole: decision proof
 - blueprint: decision-tree
 
