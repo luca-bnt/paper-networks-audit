@@ -359,8 +359,14 @@
     /* centre each stat inside its card, matching the other frames */
     .cols.cards > .c { align-items: center; text-align: center; }
 
-    /* lift the distribution line off the footer and give it more presence */
-    .budget-track { margin-top: auto !important; margin-bottom: auto; padding-bottom: 0 !important; }
+    /* Drop the stat band down so it sits just above the distribution line, and split the
+       remaining air evenly above the cards and below the line. */
+    .band { display: contents; }
+    .cols.cards { margin-top: auto !important; }
+    .budget-track { margin-top: 40px !important; padding-bottom: 0 !important; }
+    .hair { margin-top: auto; }
+
+    /* the line itself: more presence than the 10px hairline it was */
     .track2 { height: 16px; border-radius: 8px; }
     .track2 .fill2 { border-radius: 8px; }
     .mk b { top: -8px; height: 32px; }
