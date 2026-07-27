@@ -146,7 +146,7 @@
     .sigdot { opacity:0.55; }
     </style>
 
-    <div data-hf-id="hf-4y97" id="root" data-composition-id="03-device-hash" data-duration="13.7" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-x3e9" id="root" data-composition-id="03-device-hash" data-duration="16.8" data-width="1920" data-height="1080">
       <div data-hf-id="hf-wua0" class="scene">
         <div data-hf-id="hf-m7dd" class="bg"></div>
 
@@ -179,7 +179,23 @@
       var q  = function (s) { return R.querySelector(s); };
       var qa = function (s) { return Array.prototype.slice.call(R.querySelectorAll(s)); };
       var SC = q('.scene');
-      var tl = gsap.timeline({ paused: true });
+      var K = 1.2263;                       // frame stretch factor — see SKETCH_LEN in the build script
+      var _tl = gsap.timeline({ paused: true });
+
+      function stretch(v) {
+        var o = {}, key;
+        for (key in v) { if (v.hasOwnProperty(key)) { o[key] = v[key]; } }
+        if (typeof o.duration === 'number') { o.duration *= K; }
+        if (typeof o.stagger === 'number') { o.stagger *= K; }
+        else if (o.stagger && typeof o.stagger.each === 'number') {
+          o.stagger = { each: o.stagger.each * K, from: o.stagger.from };
+        }
+        return o;
+      }
+      var tl = {
+        fromTo: function (t, a, b, p) { _tl.fromTo(t, a, stretch(b), p * K); return tl; },
+        to: function (t, b, p) { _tl.to(t, stretch(b), p * K); return tl; }
+      };
 
       function count(el, to, dur, at, opt) {
         opt = opt || {};
@@ -240,7 +256,7 @@
         { scale: 1, duration: 0.6, ease: 'back.out(2)' }, 8.7);
       tl.fromTo(qa('.c')[1].querySelector('.note'), { autoAlpha: 0 },
         { autoAlpha: 1, duration: 0.6 }, 10.2);
-      window.__timelines["03-device-hash"] = tl;
+      window.__timelines["03-device-hash"] = _tl;
     </script>
   </template>
 </body>
