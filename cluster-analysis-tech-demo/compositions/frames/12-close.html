@@ -149,7 +149,7 @@
     .cols.cards { flex: none; align-items: stretch; }
     </style>
 
-    <div data-hf-id="hf-21ju" id="root" data-composition-id="12-close" data-duration="15.5" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-21ju" id="root" data-composition-id="12-close" data-duration="9.2" data-width="1920" data-height="1080">
       <div data-hf-id="hf-wua0" class="scene">
         <div data-hf-id="hf-m7dd" class="bg"></div>
 
@@ -177,8 +177,6 @@
           <div data-hf-id="hf-f7cn" class="lead">Block or warn, with a link straight to the cluster.</div>
         </div>
       </div>
-      <div data-hf-id="hf-hx7w" class="hair"></div>
-      <div data-hf-id="hf-44kk" class="md" style="font-size:54px;text-align:center">Papermills scale by <span data-hf-id="hf-cos8" class="accent">repeating themselves</span>.</div>
     </div><!-- /main -->
       </div>
     </div>
@@ -190,7 +188,7 @@
       var q  = function (s) { return R.querySelector(s); };
       var qa = function (s) { return Array.prototype.slice.call(R.querySelectorAll(s)); };
       var SC = q('.scene');
-      var K = 1.1232;                       // frame stretch factor — see SKETCH_LEN in the build script
+      var K = 0.6667;                       // frame stretch factor — see SKETCH_LEN in the build script
       var _tl = gsap.timeline({ paused: true });
 
       function stretch(v) {
@@ -221,7 +219,7 @@
       }
 
 
-      var cols = qa('.cols > .c'), line = q('.main > .md');
+      var cols = qa('.cols > .c');
 
       tl.fromTo(SC, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power1.inOut' }, 0);
       tl.fromTo(q('.head'), { autoAlpha: 0, y: 24 },
@@ -234,16 +232,7 @@
       tl.fromTo(qa('.vrule'), { scaleY: 0 },
         { scaleY: 1, duration: 0.6, ease: 'power2.inOut', stagger: 1.3 }, 2.2);
 
-      tl.fromTo(q('.hair'), { scaleX: 0 },
-        { scaleX: 1, duration: 0.8, ease: 'power2.inOut' }, 6.4);
-      tl.fromTo(line, { autoAlpha: 0, y: 26, scale: 0.94 },
-        { autoAlpha: 1, y: 0, scale: 1, duration: 1.0, ease: 'back.out(1.5)' }, 6.9);
 
-      // last scene: everything recedes so the thesis holds alone
-      tl.to([q('.head'), q('.hair')].concat(cols).concat(qa('.vrule')),
-        { autoAlpha: 0.12, duration: 1.2, ease: 'power2.inOut' }, 9.6);
-      tl.to(line, { scale: 1.06, duration: 1.2, ease: 'power2.out' }, 9.6);
-      tl.to(SC, { opacity: 0, duration: 1.0, ease: 'power2.in' }, 12.6);
       window.__timelines["12-close"] = _tl;
     </script>
   </template>

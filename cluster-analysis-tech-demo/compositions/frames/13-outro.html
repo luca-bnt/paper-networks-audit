@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Papermills scale by repeating themselves</title>
+</head>
+<body>
+  <template>
+    <style>
+
+    * { margin:0; padding:0; box-sizing:border-box; }
+
+    .brand-bar {
+      position:absolute; top:28px; left:72px; z-index:5;
+      display:flex; align-items:center; gap:14px; pointer-events:none;
+    }
+    .brand-bar img { height:28px; width:auto; display:block; }
+    .brand-bar .pipe { color:rgba(255,255,255,0.35); font-size:22px; font-weight:300; line-height:1; }
+    .brand-bar .product {
+      font-size:15px; font-weight:600; letter-spacing:0.04em; color:rgba(255,255,255,0.88);
+    }
+
+    .center {
+      position:absolute; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; text-align:center; gap:22px; padding:0 120px;
+    }
+    .kicker {
+      font-size:14px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; color:#7ee8ff;
+    }
+    .title {
+      font-size:64px; font-weight:700; letter-spacing:-0.04em; line-height:1.05; max-width:1400px;
+    }
+    .accent { color:#7ee8ff; }
+    .sub {
+      font-size:22px; color:rgba(255,255,255,0.78); line-height:1.45; max-width:820px;
+    }
+
+    /* ---- sub-composition scaffold + animation affordances ---- */
+    #root { position:absolute; inset:0; overflow:hidden; box-sizing:border-box;
+            font-family:Inter,system-ui,sans-serif; color:#fff; }
+    .scene { position:absolute; inset:0; }
+    .bg { position:absolute; inset:0; z-index:0; background:radial-gradient(1200px 760px at 50% -12%, rgba(255,255,255,0.14), transparent 56%),linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%); }
+    .brand-bar, .label, .main { z-index:2; }
+
+    .hair { transform-origin:left center; }
+    .vrule { transform-origin:center center; }
+    .bar, .fill2, .stops .link { transform-origin:left center; }
+    .xl, .lg, .md, .sm, .kw { font-variant-numeric:tabular-nums; }
+    .w, .sig, .sigdot { display:inline-block; }
+    .sigdot { opacity:0.4; padding:0 8px; }
+    .ln { display:block; }
+
+    /* WCAG AA on the blue field — the muted greys a mock gets away with do not pass */
+    .eyebrow { color:rgba(255,255,255,0.68); }
+    .note { color:rgba(255,255,255,0.68); }
+    .krow .kf { color:rgba(255,255,255,0.66); }
+    .mk i { color:rgba(255,255,255,0.8); }
+    .sigdot { opacity:0.55; }
+
+    /* Budget frame: keep the stat band under the title, not floating in empty flex space */
+    .cols.cards { flex: none; align-items: stretch; }
+
+    /* Bookend slides carry the logo as a lockup; the host bar is suppressed over them */
+    .brandmark { display:flex; justify-content:center; margin-top:22px; }
+    .brandmark img { height:46px; width:auto; display:block; opacity:0.95; }
+    </style>
+
+    <div data-hf-id="hf-iymd" id="root" data-composition-id="13-outro" data-duration="8.5" data-width="1920" data-height="1080">
+      <div data-hf-id="hf-wua0" class="scene">
+        <div data-hf-id="hf-m7dd" class="bg"></div>
+
+    <div data-hf-id="hf-0oij" class="center">
+      <div data-hf-id="hf-7dr9" class="kicker">The tell</div>
+      <h1 data-hf-id="hf-88ze" class="title">Papermills scale by <span data-hf-id="hf-cos8" class="accent">repeating themselves</span>.</h1>
+      <p data-hf-id="hf-qa3i" class="sub">Which is exactly how they get caught.</p>
+      <div data-hf-id="hf-brm2" class="brandmark"><img data-hf-id="hf-brm3" src="/assets/frontiers.png" alt="Frontiers"></div>
+    </div>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var R  = document.querySelector('[data-composition-id="13-outro"]');
+      var q  = function (s) { return R.querySelector(s); };
+
+      var SC = q('.scene');
+      var K = 1.0;
+      var _tl = gsap.timeline({ paused: true });
+      function stretch(v) {
+        var o = {}, key;
+        for (key in v) { if (v.hasOwnProperty(key)) { o[key] = v[key]; } }
+        if (typeof o.duration === 'number') { o.duration *= K; }
+        if (typeof o.stagger === 'number') { o.stagger *= K; }
+        return o;
+      }
+      var tl = {
+        fromTo: function (t, a, b, p) { _tl.fromTo(t, a, stretch(b), p * K); return tl; },
+        to: function (t, b, p) { _tl.to(t, stretch(b), p * K); return tl; }
+      };
+
+      tl.fromTo(SC, { opacity: 0 }, { opacity: 1, duration: 0.6, ease: 'power1.inOut' }, 0);
+      tl.fromTo(q('.kicker'), { autoAlpha: 0, y: 18 },
+        { autoAlpha: 1, y: 0, duration: 0.6, ease: 'power2.out' }, 0.5);
+      tl.fromTo(q('.title'), { autoAlpha: 0, y: 40, scale: 0.94 },
+        { autoAlpha: 1, y: 0, scale: 1, duration: 1.0, ease: 'back.out(1.4)' }, 0.9);
+      tl.fromTo(q('.sub'), { autoAlpha: 0, y: 18 },
+        { autoAlpha: 1, y: 0, duration: 0.8, ease: 'power3.out' }, 2.2);
+      tl.fromTo(q('.brandmark'), { autoAlpha: 0, y: 14 },
+        { autoAlpha: 1, y: 0, duration: 0.9, ease: 'power2.out' }, 3.2);
+      tl.to(SC, { opacity: 0, duration: 0.9, ease: 'power2.in' }, 7.4);
+
+      window.__timelines["13-outro"] = _tl;
+
+    </script>
+  </template>
+</body>
+</html>

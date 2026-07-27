@@ -149,14 +149,14 @@
     .cols.cards { flex: none; align-items: stretch; }
     </style>
 
-    <div data-hf-id="hf-7pqc" id="root" data-composition-id="01-wrong-model" data-duration="14.7" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-7pqc" id="root" data-composition-id="01-wrong-model" data-duration="17.5" data-width="1920" data-height="1080">
       <div data-hf-id="hf-wua0" class="scene">
         <div data-hf-id="hf-m7dd" class="bg"></div>
 
     <div data-hf-id="hf-k15r" class="main">
       <div data-hf-id="hf-z992" class="head">
         <h1 data-hf-id="hf-yvc2" class="title">The obvious approach</h1>
-        <p data-hf-id="hf-4jhq" class="sub">Compare every new paper with every paper that came before it. Thorough — and enormous.</p>
+        <p data-hf-id="hf-4jhq" class="sub">Compare every new paper with every paper before it — rebuilding the whole grid each time.</p>
       </div>
       <div data-hf-id="hf-6ra9" class="cols">
         <div data-hf-id="hf-rt1y" class="c" style="flex:1.05">
@@ -165,10 +165,10 @@
         </div>
         <div data-hf-id="hf-7fxo" class="vrule"></div>
         <div data-hf-id="hf-kmmr" class="c">
-          <div data-hf-id="hf-6jkv" class="eyebrow">comparisons, one quarter</div>
+          <div data-hf-id="hf-6jkv" class="eyebrow">comparisons, per submission</div>
           <div data-hf-id="hf-kkco" class="md coral" style="font-size:66px">2,034,677,736</div>
           <div data-hf-id="hf-l259" class="hair" style="margin:14px 0 6px"></div>
-          <div data-hf-id="hf-7m3a" class="note">at a thousand a second, you finish in</div>
+          <div data-hf-id="hf-7m3a" class="note">at a thousand a second, each new paper takes</div>
           <div data-hf-id="hf-67pi" class="xl">23 days</div>
         </div>
       </div>
@@ -183,7 +183,7 @@
       var q  = function (s) { return R.querySelector(s); };
       var qa = function (s) { return Array.prototype.slice.call(R.querySelectorAll(s)); };
       var SC = q('.scene');
-      var K = 1.176;                       // frame stretch factor — see SKETCH_LEN in the build script
+      var K = 1.4;                       // frame stretch factor — see SKETCH_LEN in the build script
       var _tl = gsap.timeline({ paused: true });
 
       function stretch(v) {

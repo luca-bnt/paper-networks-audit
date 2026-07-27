@@ -353,7 +353,32 @@
 
     /* Budget frame: keep the stat band under the title, not floating in empty flex space */
     .cols.cards { flex: none; align-items: stretch; }
-    </style>
+    
+    /* feedback */
+
+    /* centre each stat inside its card, matching the other frames */
+    .cols.cards > .c { align-items: center; text-align: center; }
+
+    /* lift the distribution line off the footer and give it more presence */
+    .budget-track { margin-top: auto !important; margin-bottom: auto; padding-bottom: 0 !important; }
+    .track2 { height: 16px; border-radius: 8px; }
+    .track2 .fill2 { border-radius: 8px; }
+    .mk b { top: -8px; height: 32px; }
+    .mk i { top: 34px; }
+
+    .cols.cards > .c {
+      border: 1.5px solid rgba(255,255,255,0.42) !important;
+      background: rgba(255,255,255,0.11) !important;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.18);
+    }
+    .cols.cards > .c.win {
+      border-color: rgba(157,255,184,0.7) !important;
+      background: rgba(157,255,184,0.14) !important;
+      box-shadow: 0 8px 28px rgba(157,255,184,0.12);
+    }
+
+    /* /feedback */
+  </style>
 
     <div data-hf-id="hf-31oj" id="root" data-composition-id="08-budget" data-duration="21.1" data-width="1920" data-height="1080">
       <div data-hf-id="hf-wua0" class="scene">

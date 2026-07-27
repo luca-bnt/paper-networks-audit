@@ -58,6 +58,10 @@
 
     /* Budget frame: keep the stat band under the title, not floating in empty flex space */
     .cols.cards { flex: none; align-items: stretch; }
+
+    /* Bookend slides carry the logo as a lockup; the host bar is suppressed over them */
+    .brandmark { display:flex; justify-content:center; margin-bottom:10px; }
+    .brandmark img { height:54px; width:auto; display:block; }
     </style>
 
     <div data-hf-id="hf-iymd" id="root" data-composition-id="00-title" data-duration="11.1" data-width="1920" data-height="1080">
@@ -65,6 +69,7 @@
         <div data-hf-id="hf-m7dd" class="bg"></div>
 
     <div data-hf-id="hf-0oij" class="center">
+      <div data-hf-id="hf-brm0" class="brandmark"><img data-hf-id="hf-brm1" src="/assets/frontiers.png" alt="Frontiers"></div>
       <div data-hf-id="hf-v43a" class="kicker">AIRA in-review check</div>
       <h1 data-hf-id="hf-b4cg" class="title">Cluster Analysis</h1>
       <p data-hf-id="hf-imi4" class="sub">Index identity. Cap the noise. Shortlist the peers that earn a BLOCK or WARN.</p>
@@ -115,6 +120,8 @@
         .map(function (w) { return '<span class="w">' + w + '</span>'; }).join(' ');
 
       tl.fromTo(SC, { opacity: 0 }, { opacity: 1, duration: 0.6, ease: 'power1.inOut' }, 0);
+      tl.fromTo(q('.brandmark'), { autoAlpha: 0, y: 14 },
+        { autoAlpha: 1, y: 0, duration: 0.7, ease: 'power2.out' }, 0.25);
       tl.fromTo(q('.kicker'), { autoAlpha: 0, y: 18 },
         { autoAlpha: 1, y: 0, duration: 0.6, ease: 'power2.out' }, 0.7);
       tl.fromTo(qa('.title .w'), { autoAlpha: 0, y: 70, scale: 0.9 },

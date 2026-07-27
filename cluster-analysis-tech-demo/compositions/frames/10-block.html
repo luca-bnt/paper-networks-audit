@@ -123,9 +123,9 @@
     .stops .stop { flex: 1; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
     .stops .link { flex: 0 0 90px; height: 1px; background: rgba(255,255,255,0.2); }
   
-    /* block routes — top-align so a wrapping title can't sit higher than its neighbours */
-    .cols > .c { justify-content: flex-start; padding-top: 28px; }
-    .cols > .c .sm { min-height: 2.4em; line-height: 1.15; }
+    /* centre each route the way the other three-column frames do */
+    .cols > .c { align-items: center; text-align: center; justify-content: center; }
+    .cols > .c .sm { line-height: 1.15; }
 
     /* ---- sub-composition scaffold + animation affordances ---- */
     #root { position:absolute; inset:0; overflow:hidden; box-sizing:border-box;

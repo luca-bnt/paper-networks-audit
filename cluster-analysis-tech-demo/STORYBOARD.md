@@ -1,10 +1,10 @@
 ---
 format: 1920x1080
 message: "Papermills scale by repeating themselves — Cluster Analysis turns that repetition into the thing that catches them, at the cost of a single-paper check"
-arc: Hook → Wrong model → The trick → Fingerprint → Keys → Ceiling → Shortlist → Math → Measured → Judgement → Block → Warn → Close
+arc: Hook → Wrong model → The trick → Fingerprint → Keys → Ceiling → Shortlist → Math → Measured → Judgement → Block → Warn → Close → Outro
 audience: integrity specialists and engineers — technical, but nobody should feel locked out
 mode: collaborative
-runtime: 194s · 13 frames · narrated (Kokoro af_heart 0.6 / af_nicole 0.4) over a music bed
+runtime: 199s · 14 frames · narrated (Kokoro af_heart 0.6 / af_nicole 0.4) over a music bed
 ---
 
 ## Layout system
@@ -52,10 +52,10 @@ Locked — do not restyle. Chrome on every frame: **Frontiers logo | AIRA · Clu
 
 - status: animated
 - src: compositions/frames/01-wrong-model.html
-- duration: 14.7s (starts 10.6s)
+- duration: 17.5s (starts 10.6s)
 - transition_in: crossfade
-- scene: Compare everything with everything — 2 billion comparisons, 23 days
-- voiceover: The obvious approach is to compare every new paper with every paper before it. That's two billion comparisons a quarter. Even at a thousand a second, you'd be at it for twenty-three days.
+- scene: Compare everything with everything — 2 billion comparisons, 23 days per submission
+- voiceover: The obvious approach is to compare every new paper with every paper before it — rebuilding the whole grid each time. That's two billion comparisons. Even at a thousand a second, each new submission would take twenty-three days.
 - narrativeRole: hook
 - blueprint: big-number-hit
 
@@ -63,11 +63,11 @@ Hook is a joke about scale, not a lecture about complexity. Three beats only:
 the idea, the number, the punchline.
 
 - Left: a grid of papers where every cell connects to every other — it keeps filling until it's unreadable
-- Right hero: counter running to **2,034,677,736**, labelled *comparisons, one quarter*
-- Punch stamp: **23 days** — at a thousand comparisons a second
+- Right hero: counter running to **2,034,677,736**, labelled *comparisons, per submission*
+- Punch stamp: **23 days** — at a thousand comparisons a second, per new paper
 
-The rate has to survive a sceptic. A thousand per second is a rate nobody will argue with, and it still
-eats a quarter of the ninety-day window on one check. Frame 7 reuses the same rate so the two figures
+The rate has to survive a sceptic. A thousand per second is a rate nobody will argue with — and it still
+takes twenty-three days for a single new paper. Frame 7 reuses the same rate so the two figures
 are directly comparable.
 
 Kill from the old version: the brute-force-cracking aside, the O(N) notation. Notation arrives in Frame 7, earned.
@@ -312,10 +312,10 @@ No threshold number on this frame. It isn't the story.
 
 - status: animated
 - src: compositions/frames/12-close.html
-- duration: 15.5s (starts 178.9s)
+- duration: 9.2s (starts 181.7s)
 - transition_in: crossfade
 - scene: Repetition is how they scale — and how they're caught
-- voiceover: Index once. Ignore the crowds. Hand the reviewer twenty scored peers instead of two billion comparisons. Papermills scale by repeating themselves — which is exactly how they get caught.
+- voiceover: Index once. Ignore the crowds. Hand the reviewer twenty scored peers instead of two billion comparisons.
 - narrativeRole: close
 - blueprint: kinetic-title
 
@@ -325,3 +325,16 @@ The last line is the whole pitch and should be the last thing on screen:
 *Papermills scale by repeating themselves.*
 
 **Animation:** the three outcome cards settle, then everything else recedes and the closing line holds alone over the brand lockup.
+
+## Frame 13 — Outro
+
+- status: animated
+- src: compositions/frames/13-outro.html
+- duration: 8.5s (starts 190.4s)
+- transition_in: crossfade
+- scene: Papermills scale by repeating themselves
+- voiceover: Papermills scale by repeating themselves, which is exactly how they get caught.
+- narrativeRole: close
+- blueprint: kinetic-title
+
+Same treatment as the title slide — centered, intro-style. The thesis line gets the whole frame so we don't end staring at the bottom of the impact slide.
