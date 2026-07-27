@@ -13,12 +13,12 @@ snapshot pipeline, and production planning docs.
 audit-network/          # static web app (deploy this folder)
 audit-network-demo/     # HyperFrames product demo video
 audit-pipeline/         # local pipeline cache (git-ignored dumps)
-docs/                   # PRD and production planning (start here)
+docs/                   # production planning (Cluster Analysis PRD in docs/aira-checks/)
 audit_snapshot.py       # service-aira → snapshot builder
 *.py                    # pipeline helpers
 ```
 
-Product docs for the production implementation live in [`docs/`](./docs/) — begin with [`docs/PRD.md`](./docs/PRD.md).
+Product docs live in [`docs/`](./docs/). Start with the Cluster Analysis check PRD: [`docs/aira-checks/cluster-analysis-prd.md`](./docs/aira-checks/cluster-analysis-prd.md).
 
 ## What it does
 

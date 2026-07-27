@@ -3,7 +3,6 @@
 | Doc | Surface |
 |-----|---------|
 | [`cluster-analysis-prd.md`](./cluster-analysis-prd.md) | **Cluster Analysis** — in-review check (BLOCK / WARN / PASS) |
-| [`../PRD.md`](../PRD.md) | Network explorer (separate product) |
 
 ## Local tooling (this repo)
 
