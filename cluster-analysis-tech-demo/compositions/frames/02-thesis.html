@@ -417,14 +417,14 @@
     /* /feedback */
   </style>
 
-    <div data-hf-id="hf-6mip" id="root" data-composition-id="02-thesis" data-duration="12.2" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-6mip" id="root" data-composition-id="02-thesis" data-duration="15" data-width="1920" data-height="1080">
       <div data-hf-id="hf-wua0" class="scene">
         <div data-hf-id="hf-m7dd" class="bg"></div>
 
     <div data-hf-id="hf-k15r" class="main">
       <div data-hf-id="hf-z992" class="head">
-        <h1 data-hf-id="hf-xlhw" class="title">Search engines already solved this</h1>
-        <p data-hf-id="hf-4oa3" class="sub">Google doesn't read the web when you hit enter. It reads an index it built earlier.</p>
+        <h1 data-hf-id="hf-xlhw" class="title">Weighted hashing, reverse indexing</h1>
+        <p data-hf-id="hf-4oa3" class="sub">Embeddings were the tempting answer. These two reach the same verdicts for a fraction of the cost.</p>
       </div>
       <div data-hf-id="hf-6ra9" class="cols">
         <div data-hf-id="hf-3ust" class="c mid">
@@ -436,7 +436,7 @@
         <div data-hf-id="hf-lpi9" class="c mid">
           <div data-hf-id="hf-20az" class="eyebrow">02</div>
           <div data-hf-id="hf-emwo" class="md" style="font-size:86px">Look up</div>
-          <div data-hf-id="hf-jiup" class="note">Who else has this key?</div>
+          <div data-hf-id="hf-jiup" class="note">The reverse index says who else has it</div>
         </div>
         <div data-hf-id="hf-50ck" class="vrule"></div>
         <div data-hf-id="hf-mwfc" class="c mid">
@@ -452,7 +452,7 @@
         </div>
       </div>
       <div data-hf-id="hf-hx7w" class="hair"></div>
-      <p data-hf-id="hf-onw6" class="lead">An index is a list built in advance — so the answer is a lookup, not a search.</p>
+      <p data-hf-id="hf-onw6" class="lead">Nothing here is a search — every step is a <span data-hf-id="hf-lk01" class="accent">lookup</span> against keys indexed in advance. Both names get unpacked from here.</p>
     </div><!-- /main -->
       </div>
     </div>
@@ -464,7 +464,7 @@
       var q  = function (s) { return R.querySelector(s); };
       var qa = function (s) { return Array.prototype.slice.call(R.querySelectorAll(s)); };
       var SC = q('.scene');
-      var K = 1.1296;                       // frame stretch factor — see SKETCH_LEN in the build script
+      var K = 1.3888;                       // frame stretch factor — see SKETCH_LEN in the build script
       var _tl = gsap.timeline({ paused: true });
 
       function stretch(v) {

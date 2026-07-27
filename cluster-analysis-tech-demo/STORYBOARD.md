@@ -4,7 +4,7 @@ message: "Papermills scale by repeating themselves — Cluster Analysis turns th
 arc: Hook → Wrong model → The trick → Fingerprint → Keys → Ceiling → Shortlist → Math → Measured → Judgement → Block → Warn → Close → Outro
 audience: integrity specialists and engineers — technical, but nobody should feel locked out
 mode: collaborative
-runtime: 199s · 14 frames · narrated (Kokoro af_heart 0.6 / af_nicole 0.4) over a music bed
+runtime: 205s · 14 frames · narrated (Kokoro af_heart 0.6 / af_nicole 0.4) over a music bed
 ---
 
 ## Layout system
@@ -36,15 +36,20 @@ Full narration reads as one continuous script — see `voiceover` per frame, in 
 
 - status: animated
 - src: compositions/frames/00-title.html
-- duration: 11.1s (starts 0s)
+- duration: 14.4s (starts 0s)
 - poster: 0.5s
 - transition_in: cut
 - scene: Cluster Analysis — title
-- voiceover: Papermills don't submit one paper. They submit hundreds — often from the same laptop. Cluster Analysis is the check that notices.
+- voiceover: Hi. Let's take a look at how AIRA's Cluster Analysis works. Papermills don't submit one paper. They submit hundreds, often from the same laptop. This is the check that notices.
 - narrativeRole: open
 - blueprint: kinetic-title
 
-Locked — do not restyle. Chrome on every frame: **Frontiers logo | AIRA · Cluster Analysis**.
+Locked — do not restyle. The title and outro carry the Frontiers lockup inside the slide;
+the **Frontiers logo | AIRA · Cluster Analysis** bar rides the twelve interior frames only,
+so the two bookends never show two logos at once.
+
+The reveal finishes around 3.6s and then holds while the greeting plays out. The slot is
+sized to the narration, not the animation.
 
 **Animation:** title settles, thesis line wipes in beneath it. Nothing fancy — the next frame does the work.
 
@@ -74,23 +79,30 @@ Kill from the old version: the brute-force-cracking aside, the O(N) notation. No
 
 **Animation:** grid cells connect faster and faster until the panel is solid; counter races and lands; "64 years" stamps in late with a small overshoot, then everything freezes.
 
-## Frame 2 — Search engines already solved this
+## Frame 2 — Weighted hashing, reverse indexing
 
 - status: animated
 - src: compositions/frames/02-thesis.html
-- duration: 12.2s (starts 24.8s)
+- duration: 15s (starts 30.9s)
 - transition_in: crossfade
-- scene: Don't read the library — read the index
-- voiceover: Search engines solved this years ago. Google doesn't read the web when you hit enter — it reads an index it built earlier. Same trick, applied to identity.
+- scene: The two ideas we picked, and the one we turned down
+- voiceover: The tempting answer was embeddings. Turn every paper into a vector, and measure the distance. We found a way to reach the same verdicts for a fraction of the cost: weighted hashing, and a reverse index.
 - narrativeRole: value claim
 - blueprint: kinetic-title
 
-The whole method in four words, with the analogy carrying the explanation:
-**Hash → Look up → Shortlist → Decide.**
+This frame names the approach and sets up the two terms the rest of the video explains in
+practical terms. Earlier drafts framed it as "search engines already solved this" with a
+Google analogy — that was cut deliberately. It made a deliberate engineering choice sound
+like borrowed prior art, when the actual decision was to reject embeddings (expensive,
+still touches everything) in favour of weighted hashing plus a reverse index, which reach
+the same verdicts far cheaper. Keep the framing on the choice, not on the precedent.
 
-One line under the strip, plain: *an index is a list built in advance, so the answer is a lookup instead of a search.*
+The whole method in four words: **Hash → Look up → Shortlist → Decide.**
 
-**Animation:** search box types a query, results appear instantly; the four steps slide in on a beat each and stay as a spine the later frames call back to.
+One line under the strip: *nothing here is a search — every step is a lookup against keys
+indexed in advance.*
+
+**Animation:** the four steps slide in on a beat each and stay as a spine the later frames call back to.
 
 ## Frame 3 — The fingerprint
 
