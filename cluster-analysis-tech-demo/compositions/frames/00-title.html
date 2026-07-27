@@ -2,17 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1920, height=1080">
   <title>Title</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-  <style>
+</head>
+<body>
+  <template>
+    <style>
+
     * { margin:0; padding:0; box-sizing:border-box; }
-    html, body { width:1920px; height:1080px; overflow:hidden; background:#0b1670; font-family:Inter,system-ui,sans-serif; color:#fff; }
-    #root { position:relative; width:1920px; height:1080px; background:
-      radial-gradient(1200px 760px at 50% -12%, rgba(255,255,255,0.18), transparent 56%),
-      radial-gradient(1000px 680px at 86% 116%, rgba(90,130,230,0.32), transparent 60%),
-      linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%); }
 
     .brand-bar {
       position:absolute; top:28px; left:72px; z-index:5;
@@ -37,24 +33,77 @@
     .sub {
       font-size:22px; color:rgba(255,255,255,0.78); line-height:1.45; max-width:820px;
     }
-  </style>
-</head>
-<body>
-  <div data-hf-id="hf-xisg" id="root" data-composition-id="00-title" data-start="0" data-duration="9" data-width="1920" data-height="1080">
-    <div data-hf-id="hf-add3" class="brand-bar">
-      <img data-hf-id="hf-vy8b" src="assets/frontiers.png" alt="Frontiers">
-      <span data-hf-id="hf-s1d3" class="pipe">|</span>
-      <span data-hf-id="hf-0ch0" class="product">AIRA · Cluster Analysis</span>
-    </div>
+
+    /* ---- sub-composition scaffold + animation affordances ---- */
+    #root { position:absolute; inset:0; overflow:hidden; box-sizing:border-box;
+            font-family:Inter,system-ui,sans-serif; color:#fff; }
+    .scene { position:absolute; inset:0; }
+    .bg { position:absolute; inset:0; z-index:0; background:radial-gradient(1200px 760px at 50% -12%, rgba(255,255,255,0.14), transparent 56%),linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%); }
+    .brand-bar, .label, .main { z-index:2; }
+
+    .hair { transform-origin:left center; }
+    .vrule { transform-origin:center center; }
+    .bar, .fill2, .stops .link { transform-origin:left center; }
+    .xl, .lg, .md, .sm, .kw { font-variant-numeric:tabular-nums; }
+    .w, .sig, .sigdot { display:inline-block; }
+    .sigdot { opacity:0.4; padding:0 8px; }
+    .ln { display:block; }
+
+    /* WCAG AA on the blue field — the muted greys a mock gets away with do not pass */
+    .eyebrow { color:rgba(255,255,255,0.68); }
+    .note { color:rgba(255,255,255,0.68); }
+    .krow .kf { color:rgba(255,255,255,0.66); }
+    .mk i { color:rgba(255,255,255,0.8); }
+    .sigdot { opacity:0.55; }
+    </style>
+
+    <div data-hf-id="hf-s0jb" id="root" data-composition-id="00-title" data-duration="9.8" data-width="1920" data-height="1080">
+      <div data-hf-id="hf-wua0" class="scene">
+        <div data-hf-id="hf-m7dd" class="bg"></div>
+
     <div data-hf-id="hf-0oij" class="center">
       <div data-hf-id="hf-v43a" class="kicker">AIRA in-review check</div>
       <h1 data-hf-id="hf-b4cg" class="title">Cluster Analysis</h1>
       <p data-hf-id="hf-imi4" class="sub">Index identity. Cap the noise. Shortlist the peers that earn a BLOCK or WARN.</p>
     </div>
-  </div>
-  <script>
-    window.__timelines = window.__timelines || {};
-    window.__timelines["00-title"] = gsap.timeline({ paused: true });
-  </script>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      var R  = document.querySelector('[data-composition-id="00-title"]');
+      var q  = function (s) { return R.querySelector(s); };
+      var qa = function (s) { return Array.prototype.slice.call(R.querySelectorAll(s)); };
+      var SC = q('.scene');
+      var tl = gsap.timeline({ paused: true });
+
+      function count(el, to, dur, at, opt) {
+        opt = opt || {};
+        var dec = opt.dec || 0, suf = opt.suf || '', st = { v: opt.from || 0 };
+        var write = function (v) {
+          el.textContent = (dec ? v.toFixed(dec)
+                                : Math.round(v).toLocaleString('en-US')) + suf;
+        };
+        write(st.v);
+        tl.to(st, { v: to, duration: dur, ease: opt.ease || 'power2.out',
+                    onUpdate: function () { write(st.v); } }, at);
+      }
+
+
+      var t = q('.title');
+      t.innerHTML = t.textContent.trim().split(/\s+/)
+        .map(function (w) { return '<span class="w">' + w + '</span>'; }).join(' ');
+
+      tl.fromTo(SC, { opacity: 0 }, { opacity: 1, duration: 0.6, ease: 'power1.inOut' }, 0);
+      tl.fromTo(q('.kicker'), { autoAlpha: 0, y: 18 },
+        { autoAlpha: 1, y: 0, duration: 0.6, ease: 'power2.out' }, 0.7);
+      tl.fromTo(qa('.title .w'), { autoAlpha: 0, y: 70, scale: 0.9 },
+        { autoAlpha: 1, y: 0, scale: 1, duration: 0.8, ease: 'back.out(1.6)', stagger: 0.11 }, 0.95);
+      tl.fromTo(q('.sub'), { autoAlpha: 0, y: 22 },
+        { autoAlpha: 1, y: 0, duration: 0.9, ease: 'power3.out' }, 1.9);
+      window.__timelines["00-title"] = tl;
+    </script>
+  </template>
 </body>
 </html>

@@ -1,36 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1920, height=1080">
   <title>Search engines already solved this</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-  <style>
+</head>
+<body>
+  <template>
+    <style>
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-    }
-
-    html,
-    body {
-      width: 1920px;
-      height: 1080px;
-      overflow: hidden;
-      background: #0b1670;
-      font-family: Inter, system-ui, sans-serif;
-      color: #fff;
-    }
-
-    #root {
-      position: relative;
-      width: 1920px;
-      height: 1080px;
-      background:
-        radial-gradient(1200px 760px at 50% -12%, rgba(255, 255, 255, 0.14), transparent 56%),
-        linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%);
     }
 
     .brand-bar {
@@ -397,55 +378,113 @@
     .stops { display: flex; align-items: center; flex: 1; }
     .stops .stop { flex: 1; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
     .stops .link { flex: 0 0 90px; height: 1px; background: rgba(255,255,255,0.2); }
-  </style>
-</head>
 
-<body>
-  <div data-hf-id="hf-gajh" id="root" data-composition-id="02-thesis" data-start="0" data-duration="9" data-width="1920" data-height="1080">
-    <div data-hf-id="hf-add3" class="brand-bar">
-      <img data-hf-id="hf-vy8b" src="assets/frontiers.png" alt="Frontiers">
-      <span data-hf-id="hf-s1d3" class="pipe">|</span>
-      <span data-hf-id="hf-0ch0" class="product">AIRA · Cluster Analysis</span>
-    </div>
-    <div data-hf-id="hf-ng5r" class="label">Method</div>
+    /* ---- sub-composition scaffold + animation affordances ---- */
+    #root { position:absolute; inset:0; overflow:hidden; box-sizing:border-box;
+            font-family:Inter,system-ui,sans-serif; color:#fff; }
+    .scene { position:absolute; inset:0; }
+    .bg { position:absolute; inset:0; z-index:0; background:radial-gradient(1200px 760px at 50% -12%, rgba(255,255,255,0.14), transparent 56%),linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%); }
+    .brand-bar, .label, .main { z-index:2; }
+
+    .hair { transform-origin:left center; }
+    .vrule { transform-origin:center center; }
+    .bar, .fill2, .stops .link { transform-origin:left center; }
+    .xl, .lg, .md, .sm, .kw { font-variant-numeric:tabular-nums; }
+    .w, .sig, .sigdot { display:inline-block; }
+    .sigdot { opacity:0.4; padding:0 8px; }
+    .ln { display:block; }
+
+    /* WCAG AA on the blue field — the muted greys a mock gets away with do not pass */
+    .eyebrow { color:rgba(255,255,255,0.68); }
+    .note { color:rgba(255,255,255,0.68); }
+    .krow .kf { color:rgba(255,255,255,0.66); }
+    .mk i { color:rgba(255,255,255,0.8); }
+    .sigdot { opacity:0.55; }
+    </style>
+
+    <div data-hf-id="hf-rxvd" id="root" data-composition-id="02-thesis" data-duration="10.8" data-width="1920" data-height="1080">
+      <div data-hf-id="hf-wua0" class="scene">
+        <div data-hf-id="hf-m7dd" class="bg"></div>
+
     <div data-hf-id="hf-k15r" class="main">
-      <div data-hf-id="hf-yf6s" class="head">
-        <h1 data-hf-id="hf-3ql1" class="title">Search engines already solved this</h1>
-        <p data-hf-id="hf-pluv" class="sub">Google doesn't read the web when you hit enter. It reads an index it built earlier.</p>
+      <div data-hf-id="hf-z992" class="head">
+        <h1 data-hf-id="hf-xlhw" class="title">Search engines already solved this</h1>
+        <p data-hf-id="hf-4oa3" class="sub">Google doesn't read the web when you hit enter. It reads an index it built earlier.</p>
       </div>
       <div data-hf-id="hf-6ra9" class="cols">
         <div data-hf-id="hf-3ust" class="c mid">
           <div data-hf-id="hf-1lzy" class="eyebrow">01</div>
-          <div data-hf-id="hf-deau" class="md" style="font-size:86px">Hash</div>
+          <div data-hf-id="hf-yzck" class="md" style="font-size:86px">Hash</div>
           <div data-hf-id="hf-itdm" class="note">Identity becomes a short key</div>
         </div>
         <div data-hf-id="hf-7fxo" class="vrule"></div>
         <div data-hf-id="hf-lpi9" class="c mid">
           <div data-hf-id="hf-20az" class="eyebrow">02</div>
-          <div data-hf-id="hf-1rrq" class="md" style="font-size:86px">Look up</div>
+          <div data-hf-id="hf-emwo" class="md" style="font-size:86px">Look up</div>
           <div data-hf-id="hf-jiup" class="note">Who else has this key?</div>
         </div>
         <div data-hf-id="hf-50ck" class="vrule"></div>
         <div data-hf-id="hf-mwfc" class="c mid">
           <div data-hf-id="hf-2em0" class="eyebrow">03</div>
-          <div data-hf-id="hf-l5bw" class="md" style="font-size:86px">Shortlist</div>
+          <div data-hf-id="hf-prqy" class="md" style="font-size:86px">Shortlist</div>
           <div data-hf-id="hf-q32d" class="note">Score, keep the strongest</div>
         </div>
         <div data-hf-id="hf-3tfh" class="vrule"></div>
         <div data-hf-id="hf-mi4b" class="c mid">
           <div data-hf-id="hf-zmgt" class="eyebrow">04</div>
-          <div data-hf-id="hf-3xme" class="md accent" style="font-size:86px">Decide</div>
+          <div data-hf-id="hf-doos" class="md accent" style="font-size:86px">Decide</div>
           <div data-hf-id="hf-ssom" class="note">Block · warn · pass</div>
         </div>
       </div>
       <div data-hf-id="hf-hx7w" class="hair"></div>
-      <p data-hf-id="hf-g8qg" class="lead">An index is a list built in advance — so the answer is a lookup, not a search.</p>
+      <p data-hf-id="hf-onw6" class="lead">An index is a list built in advance — so the answer is a lookup, not a search.</p>
     </div><!-- /main -->
-  </div>
-  <script>
-    window.__timelines = window.__timelines || {};
-    window.__timelines["02-thesis"] = gsap.timeline({ paused: true });
-  </script>
-</body>
+      </div>
+    </div>
 
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      var R  = document.querySelector('[data-composition-id="02-thesis"]');
+      var q  = function (s) { return R.querySelector(s); };
+      var qa = function (s) { return Array.prototype.slice.call(R.querySelectorAll(s)); };
+      var SC = q('.scene');
+      var tl = gsap.timeline({ paused: true });
+
+      function count(el, to, dur, at, opt) {
+        opt = opt || {};
+        var dec = opt.dec || 0, suf = opt.suf || '', st = { v: opt.from || 0 };
+        var write = function (v) {
+          el.textContent = (dec ? v.toFixed(dec)
+                                : Math.round(v).toLocaleString('en-US')) + suf;
+        };
+        write(st.v);
+        tl.to(st, { v: to, duration: dur, ease: opt.ease || 'power2.out',
+                    onUpdate: function () { write(st.v); } }, at);
+      }
+
+
+      var cs = qa('.cols > .c');
+
+      tl.fromTo(SC, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power1.inOut' }, 0);
+      tl.fromTo(q('.head'), { autoAlpha: 0, y: 24 },
+        { autoAlpha: 1, y: 0, duration: 0.8, ease: 'power3.out' }, 0.3);
+
+      cs.forEach(function (c, i) {
+        tl.fromTo(c, { autoAlpha: 0, y: 40 },
+          { autoAlpha: 1, y: 0, duration: 0.7, ease: 'power3.out' }, 1.6 + i * 1.35);
+      });
+      tl.fromTo(qa('.vrule'), { scaleY: 0 },
+        { scaleY: 1, duration: 0.5, ease: 'power2.inOut', stagger: 1.35 }, 2.3);
+
+      tl.fromTo(cs[3].querySelector('.md'), { scale: 1 },
+        { scale: 1.07, duration: 0.4, yoyo: true, repeat: 1, ease: 'sine.inOut' }, 6.4);
+      tl.fromTo(q('.hair'), { scaleX: 0 },
+        { scaleX: 1, duration: 0.8, ease: 'power2.inOut' }, 7.2);
+      tl.fromTo(q('.main > .lead'), { autoAlpha: 0, y: 16 },
+        { autoAlpha: 1, y: 0, duration: 0.8, ease: 'power2.out' }, 7.5);
+      window.__timelines["02-thesis"] = tl;
+    </script>
+  </template>
+</body>
 </html>

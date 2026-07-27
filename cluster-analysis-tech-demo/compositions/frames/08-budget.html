@@ -1,36 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1920, height=1080">
   <title>What it actually costs</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-  <style>
+</head>
+<body>
+  <template>
+    <style>
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-    }
-
-    html,
-    body {
-      width: 1920px;
-      height: 1080px;
-      overflow: hidden;
-      background: #0b1670;
-      font-family: Inter, system-ui, sans-serif;
-      color: #fff;
-    }
-
-    #root {
-      position: relative;
-      width: 1920px;
-      height: 1080px;
-      background:
-        radial-gradient(1200px 760px at 50% -12%, rgba(255, 255, 255, 0.14), transparent 56%),
-        linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%);
     }
 
     .brand-bar {
@@ -331,39 +312,56 @@
       gap: 16px;
     }
     .cols.cards > .c.win { border-color: rgba(157,255,184,0.45); background: rgba(157,255,184,0.09); }
-  </style>
-</head>
 
-<body>
-  <div data-hf-id="hf-drvm" id="root" data-composition-id="08-budget" data-start="0" data-duration="12" data-width="1920" data-height="1080">
-    <div data-hf-id="hf-add3" class="brand-bar">
-      <img data-hf-id="hf-vy8b" src="assets/frontiers.png" alt="Frontiers">
-      <span data-hf-id="hf-s1d3" class="pipe">|</span>
-      <span data-hf-id="hf-0ch0" class="product">AIRA · Cluster Analysis</span>
-    </div>
-    <div data-hf-id="hf-im9q" class="label">Measured</div>
+    /* ---- sub-composition scaffold + animation affordances ---- */
+    #root { position:absolute; inset:0; overflow:hidden; box-sizing:border-box;
+            font-family:Inter,system-ui,sans-serif; color:#fff; }
+    .scene { position:absolute; inset:0; }
+    .bg { position:absolute; inset:0; z-index:0; background:radial-gradient(1200px 760px at 50% -12%, rgba(255,255,255,0.14), transparent 56%),linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%); }
+    .brand-bar, .label, .main { z-index:2; }
+
+    .hair { transform-origin:left center; }
+    .vrule { transform-origin:center center; }
+    .bar, .fill2, .stops .link { transform-origin:left center; }
+    .xl, .lg, .md, .sm, .kw { font-variant-numeric:tabular-nums; }
+    .w, .sig, .sigdot { display:inline-block; }
+    .sigdot { opacity:0.4; padding:0 8px; }
+    .ln { display:block; }
+
+    /* WCAG AA on the blue field — the muted greys a mock gets away with do not pass */
+    .eyebrow { color:rgba(255,255,255,0.68); }
+    .note { color:rgba(255,255,255,0.68); }
+    .krow .kf { color:rgba(255,255,255,0.66); }
+    .mk i { color:rgba(255,255,255,0.8); }
+    .sigdot { opacity:0.55; }
+    </style>
+
+    <div data-hf-id="hf-0ux3" id="root" data-composition-id="08-budget" data-duration="18.5" data-width="1920" data-height="1080">
+      <div data-hf-id="hf-wua0" class="scene">
+        <div data-hf-id="hf-m7dd" class="bg"></div>
+
 
     <div data-hf-id="hf-k15r" class="main">
       <div data-hf-id="hf-z992" class="head">
         <h1 data-hf-id="hf-7kgq" class="title">What it actually costs</h1>
         <p data-hf-id="hf-a1a4" class="sub">Measured on a 63,792-paper snapshot — not a model.</p>
       </div>
-      <div data-hf-id="hf-6ra9" class="cols cards">
+      <div data-hf-id="hf-4t6w" class="cols cards">
         <div data-hf-id="hf-kmmr" class="c">
-          <div data-hf-id="hf-bquv" class="lg">13</div>
-          <div data-hf-id="hf-fmx9" class="lead">candidates worth scoring<br data-hf-id="hf-x5px"><span data-hf-id="hf-w9xo" class="note">out of 63,791</span></div>
+          <div data-hf-id="hf-t5h7" class="lg"><span data-hf-id="hf-x7gx" class="n">13</span></div>
+          <div data-hf-id="hf-fmx9" class="lead">candidates worth scoring<div data-hf-id="hf-4psn" class="note">out of 63,791</div></div>
         </div>
         <div data-hf-id="hf-7mcz" class="c">
-          <div data-hf-id="hf-bvwy" class="lg">2.9<span data-hf-id="hf-37x0" style="font-size:44px">s</span></div>
-          <div data-hf-id="hf-i9n7" class="lead">to score the entire quarter<br data-hf-id="hf-rsrt"><span data-hf-id="hf-hc4z" class="note">0.045 ms per paper</span></div>
+          <div data-hf-id="hf-dewr" class="lg"><span data-hf-id="hf-1dlo" class="n">2.9</span><span data-hf-id="hf-37x0" style="font-size:44px">s</span></div>
+          <div data-hf-id="hf-i9n7" class="lead">to score the entire quarter<div data-hf-id="hf-5wla" class="note">0.045 ms per paper</div></div>
         </div>
         <div data-hf-id="hf-781y" class="c">
-          <div data-hf-id="hf-akw1" class="lg">20</div>
-          <div data-hf-id="hf-2t2u" class="lead">rows on the reviewer's card<br data-hf-id="hf-szow"><span data-hf-id="hf-dd1f" class="note">however big the archive gets</span></div>
+          <div data-hf-id="hf-d0lq" class="lg"><span data-hf-id="hf-yjyr" class="n">20</span></div>
+          <div data-hf-id="hf-2t2u" class="lead">rows on the reviewer's card<div data-hf-id="hf-fqrm" class="note">however big the archive gets</div></div>
         </div>
-        <div data-hf-id="hf-6tqx" class="c win">
-          <div data-hf-id="hf-lyv3" class="lg mint">6.4<span data-hf-id="hf-zt1a" style="font-size:44px">%</span></div>
-          <div data-hf-id="hf-efp3" class="lead">ever reach a human<br data-hf-id="hf-sldv"><span data-hf-id="hf-xj9y" class="note">3.7% warn · 2.7% block</span></div>
+        <div data-hf-id="hf-fz55" class="c win">
+          <div data-hf-id="hf-0fpt" class="lg mint"><span data-hf-id="hf-01lz" class="n">6.4</span><span data-hf-id="hf-zt1a" style="font-size:44px">%</span></div>
+          <div data-hf-id="hf-efp3" class="lead">ever reach a human<div data-hf-id="hf-w5nb" class="note">3.7% warn · 2.7% block</div></div>
         </div>
       </div>
       <div data-hf-id="hf-ibu8" style="display:flex;align-items:center;gap:34px;flex:none;padding-bottom:26px">
@@ -379,11 +377,58 @@
       <div data-hf-id="hf-hx7w" class="hair"></div>
       <p data-hf-id="hf-royw" class="lead">Word-file check reads <strong data-hf-id="hf-c4ct">1 file</strong>. &#160;A brute-force hunt reads <strong data-hf-id="hf-4tun">63,792</strong>. &#160;<span data-hf-id="hf-ps3k" class="accent">Cluster Analysis indexes 63,792 and touches 13.</span></p>
     </div><!-- /main -->
-  </div>
-  <script>
-    window.__timelines = window.__timelines || {};
-    window.__timelines["08-budget"] = gsap.timeline({ paused: true });
-  </script>
-</body>
+      </div>
+    </div>
 
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      var R  = document.querySelector('[data-composition-id="08-budget"]');
+      var q  = function (s) { return R.querySelector(s); };
+      var qa = function (s) { return Array.prototype.slice.call(R.querySelectorAll(s)); };
+      var SC = q('.scene');
+      var tl = gsap.timeline({ paused: true });
+
+      function count(el, to, dur, at, opt) {
+        opt = opt || {};
+        var dec = opt.dec || 0, suf = opt.suf || '', st = { v: opt.from || 0 };
+        var write = function (v) {
+          el.textContent = (dec ? v.toFixed(dec)
+                                : Math.round(v).toLocaleString('en-US')) + suf;
+        };
+        write(st.v);
+        tl.to(st, { v: to, duration: dur, ease: opt.ease || 'power2.out',
+                    onUpdate: function () { write(st.v); } }, at);
+      }
+
+
+      var cards = qa('.cols.cards > .c'),
+          vals = [[13, 0], [2.9, 1], [20, 0], [6.4, 1]];
+
+      tl.fromTo(SC, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power1.inOut' }, 0);
+      tl.fromTo(q('.head'), { autoAlpha: 0, y: 24 },
+        { autoAlpha: 1, y: 0, duration: 0.8, ease: 'power3.out' }, 0.3);
+
+      cards.forEach(function (c, i) {
+        var at = 1.4 + i * 1.6;
+        tl.fromTo(c, { autoAlpha: 0, y: 36, scale: 0.94 },
+          { autoAlpha: 1, y: 0, scale: 1, duration: 0.7, ease: 'back.out(1.4)' }, at);
+        count(c.querySelector('.n'), vals[i][0], 1.0, at + 0.2, { dec: vals[i][1] });
+      });
+
+      tl.fromTo(q('.main .eyebrow'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5 }, 8.4);
+      tl.fromTo(q('.track2'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5 }, 8.4);
+      tl.fromTo(q('.fill2'), { scaleX: 0 },
+        { scaleX: 1, duration: 1.2, ease: 'power2.out' }, 8.8);
+      tl.fromTo(qa('.mk'), { autoAlpha: 0, y: 10 },
+        { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out', stagger: 0.55 }, 9.4);
+
+      tl.fromTo(q('.hair'), { scaleX: 0 },
+        { scaleX: 1, duration: 0.8, ease: 'power2.inOut' }, 13.6);
+      tl.fromTo(q('.main > .lead'), { autoAlpha: 0, y: 16 },
+        { autoAlpha: 1, y: 0, duration: 0.8, ease: 'power2.out' }, 13.9);
+      window.__timelines["08-budget"] = tl;
+    </script>
+  </template>
+</body>
 </html>

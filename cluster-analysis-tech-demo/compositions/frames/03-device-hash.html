@@ -2,16 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1920, height=1080">
   <title>The fingerprint</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-  <style>
+</head>
+<body>
+  <template>
+    <style>
+
     * { margin:0; padding:0; box-sizing:border-box; }
-    html, body { width:1920px; height:1080px; overflow:hidden; background:#0b1670; font-family:Inter,system-ui,sans-serif; color:#fff; }
-    #root { position:relative; width:1920px; height:1080px; background:
-      radial-gradient(1200px 760px at 50% -12%, rgba(255,255,255,0.14), transparent 56%),
-      linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%); }
     .brand-bar {
       position:absolute; top:0; left:0; right:0; z-index:20;
       display:flex; align-items:center; gap:14px;
@@ -125,16 +122,34 @@
     .stops { display: flex; align-items: center; flex: 1; }
     .stops .stop { flex: 1; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
     .stops .link { flex: 0 0 90px; height: 1px; background: rgba(255,255,255,0.2); }
-  </style>
-</head>
-<body>
-  <div data-hf-id="hf-7sxn" id="root" data-composition-id="03-device-hash" data-start="0" data-duration="12" data-width="1920" data-height="1080">
-    <div data-hf-id="hf-add3" class="brand-bar">
-      <img data-hf-id="hf-vy8b" src="assets/frontiers.png" alt="Frontiers">
-      <span data-hf-id="hf-s1d3" class="pipe">|</span>
-      <span data-hf-id="hf-0ch0" class="product">AIRA · Cluster Analysis</span>
-    </div>
-    <div data-hf-id="hf-7420" class="label">Identity</div>
+
+    /* ---- sub-composition scaffold + animation affordances ---- */
+    #root { position:absolute; inset:0; overflow:hidden; box-sizing:border-box;
+            font-family:Inter,system-ui,sans-serif; color:#fff; }
+    .scene { position:absolute; inset:0; }
+    .bg { position:absolute; inset:0; z-index:0; background:radial-gradient(1200px 760px at 50% -12%, rgba(255,255,255,0.14), transparent 56%),linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%); }
+    .brand-bar, .label, .main { z-index:2; }
+
+    .hair { transform-origin:left center; }
+    .vrule { transform-origin:center center; }
+    .bar, .fill2, .stops .link { transform-origin:left center; }
+    .xl, .lg, .md, .sm, .kw { font-variant-numeric:tabular-nums; }
+    .w, .sig, .sigdot { display:inline-block; }
+    .sigdot { opacity:0.4; padding:0 8px; }
+    .ln { display:block; }
+
+    /* WCAG AA on the blue field — the muted greys a mock gets away with do not pass */
+    .eyebrow { color:rgba(255,255,255,0.68); }
+    .note { color:rgba(255,255,255,0.68); }
+    .krow .kf { color:rgba(255,255,255,0.66); }
+    .mk i { color:rgba(255,255,255,0.8); }
+    .sigdot { opacity:0.55; }
+    </style>
+
+    <div data-hf-id="hf-4y97" id="root" data-composition-id="03-device-hash" data-duration="13.7" data-width="1920" data-height="1080">
+      <div data-hf-id="hf-wua0" class="scene">
+        <div data-hf-id="hf-m7dd" class="bg"></div>
+
     <div data-hf-id="hf-k15r" class="main">
       <div data-hf-id="hf-z992" class="head">
         <h1 data-hf-id="hf-y8g3" class="title">The fingerprint</h1>
@@ -142,22 +157,91 @@
       </div>
       <div data-hf-id="hf-6ra9" class="cols">
         <div data-hf-id="hf-avdh" class="c" style="flex:1.15">
-          <div data-hf-id="hf-0jng" class="lead">Canvas · WebGL · HwId · UA family · Platform · Screen · DPR</div>
-          <div data-hf-id="hf-7t4x" class="accent" style="font-size:38px;line-height:1">↓</div>
-          <div data-hf-id="hf-t0h2" class="lg mono" style="font-size:76px;letter-spacing:0.02em">a3f91c02e8b74d15</div>
+          <div data-hf-id="hf-0e8a" class="lead">Canvas · WebGL · HwId · UA family · Platform · Screen · DPR</div>
+          <div data-hf-id="hf-7d8g" class="accent arrowdn" style="font-size:38px;line-height:1">↓</div>
+          <div data-hf-id="hf-krgu" class="lg mono" style="font-size:76px;letter-spacing:0.02em">a3f91c02e8b74d15</div>
           <div data-hf-id="hf-ezpe" class="note" style="max-width:560px">Same machine in, same code out — and the code can't be read backwards.</div>
         </div>
         <div data-hf-id="hf-7fxo" class="vrule"></div>
         <div data-hf-id="hf-kmmr" class="c">
-          <div data-hf-id="hf-fnm7" class="md" style="font-size:52px">Change your name.<br data-hf-id="hf-x5px">Change your email.<br data-hf-id="hf-rsrt"><span data-hf-id="hf-qnsl" class="accent">Most people don't change their laptop.</span></div>
+          <div data-hf-id="hf-a0kb" class="md" style="font-size:52px"><div data-hf-id="hf-3czy" class="ln">Change your name.</div><div data-hf-id="hf-2oj5" class="ln">Change your email.</div><div data-hf-id="hf-7o0m" class="ln accent">Most people don't change their laptop.</div></div>
           <div data-hf-id="hf-fx1j" class="note" style="margin-top:12px">Incomplete profiles are discarded, so blank fingerprints never match each other.</div>
         </div>
       </div>
     </div><!-- /main -->
-  </div>
-  <script>
-    window.__timelines = window.__timelines || {};
-    window.__timelines["03-device-hash"] = gsap.timeline({ paused: true });
-  </script>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      var R  = document.querySelector('[data-composition-id="03-device-hash"]');
+      var q  = function (s) { return R.querySelector(s); };
+      var qa = function (s) { return Array.prototype.slice.call(R.querySelectorAll(s)); };
+      var SC = q('.scene');
+      var tl = gsap.timeline({ paused: true });
+
+      function count(el, to, dur, at, opt) {
+        opt = opt || {};
+        var dec = opt.dec || 0, suf = opt.suf || '', st = { v: opt.from || 0 };
+        var write = function (v) {
+          el.textContent = (dec ? v.toFixed(dec)
+                                : Math.round(v).toLocaleString('en-US')) + suf;
+        };
+        write(st.v);
+        tl.to(st, { v: to, duration: dur, ease: opt.ease || 'power2.out',
+                    onUpdate: function () { write(st.v); } }, at);
+      }
+
+
+      var lead = q('.lead');
+      lead.innerHTML = lead.textContent.split('·')
+        .map(function (s) { return '<span class="sig">' + s.trim() + '</span>'; })
+        .join('<span class="sigdot">·</span>');
+
+      var hash = q('.lg.mono'), FINAL = hash.textContent.trim();
+      var HEX = '0123456789abcdef', seed = 20260727, STEPS = 28, SCRAM = [];
+      function rnd() { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; }
+      for (var s = 0; s < STEPS; s++) {
+        var r = '';
+        for (var i = 0; i < FINAL.length; i++) { r += HEX[Math.floor(rnd() * 16)]; }
+        SCRAM.push(r);
+      }
+      hash.textContent = SCRAM[0];
+      var hs = { p: 0 };
+
+      tl.fromTo(SC, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power1.inOut' }, 0);
+      tl.fromTo(q('.head'), { autoAlpha: 0, y: 24 },
+        { autoAlpha: 1, y: 0, duration: 0.8, ease: 'power3.out' }, 0.3);
+
+      tl.fromTo(qa('.sig'), { autoAlpha: 0, y: 18 },
+        { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out', stagger: 0.1 }, 1.0);
+      tl.fromTo(qa('.sigdot'), { autoAlpha: 0 },
+        { autoAlpha: 0.4, duration: 0.4, stagger: 0.1 }, 1.1);
+      tl.fromTo(q('.arrowdn'), { autoAlpha: 0, y: -16 },
+        { autoAlpha: 1, y: 0, duration: 0.5, ease: 'power2.out' }, 2.2);
+      tl.fromTo(hash, { autoAlpha: 0, scale: 0.9 },
+        { autoAlpha: 1, scale: 1, duration: 0.5, ease: 'power2.out' }, 2.6);
+
+      // characters lock left-to-right out of a baked scramble table
+      tl.to(hs, { p: 1, duration: 2.6, ease: 'power2.out', onUpdate: function () {
+        var locked = Math.floor(hs.p * FINAL.length);
+        var step = Math.min(Math.floor(hs.p * (STEPS - 1)), STEPS - 1);
+        hash.textContent = FINAL.slice(0, locked) + SCRAM[step].slice(locked);
+      } }, 2.8);
+
+      tl.fromTo(qa('.c')[0].querySelector('.note'), { autoAlpha: 0 },
+        { autoAlpha: 1, duration: 0.6 }, 5.8);
+      tl.fromTo(q('.vrule'), { scaleY: 0 },
+        { scaleY: 1, duration: 0.7, ease: 'power2.inOut' }, 6.2);
+      tl.fromTo(qa('.ln'), { autoAlpha: 0, x: 34 },
+        { autoAlpha: 1, x: 0, duration: 0.6, ease: 'power3.out', stagger: 1.05 }, 6.6);
+      tl.fromTo(q('.ln.accent'), { scale: 0.94 },
+        { scale: 1, duration: 0.6, ease: 'back.out(2)' }, 8.7);
+      tl.fromTo(qa('.c')[1].querySelector('.note'), { autoAlpha: 0 },
+        { autoAlpha: 1, duration: 0.6 }, 10.2);
+      window.__timelines["03-device-hash"] = tl;
+    </script>
+  </template>
 </body>
 </html>

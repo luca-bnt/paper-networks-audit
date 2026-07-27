@@ -4,6 +4,7 @@ message: "Papermills scale by repeating themselves — Cluster Analysis turns th
 arc: Hook → Wrong model → The trick → Fingerprint → Keys → Ceiling → Shortlist → Math → Measured → Judgement → Block → Warn → Close
 audience: integrity specialists and engineers — technical, but nobody should feel locked out
 mode: collaborative
+runtime: 168s · 13 frames · narrated (Kokoro af_heart)
 ---
 
 ## Layout system
@@ -33,9 +34,9 @@ Full narration reads as one continuous script — see `voiceover` per frame, in 
 
 ## Frame 0 — Title
 
-- status: built
+- status: animated
 - src: compositions/frames/00-title.html
-- duration: 9s
+- duration: 9.8s (starts 0s)
 - poster: 0.5s
 - transition_in: cut
 - scene: Cluster Analysis — title
@@ -49,9 +50,9 @@ Locked — do not restyle. Chrome on every frame: **Frontiers logo | AIRA · Clu
 
 ## Frame 1 — The obvious approach
 
-- status: built
+- status: animated
 - src: compositions/frames/01-wrong-model.html
-- duration: 12s
+- duration: 12.5s (starts 9.3s)
 - transition_in: crossfade
 - scene: Compare everything with everything — 2 billion comparisons, 23 days
 - voiceover: The obvious approach is to compare every new paper with every paper before it. That's two billion comparisons a quarter. Even at a thousand a second, you'd be at it for twenty-three days.
@@ -75,9 +76,9 @@ Kill from the old version: the brute-force-cracking aside, the O(N) notation. No
 
 ## Frame 2 — Search engines already solved this
 
-- status: built
+- status: animated
 - src: compositions/frames/02-thesis.html
-- duration: 9s
+- duration: 10.8s (starts 21.3s)
 - transition_in: crossfade
 - scene: Don't read the library — read the index
 - voiceover: Search engines solved this years ago. Google doesn't read the web when you hit enter — it reads an index it built earlier. Same trick, applied to identity.
@@ -93,9 +94,9 @@ One line under the strip, plain: *an index is a list built in advance, so the an
 
 ## Frame 3 — The fingerprint
 
-- status: built
+- status: animated
 - src: compositions/frames/03-device-hash.html
-- duration: 12s
+- duration: 13.7s (starts 31.6s)
 - transition_in: crossfade
 - scene: Seven signals → one 16-character code
 - voiceover: Seven signals from the browser and graphics card squeeze into one sixteen-character code. Same machine, same code. You can change your name and change your email. Most people don't change their laptop.
@@ -114,9 +115,9 @@ Footnote, small: incomplete profiles are thrown away, so blank fingerprints neve
 
 ## Frame 4 — The four keys
 
-- status: built
+- status: animated
 - src: compositions/frames/04-tokens.html
-- duration: 12s
+- duration: 12.6s (starts 44.8s)
 - transition_in: crossfade
 - scene: The machine · the network · who wrote it · who last saved it
 - voiceover: Four keys do the deciding. The machine. The network. And two names hiding inside the Word file — who wrote it, and who last saved it. Authors tend to forget that second one exists.
@@ -139,9 +140,9 @@ Struck through: email — too many people share a mail provider for it to mean a
 
 ## Frame 5 — The ceiling
 
-- status: built
+- status: animated
 - src: compositions/frames/05-caps.html
-- duration: 11s
+- duration: 15s (starts 56.9s)
 - transition_in: crossfade
 - scene: Popular values get ignored — same machine vs same internet
 - voiceover: Some values are just popular. One campus network can cover a hundred honest papers, so every key has a ceiling — above it we ignore the value completely. Same machine is a signal. Same internet is not.
@@ -158,9 +159,9 @@ Closing line on screen: *same machine is a signal — same internet is not.*
 
 ## Frame 6 — Twenty on the card
 
-- status: built
+- status: animated
 - src: compositions/frames/06-shortlist.html
-- duration: 13s
+- duration: 13.4s (starts 71.4s)
 - transition_in: crossfade
 - scene: One lookup → score → top 20
 - voiceover: One lookup pulls back every paper that shares a key. Each one gets a score, and below three we call it coincidence and drop it. The top twenty reach the reviewer's card, with the evidence attached.
@@ -181,9 +182,9 @@ Footer: *a shortlist, not a hairball.*
 
 ## Frame 7 — Squared, or straight
 
-- status: built
+- status: animated
 - src: compositions/frames/07-efficiency.html
-- duration: 14s
+- duration: 15.4s (starts 84.3s)
 - transition_in: crossfade
 - scene: O(N²) vs O(N · t · c) — 2.03B vs 778k, gap widens with the corpus
 - voiceover: Here's the trade in one line. Compare every pair, and the work grows with the square of the corpus. Look up shared keys, and it grows in a straight line. Two and a half thousand times less work today — and doubling the archive doubles the gap.
@@ -212,9 +213,9 @@ Growth strip, three columns only — the point is the gap widening, not the tabl
 
 ## Frame 8 — What it actually costs
 
-- status: built
+- status: animated
 - src: compositions/frames/08-budget.html
-- duration: 12s
+- duration: 18.5s (starts 99.2s)
 - transition_in: crossfade
 - scene: Measured — 13 candidates, 2.9s a quarter, 20 rows, 6.4% reach a human
 - voiceover: In practice it's smaller still. The typical submission has thirteen candidates worth scoring, out of sixty-three thousand. The whole quarter scores in under three seconds. And ninety-four percent of papers pass without anyone being interrupted — which is the real budget we're protecting.
@@ -245,9 +246,9 @@ One comparison strip, three short lines — no paragraphs:
 
 ## Frame 9 — Telling colleagues from collusion
 
-- status: built
+- status: animated
 - src: compositions/frames/09-score.html
-- duration: 12s
+- duration: 14.8s (starts 117.2s)
 - transition_in: crossfade
 - scene: The score exists to avoid the obvious wrong answer
 - voiceover: The score's whole job is avoiding the obvious wrong answer. Two colleagues sharing an office network? That's a Tuesday. The same machine turning up at two unrelated institutions? That's a Tuesday worth investigating.
@@ -267,9 +268,9 @@ Formula stays, small, at the bottom for the people who want it.
 
 ## Frame 10 — What it takes to block
 
-- status: built
+- status: animated
 - src: compositions/frames/10-block.html
-- duration: 12s
+- duration: 13.9s (starts 131.5s)
 - transition_in: crossfade
 - scene: Three routes to BLOCK, plus the filters every cluster must clear
 - voiceover: Blocking needs more than a hunch. Either all four keys line up at once, or a peer we've already flagged shares both a network and a document trail, or the Word-file check has already said no on its own.
@@ -288,9 +289,9 @@ Filter strip, one line: a cluster only counts if it looks like a group — **2+ 
 
 ## Frame 11 — The near-miss lane
 
-- status: built
+- status: animated
 - src: compositions/frames/11-warn.html
-- duration: 10s
+- duration: 9.8s (starts 144.9s)
 - transition_in: crossfade
 - scene: PASS → WARN → BLOCK, and what warn actually means
 - voiceover: Everything strong but incomplete gets a warning instead. Not an accusation — an invitation to look. Same evidence, softer verdict.
@@ -309,9 +310,9 @@ No threshold number on this frame. It isn't the story.
 
 ## Frame 12 — Close
 
-- status: built
+- status: animated
 - src: compositions/frames/12-close.html
-- duration: 10s
+- duration: 13.8s (starts 154.2s)
 - transition_in: crossfade
 - scene: Repetition is how they scale — and how they're caught
 - voiceover: Index once. Ignore the crowds. Hand the reviewer twenty scored peers instead of two billion comparisons. Papermills scale by repeating themselves — which is exactly how they get caught.

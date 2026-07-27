@@ -5,48 +5,119 @@
     <meta name="viewport" content="width=1920, height=1080">
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
     <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 1920px; height: 1080px; overflow: hidden; background: #000; }
+      body { font-family: "Inter", sans-serif; }
+      #root { position: relative; width: 1920px; height: 1080px; overflow: hidden; }
+
+      /* Chrome lives here rather than in the frames, so it holds steady while
+         consecutive frames cross-dissolve underneath it. */
+      #chrome, #chrome-inner { position: absolute; inset: 0; pointer-events: none; }
+      .brand-bar {
+        position: absolute; top: 0; left: 0; right: 0;
+        display: flex; align-items: center; gap: 14px; padding: 24px 56px;
       }
-      html,
-      body {
-        margin: 0;
-        width: 1920px;
-        height: 1080px;
-        overflow: hidden;
-        background: #000;
-      }
-      body {
-        font-family: "Inter", sans-serif;
-      }
-      code,
-      pre,
-      .monospace {
-        font-family: "JetBrains Mono", monospace;
+      .brand-bar img { height: 26px; width: auto; display: block; }
+      .brand-bar .pipe { color: rgba(255, 255, 255, 0.35); font-size: 20px; font-weight: 300; line-height: 1; }
+      .brand-bar .product { font-size: 15px; font-weight: 600; letter-spacing: 0.04em; color: rgba(255, 255, 255, 0.88); }
+      .label {
+        position: absolute; top: 24px; right: 56px; height: 30px; padding: 0 14px;
+        border-radius: 999px; display: inline-flex; align-items: center;
+        font-size: 11px; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
+        color: #7ee8ff; border: 1px solid rgba(126, 232, 255, 0.45);
+        background: rgba(126, 232, 255, 0.12);
       }
     </style>
   </head>
   <body>
-    <div data-hf-id="hf-199x" id="root" data-composition-id="main" data-start="0" data-duration="10" data-width="1920" data-height="1080">
-      
-      
+    <div data-hf-id="hf-9675" id="root" data-composition-id="main" data-start="0" data-duration="168" data-width="1920" data-height="1080">
 
-      <!--
-        Add your clips here. Example:
-        <div id="title" class="clip" data-start="0" data-duration="5" data-track-index="1"
-             style="font-size: 64px; color: #fff; padding: 40px">
-          Hello World
+      <!-- Frames overlap by 0.5s; each dissolves its own .scene up over the
+           outgoing frame, so the shared background never breaks. -->
+      <div data-hf-id="hf-ilsj" class="clip" id="frame-00-title" data-composition-id="00-title" data-composition-src="compositions/frames/00-title.html" data-start="0" data-duration="9.8" data-track-index="0" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-n75v" class="clip" id="frame-01-wrong-model" data-composition-id="01-wrong-model" data-composition-src="compositions/frames/01-wrong-model.html" data-start="9.3" data-duration="12.5" data-track-index="1" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-55zf" class="clip" id="frame-02-thesis" data-composition-id="02-thesis" data-composition-src="compositions/frames/02-thesis.html" data-start="21.3" data-duration="10.8" data-track-index="2" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-fvhu" class="clip" id="frame-03-device-hash" data-composition-id="03-device-hash" data-composition-src="compositions/frames/03-device-hash.html" data-start="31.6" data-duration="13.7" data-track-index="3" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-s6e5" class="clip" id="frame-04-tokens" data-composition-id="04-tokens" data-composition-src="compositions/frames/04-tokens.html" data-start="44.8" data-duration="12.6" data-track-index="4" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-vulx" class="clip" id="frame-05-caps" data-composition-id="05-caps" data-composition-src="compositions/frames/05-caps.html" data-start="56.9" data-duration="15" data-track-index="5" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-n796" class="clip" id="frame-06-shortlist" data-composition-id="06-shortlist" data-composition-src="compositions/frames/06-shortlist.html" data-start="71.4" data-duration="13.4" data-track-index="6" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-0nq8" class="clip" id="frame-07-efficiency" data-composition-id="07-efficiency" data-composition-src="compositions/frames/07-efficiency.html" data-start="84.3" data-duration="15.4" data-track-index="7" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-92bt" class="clip" id="frame-08-budget" data-composition-id="08-budget" data-composition-src="compositions/frames/08-budget.html" data-start="99.2" data-duration="18.5" data-track-index="8" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-zby4" class="clip" id="frame-09-score" data-composition-id="09-score" data-composition-src="compositions/frames/09-score.html" data-start="117.2" data-duration="14.8" data-track-index="9" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-5udy" class="clip" id="frame-10-block" data-composition-id="10-block" data-composition-src="compositions/frames/10-block.html" data-start="131.5" data-duration="13.9" data-track-index="10" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-1ckr" class="clip" id="frame-11-warn" data-composition-id="11-warn" data-composition-src="compositions/frames/11-warn.html" data-start="144.9" data-duration="9.8" data-track-index="11" data-width="1920" data-height="1080"></div>
+      <div data-hf-id="hf-g188" class="clip" id="frame-12-close" data-composition-id="12-close" data-composition-src="compositions/frames/12-close.html" data-start="154.2" data-duration="13.8" data-track-index="12" data-width="1920" data-height="1080"></div>
+
+      <div data-hf-id="hf-e25r" class="clip" id="label-01-wrong-model" data-start="9.8" data-duration="12" data-track-index="41">
+        <span data-hf-id="hf-t7wy" class="label">Hook</span>
+      </div>
+      <div data-hf-id="hf-r128" class="clip" id="label-02-thesis" data-start="21.8" data-duration="10.3" data-track-index="41">
+        <span data-hf-id="hf-pjhk" class="label">Method</span>
+      </div>
+      <div data-hf-id="hf-abyd" class="clip" id="label-03-device-hash" data-start="32.1" data-duration="13.2" data-track-index="41">
+        <span data-hf-id="hf-hd1f" class="label">Identity</span>
+      </div>
+      <div data-hf-id="hf-333b" class="clip" id="label-04-tokens" data-start="45.3" data-duration="12.1" data-track-index="41">
+        <span data-hf-id="hf-4a21" class="label">Index keys</span>
+      </div>
+      <div data-hf-id="hf-cfch" class="clip" id="label-05-caps" data-start="57.4" data-duration="14.5" data-track-index="41">
+        <span data-hf-id="hf-pxse" class="label">Fanout</span>
+      </div>
+      <div data-hf-id="hf-kyb8" class="clip" id="label-06-shortlist" data-start="71.9" data-duration="12.9" data-track-index="41">
+        <span data-hf-id="hf-r6kr" class="label">Pipeline</span>
+      </div>
+      <div data-hf-id="hf-tje7" class="clip" id="label-07-efficiency" data-start="84.8" data-duration="14.9" data-track-index="41">
+        <span data-hf-id="hf-ovfu" class="label">The math</span>
+      </div>
+      <div data-hf-id="hf-9bps" class="clip" id="label-08-budget" data-start="99.7" data-duration="18" data-track-index="41">
+        <span data-hf-id="hf-64hl" class="label">Measured</span>
+      </div>
+      <div data-hf-id="hf-zmyk" class="clip" id="label-09-score" data-start="117.7" data-duration="14.3" data-track-index="41">
+        <span data-hf-id="hf-chfg" class="label">Accuracy</span>
+      </div>
+      <div data-hf-id="hf-n77h" class="clip" id="label-10-block" data-start="132" data-duration="13.4" data-track-index="41">
+        <span data-hf-id="hf-g1ai" class="label">Block</span>
+      </div>
+      <div data-hf-id="hf-sbkr" class="clip" id="label-11-warn" data-start="145.4" data-duration="9.3" data-track-index="41">
+        <span data-hf-id="hf-v895" class="label">Warn</span>
+      </div>
+      <div data-hf-id="hf-m1o8" class="clip" id="label-12-close" data-start="154.7" data-duration="13.3" data-track-index="41">
+        <span data-hf-id="hf-pjgf" class="label">Impact</span>
+      </div>
+
+      <div data-hf-id="hf-zdgr" class="clip" id="chrome" data-start="0" data-duration="168" data-track-index="40">
+        <div data-hf-id="hf-0nyc" id="chrome-inner">
+          <div data-hf-id="hf-add3" class="brand-bar">
+            <img data-hf-id="hf-g5dt" src="assets/frontiers.png" alt="Frontiers">
+            <span data-hf-id="hf-s1d3" class="pipe">|</span>
+            <span data-hf-id="hf-0ch0" class="product">AIRA · Cluster Analysis</span>
+          </div>
         </div>
-      -->
+      </div>
+
+      <audio data-hf-id="hf-u186" class="clip" id="vo-00-title" src="assets/voice/00-title.wav" data-start="0.7" data-duration="8.256" data-track-index="20" data-volume="1"></audio>
+      <audio data-hf-id="hf-ntzn" class="clip" id="vo-01-wrong-model" src="assets/voice/01-wrong-model.wav" data-start="10" data-duration="11.072" data-track-index="21" data-volume="1"></audio>
+      <audio data-hf-id="hf-6cm3" class="clip" id="vo-02-thesis" src="assets/voice/02-thesis.wav" data-start="22" data-duration="9.365" data-track-index="22" data-volume="1"></audio>
+      <audio data-hf-id="hf-6ez3" class="clip" id="vo-03-device-hash" src="assets/voice/03-device-hash.wav" data-start="32.3" data-duration="12.331" data-track-index="23" data-volume="1"></audio>
+      <audio data-hf-id="hf-fq2f" class="clip" id="vo-04-tokens" src="assets/voice/04-tokens.wav" data-start="45.5" data-duration="11.179" data-track-index="24" data-volume="1"></audio>
+      <audio data-hf-id="hf-z90k" class="clip" id="vo-05-caps" src="assets/voice/05-caps.wav" data-start="57.6" data-duration="13.632" data-track-index="25" data-volume="1"></audio>
+      <audio data-hf-id="hf-4aqa" class="clip" id="vo-06-shortlist" src="assets/voice/06-shortlist.wav" data-start="72.1" data-duration="12.032" data-track-index="26" data-volume="1"></audio>
+      <audio data-hf-id="hf-eknr" class="clip" id="vo-07-efficiency" src="assets/voice/07-efficiency.wav" data-start="85" data-duration="13.995" data-track-index="27" data-volume="1"></audio>
+      <audio data-hf-id="hf-uifd" class="clip" id="vo-08-budget" src="assets/voice/08-budget.wav" data-start="99.9" data-duration="17.109" data-track-index="28" data-volume="1"></audio>
+      <audio data-hf-id="hf-84u5" class="clip" id="vo-09-score" src="assets/voice/09-score.wav" data-start="117.9" data-duration="13.376" data-track-index="29" data-volume="1"></audio>
+      <audio data-hf-id="hf-dew8" class="clip" id="vo-10-block" src="assets/voice/10-block.wav" data-start="132.2" data-duration="12.459" data-track-index="30" data-volume="1"></audio>
+      <audio data-hf-id="hf-v9tj" class="clip" id="vo-11-warn" src="assets/voice/11-warn.wav" data-start="145.6" data-duration="8.405" data-track-index="31" data-volume="1"></audio>
+      <audio data-hf-id="hf-lbbc" class="clip" id="vo-12-close" src="assets/voice/12-close.wav" data-start="154.9" data-duration="11.819" data-track-index="32" data-volume="1"></audio>
     </div>
 
     <script>
       window.__timelines = window.__timelines || {};
-      const tl = gsap.timeline({ paused: true });
-      // Example: tl.from("#title", { opacity: 0, y: -50, duration: 1 }, 0);
-      window.__timelines["main"] = tl;
+      // Frames own their own timelines; the host only sequences slots and the chrome.
+      var main = gsap.timeline({ paused: true });
+      main.fromTo("#chrome-inner", { autoAlpha: 0, y: -14 },
+        { autoAlpha: 1, y: 0, duration: 0.9, ease: "power2.out" }, 0.2);
+      main.to("#chrome-inner", { autoAlpha: 0, duration: 1.0, ease: "power2.in" }, 166.8);
+      window.__timelines["main"] = main;
     </script>
   </body>
 </html>

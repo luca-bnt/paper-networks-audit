@@ -1,36 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1920, height=1080">
   <title>Squared, or straight</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-  <style>
+</head>
+<body>
+  <template>
+    <style>
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-    }
-
-    html,
-    body {
-      width: 1920px;
-      height: 1080px;
-      overflow: hidden;
-      background: #0b1670;
-      font-family: Inter, system-ui, sans-serif;
-      color: #fff;
-    }
-
-    #root {
-      position: relative;
-      width: 1920px;
-      height: 1080px;
-      background:
-        radial-gradient(1200px 760px at 50% -12%, rgba(255, 255, 255, 0.14), transparent 56%),
-        linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%);
     }
 
     .brand-bar {
@@ -327,17 +308,34 @@
     .stops { display: flex; align-items: center; flex: 1; }
     .stops .stop { flex: 1; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
     .stops .link { flex: 0 0 90px; height: 1px; background: rgba(255,255,255,0.2); }
-  </style>
-</head>
 
-<body>
-  <div data-hf-id="hf-9p4z" id="root" data-composition-id="07-efficiency" data-start="0" data-duration="14" data-width="1920" data-height="1080">
-    <div data-hf-id="hf-add3" class="brand-bar">
-      <img data-hf-id="hf-vy8b" src="assets/frontiers.png" alt="Frontiers">
-      <span data-hf-id="hf-s1d3" class="pipe">|</span>
-      <span data-hf-id="hf-0ch0" class="product">AIRA · Cluster Analysis</span>
-    </div>
-    <div data-hf-id="hf-7r5h" class="label">The math</div>
+    /* ---- sub-composition scaffold + animation affordances ---- */
+    #root { position:absolute; inset:0; overflow:hidden; box-sizing:border-box;
+            font-family:Inter,system-ui,sans-serif; color:#fff; }
+    .scene { position:absolute; inset:0; }
+    .bg { position:absolute; inset:0; z-index:0; background:radial-gradient(1200px 760px at 50% -12%, rgba(255,255,255,0.14), transparent 56%),linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%); }
+    .brand-bar, .label, .main { z-index:2; }
+
+    .hair { transform-origin:left center; }
+    .vrule { transform-origin:center center; }
+    .bar, .fill2, .stops .link { transform-origin:left center; }
+    .xl, .lg, .md, .sm, .kw { font-variant-numeric:tabular-nums; }
+    .w, .sig, .sigdot { display:inline-block; }
+    .sigdot { opacity:0.4; padding:0 8px; }
+    .ln { display:block; }
+
+    /* WCAG AA on the blue field — the muted greys a mock gets away with do not pass */
+    .eyebrow { color:rgba(255,255,255,0.68); }
+    .note { color:rgba(255,255,255,0.68); }
+    .krow .kf { color:rgba(255,255,255,0.66); }
+    .mk i { color:rgba(255,255,255,0.8); }
+    .sigdot { opacity:0.55; }
+    </style>
+
+    <div data-hf-id="hf-hkf6" id="root" data-composition-id="07-efficiency" data-duration="15.4" data-width="1920" data-height="1080">
+      <div data-hf-id="hf-wua0" class="scene">
+        <div data-hf-id="hf-m7dd" class="bg"></div>
+
 
     <div data-hf-id="hf-k15r" class="main">
       <div data-hf-id="hf-z992" class="head">
@@ -347,23 +345,23 @@
       <div data-hf-id="hf-6ra9" class="cols">
         <div data-hf-id="hf-kmmr" class="c">
           <div data-hf-id="hf-6lr1" class="eyebrow">compare every pair</div>
-          <div data-hf-id="hf-swx5" class="md coral" style="font-size:54px">O(N²)</div>
+          <div data-hf-id="hf-75oi" class="md coral" style="font-size:54px">O(N²)</div>
           <div data-hf-id="hf-m7w9" class="lead">grows with the <strong data-hf-id="hf-ukm1">square</strong> of the archive</div>
-          <div data-hf-id="hf-mrqn" class="md coral" style="font-size:58px">2,034,677,736</div>
+          <div data-hf-id="hf-r1nl" class="md coral" style="font-size:58px">2,034,677,736</div>
           <div data-hf-id="hf-1yfj" class="note">23 days at a thousand a second</div>
         </div>
         <div data-hf-id="hf-7fxo" class="vrule"></div>
         <div data-hf-id="hf-w2tu" class="c mid" style="flex:0.8">
           <div data-hf-id="hf-evnx" class="eyebrow">measured</div>
-          <div data-hf-id="hf-6oiw" class="xl mint" style="font-size:142px">2,614×</div>
+          <div data-hf-id="hf-sl3s" class="xl mint" style="font-size:142px">2,614×</div>
           <div data-hf-id="hf-cfrg" class="lead">less work</div>
         </div>
         <div data-hf-id="hf-50ck" class="vrule"></div>
         <div data-hf-id="hf-7mcz" class="c">
           <div data-hf-id="hf-60d0" class="eyebrow">look up shared keys</div>
-          <div data-hf-id="hf-028x" class="md accent" style="font-size:54px">O(N · t · c)</div>
+          <div data-hf-id="hf-msso" class="md accent" style="font-size:54px">O(N · t · c)</div>
           <div data-hf-id="hf-5tti" class="lead">grows in a <strong data-hf-id="hf-4qi6">straight line</strong></div>
-          <div data-hf-id="hf-jcld" class="md accent" style="font-size:58px">778,262</div>
+          <div data-hf-id="hf-4cev" class="md accent" style="font-size:58px">778,262</div>
           <div data-hf-id="hf-fxwm" class="note">13 minutes at the same speed</div>
         </div>
       </div>
@@ -386,11 +384,68 @@
         </div>
       </div>
     </div><!-- /main -->
-  </div>
-  <script>
-    window.__timelines = window.__timelines || {};
-    window.__timelines["07-efficiency"] = gsap.timeline({ paused: true });
-  </script>
-</body>
+      </div>
+    </div>
 
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      var R  = document.querySelector('[data-composition-id="07-efficiency"]');
+      var q  = function (s) { return R.querySelector(s); };
+      var qa = function (s) { return Array.prototype.slice.call(R.querySelectorAll(s)); };
+      var SC = q('.scene');
+      var tl = gsap.timeline({ paused: true });
+
+      function count(el, to, dur, at, opt) {
+        opt = opt || {};
+        var dec = opt.dec || 0, suf = opt.suf || '', st = { v: opt.from || 0 };
+        var write = function (v) {
+          el.textContent = (dec ? v.toFixed(dec)
+                                : Math.round(v).toLocaleString('en-US')) + suf;
+        };
+        write(st.v);
+        tl.to(st, { v: to, duration: dur, ease: opt.ease || 'power2.out',
+                    onUpdate: function () { write(st.v); } }, at);
+      }
+
+
+      var mds = qa('.md'),
+          cols = qa('.cols:not(.tight) > .c'),
+          tight = qa('.cols.tight > .c'),
+          ratio = q('.xl.mint');
+
+      tl.fromTo(SC, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power1.inOut' }, 0);
+      tl.fromTo(q('.head'), { autoAlpha: 0, y: 24 },
+        { autoAlpha: 1, y: 0, duration: 0.8, ease: 'power3.out' }, 0.3);
+
+      // the expensive side lands first
+      tl.fromTo(cols[0], { autoAlpha: 0, x: -30 },
+        { autoAlpha: 1, x: 0, duration: 0.7, ease: 'power3.out' }, 1.2);
+      count(mds[1], 2034677736, 1.8, 2.0);
+
+      tl.fromTo(qa('.cols:not(.tight) > .vrule'), { scaleY: 0 },
+        { scaleY: 1, duration: 0.6, ease: 'power2.inOut', stagger: 0.4 }, 4.0);
+      tl.fromTo(cols[2], { autoAlpha: 0, x: 30 },
+        { autoAlpha: 1, x: 0, duration: 0.7, ease: 'power3.out' }, 4.4);
+      count(mds[3], 778262, 1.6, 5.1);
+
+      tl.fromTo(cols[1], { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.5 }, 7.4);
+      count(ratio, 2614, 1.6, 7.6, { suf: '\u00d7' });
+      tl.fromTo(ratio, { scale: 0.5 },
+        { scale: 1, duration: 1.6, ease: 'back.out(1.6)' }, 7.6);
+
+      tl.fromTo(q('.hair'), { scaleX: 0 },
+        { scaleX: 1, duration: 0.8, ease: 'power2.inOut' }, 9.8);
+      tl.fromTo(q('.main > .note'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.7 }, 10.1);
+
+      tight.forEach(function (c, i) {
+        tl.fromTo(c, { autoAlpha: 0, y: 20 },
+          { autoAlpha: 1, y: 0, duration: 0.55, ease: 'power2.out' }, 11.4 + i * 0.8);
+      });
+      tl.fromTo(qa('.cols.tight > .vrule'), { scaleY: 0 },
+        { scaleY: 1, duration: 0.5, ease: 'power2.inOut', stagger: 0.8 }, 11.9);
+      window.__timelines["07-efficiency"] = tl;
+    </script>
+  </template>
+</body>
 </html>

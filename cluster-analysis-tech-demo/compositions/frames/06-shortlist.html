@@ -1,36 +1,17 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1920, height=1080">
   <title>Twenty on the card</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-  <style>
+</head>
+<body>
+  <template>
+    <style>
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-    }
-
-    html,
-    body {
-      width: 1920px;
-      height: 1080px;
-      overflow: hidden;
-      background: #0b1670;
-      font-family: Inter, system-ui, sans-serif;
-      color: #fff;
-    }
-
-    #root {
-      position: relative;
-      width: 1920px;
-      height: 1080px;
-      background:
-        radial-gradient(1200px 760px at 50% -12%, rgba(255, 255, 255, 0.14), transparent 56%),
-        linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%);
     }
 
     .brand-bar {
@@ -397,17 +378,34 @@
     .stops { display: flex; align-items: center; flex: 1; }
     .stops .stop { flex: 1; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
     .stops .link { flex: 0 0 90px; height: 1px; background: rgba(255,255,255,0.2); }
-  </style>
-</head>
 
-<body>
-  <div data-hf-id="hf-9kee" id="root" data-composition-id="06-shortlist" data-start="0" data-duration="13" data-width="1920" data-height="1080">
-    <div data-hf-id="hf-add3" class="brand-bar">
-      <img data-hf-id="hf-vy8b" src="assets/frontiers.png" alt="Frontiers">
-      <span data-hf-id="hf-s1d3" class="pipe">|</span>
-      <span data-hf-id="hf-0ch0" class="product">AIRA · Cluster Analysis</span>
-    </div>
-    <div data-hf-id="hf-cg64" class="label">Pipeline</div>
+    /* ---- sub-composition scaffold + animation affordances ---- */
+    #root { position:absolute; inset:0; overflow:hidden; box-sizing:border-box;
+            font-family:Inter,system-ui,sans-serif; color:#fff; }
+    .scene { position:absolute; inset:0; }
+    .bg { position:absolute; inset:0; z-index:0; background:radial-gradient(1200px 760px at 50% -12%, rgba(255,255,255,0.14), transparent 56%),linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%); }
+    .brand-bar, .label, .main { z-index:2; }
+
+    .hair { transform-origin:left center; }
+    .vrule { transform-origin:center center; }
+    .bar, .fill2, .stops .link { transform-origin:left center; }
+    .xl, .lg, .md, .sm, .kw { font-variant-numeric:tabular-nums; }
+    .w, .sig, .sigdot { display:inline-block; }
+    .sigdot { opacity:0.4; padding:0 8px; }
+    .ln { display:block; }
+
+    /* WCAG AA on the blue field — the muted greys a mock gets away with do not pass */
+    .eyebrow { color:rgba(255,255,255,0.68); }
+    .note { color:rgba(255,255,255,0.68); }
+    .krow .kf { color:rgba(255,255,255,0.66); }
+    .mk i { color:rgba(255,255,255,0.8); }
+    .sigdot { opacity:0.55; }
+    </style>
+
+    <div data-hf-id="hf-f4mq" id="root" data-composition-id="06-shortlist" data-duration="13.4" data-width="1920" data-height="1080">
+      <div data-hf-id="hf-wua0" class="scene">
+        <div data-hf-id="hf-m7dd" class="bg"></div>
+
     <div data-hf-id="hf-k15r" class="main">
       <div data-hf-id="hf-z992" class="head">
         <h1 data-hf-id="hf-fkr1" class="title">Twenty on the card</h1>
@@ -416,42 +414,87 @@
       <div data-hf-id="hf-6ra9" class="cols">
         <div data-hf-id="hf-3ust" class="c mid">
           <div data-hf-id="hf-1lzy" class="eyebrow">01</div>
-          <div data-hf-id="hf-jiza" class="sm" style="font-size:46px">Its keys</div>
+          <div data-hf-id="hf-wqsv" class="sm" style="font-size:46px">Its keys</div>
           <div data-hf-id="hf-nojh" class="note">The fingerprints on this submission</div>
         </div>
         <div data-hf-id="hf-drib" class="arrow">→</div>
         <div data-hf-id="hf-lpi9" class="c mid">
           <div data-hf-id="hf-20az" class="eyebrow">02</div>
-          <div data-hf-id="hf-oqmm" class="sm" style="font-size:46px">One lookup</div>
+          <div data-hf-id="hf-l3on" class="sm" style="font-size:46px">One lookup</div>
           <div data-hf-id="hf-voz0" class="note">A single round-trip, not one per key</div>
         </div>
         <div data-hf-id="hf-yhhf" class="arrow">→</div>
         <div data-hf-id="hf-mwfc" class="c mid">
           <div data-hf-id="hf-2em0" class="eyebrow">03</div>
-          <div data-hf-id="hf-z066" class="sm" style="font-size:46px">Skip the crowds</div>
+          <div data-hf-id="hf-rzip" class="sm" style="font-size:46px">Skip the crowds</div>
           <div data-hf-id="hf-i8s6" class="note">Over-popular values ignored</div>
         </div>
         <div data-hf-id="hf-y36e" class="arrow">→</div>
         <div data-hf-id="hf-mi4b" class="c mid">
           <div data-hf-id="hf-zmgt" class="eyebrow">04</div>
-          <div data-hf-id="hf-h6xy" class="sm" style="font-size:46px">Score each match</div>
+          <div data-hf-id="hf-5cjb" class="sm" style="font-size:46px">Score each match</div>
           <div data-hf-id="hf-dcos" class="note">Below 3 is coincidence</div>
         </div>
         <div data-hf-id="hf-xovd" class="arrow">→</div>
         <div data-hf-id="hf-kil6" class="c mid">
-          <div data-hf-id="hf-akw1" class="lg" style="font-size:176px">20</div>
-          <div data-hf-id="hf-7y80" class="sm accent" style="font-size:46px">Top peers</div>
+          <div data-hf-id="hf-3fb6" class="lg" style="font-size:176px">20</div>
+          <div data-hf-id="hf-tizf" class="sm accent" style="font-size:46px">Top peers</div>
           <div data-hf-id="hf-8o55" class="note">What reaches the reviewer</div>
         </div>
       </div>
       <div data-hf-id="hf-hx7w" class="hair"></div>
       <p data-hf-id="hf-6ptb" class="lead">A shortlist, not a hairball — with the evidence attached to every row.</p>
     </div><!-- /main -->
-  </div>
-  <script>
-    window.__timelines = window.__timelines || {};
-    window.__timelines["06-shortlist"] = gsap.timeline({ paused: true });
-  </script>
-</body>
+      </div>
+    </div>
 
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      var R  = document.querySelector('[data-composition-id="06-shortlist"]');
+      var q  = function (s) { return R.querySelector(s); };
+      var qa = function (s) { return Array.prototype.slice.call(R.querySelectorAll(s)); };
+      var SC = q('.scene');
+      var tl = gsap.timeline({ paused: true });
+
+      function count(el, to, dur, at, opt) {
+        opt = opt || {};
+        var dec = opt.dec || 0, suf = opt.suf || '', st = { v: opt.from || 0 };
+        var write = function (v) {
+          el.textContent = (dec ? v.toFixed(dec)
+                                : Math.round(v).toLocaleString('en-US')) + suf;
+        };
+        write(st.v);
+        tl.to(st, { v: to, duration: dur, ease: opt.ease || 'power2.out',
+                    onUpdate: function () { write(st.v); } }, at);
+      }
+
+
+      var cs = qa('.cols > .c'), ar = qa('.arrow'), twenty = q('.lg');
+
+      tl.fromTo(SC, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power1.inOut' }, 0);
+      tl.fromTo(q('.head'), { autoAlpha: 0, y: 24 },
+        { autoAlpha: 1, y: 0, duration: 0.8, ease: 'power3.out' }, 0.3);
+
+      cs.forEach(function (c, i) {
+        tl.fromTo(c, { autoAlpha: 0, y: 34 },
+          { autoAlpha: 1, y: 0, duration: 0.6, ease: 'power3.out' }, 1.3 + i * 1.5);
+      });
+      ar.forEach(function (a, i) {
+        tl.fromTo(a, { autoAlpha: 0, x: -16 },
+          { autoAlpha: 1, x: 0, duration: 0.45, ease: 'power2.out' }, 1.9 + i * 1.5);
+      });
+
+      count(twenty, 20, 1.1, 7.5);
+      tl.fromTo(twenty, { scale: 0.55 },
+        { scale: 1, duration: 1.1, ease: 'back.out(1.8)' }, 7.5);
+
+      tl.fromTo(q('.hair'), { scaleX: 0 },
+        { scaleX: 1, duration: 0.8, ease: 'power2.inOut' }, 9.6);
+      tl.fromTo(q('.main > .lead'), { autoAlpha: 0, y: 16 },
+        { autoAlpha: 1, y: 0, duration: 0.8, ease: 'power2.out' }, 9.9);
+      window.__timelines["06-shortlist"] = tl;
+    </script>
+  </template>
+</body>
 </html>

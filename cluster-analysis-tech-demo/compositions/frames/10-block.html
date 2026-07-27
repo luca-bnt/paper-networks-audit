@@ -2,16 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=1920, height=1080">
   <title>What it takes to block</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
-  <style>
+</head>
+<body>
+  <template>
+    <style>
+
     * { margin:0; padding:0; box-sizing:border-box; }
-    html, body { width:1920px; height:1080px; overflow:hidden; background:#0b1670; font-family:Inter,system-ui,sans-serif; color:#fff; }
-    #root { position:relative; width:1920px; height:1080px; background:
-      radial-gradient(1200px 760px at 50% -12%, rgba(255,255,255,0.14), transparent 56%),
-      linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%); }
     .brand-bar {
       position:absolute; top:0; left:0; right:0; z-index:20;
       display:flex; align-items:center; gap:14px;
@@ -125,16 +122,34 @@
     .stops { display: flex; align-items: center; flex: 1; }
     .stops .stop { flex: 1; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
     .stops .link { flex: 0 0 90px; height: 1px; background: rgba(255,255,255,0.2); }
-  </style>
-</head>
-<body>
-  <div data-hf-id="hf-txgb" id="root" data-composition-id="10-block" data-start="0" data-duration="12" data-width="1920" data-height="1080">
-    <div data-hf-id="hf-add3" class="brand-bar">
-      <img data-hf-id="hf-vy8b" src="assets/frontiers.png" alt="Frontiers">
-      <span data-hf-id="hf-s1d3" class="pipe">|</span>
-      <span data-hf-id="hf-0ch0" class="product">AIRA · Cluster Analysis</span>
-    </div>
-    <div data-hf-id="hf-tjou" class="label">Decide</div>
+
+    /* ---- sub-composition scaffold + animation affordances ---- */
+    #root { position:absolute; inset:0; overflow:hidden; box-sizing:border-box;
+            font-family:Inter,system-ui,sans-serif; color:#fff; }
+    .scene { position:absolute; inset:0; }
+    .bg { position:absolute; inset:0; z-index:0; background:radial-gradient(1200px 760px at 50% -12%, rgba(255,255,255,0.14), transparent 56%),linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%); }
+    .brand-bar, .label, .main { z-index:2; }
+
+    .hair { transform-origin:left center; }
+    .vrule { transform-origin:center center; }
+    .bar, .fill2, .stops .link { transform-origin:left center; }
+    .xl, .lg, .md, .sm, .kw { font-variant-numeric:tabular-nums; }
+    .w, .sig, .sigdot { display:inline-block; }
+    .sigdot { opacity:0.4; padding:0 8px; }
+    .ln { display:block; }
+
+    /* WCAG AA on the blue field — the muted greys a mock gets away with do not pass */
+    .eyebrow { color:rgba(255,255,255,0.68); }
+    .note { color:rgba(255,255,255,0.68); }
+    .krow .kf { color:rgba(255,255,255,0.66); }
+    .mk i { color:rgba(255,255,255,0.8); }
+    .sigdot { opacity:0.55; }
+    </style>
+
+    <div data-hf-id="hf-jwnl" id="root" data-composition-id="10-block" data-duration="13.9" data-width="1920" data-height="1080">
+      <div data-hf-id="hf-wua0" class="scene">
+        <div data-hf-id="hf-m7dd" class="bg"></div>
+
     <div data-hf-id="hf-k15r" class="main">
       <div data-hf-id="hf-z992" class="head">
         <h1 data-hf-id="hf-3msd" class="title">What it takes to block</h1>
@@ -143,29 +158,69 @@
       <div data-hf-id="hf-6ra9" class="cols">
         <div data-hf-id="hf-kmmr" class="c">
           <div data-hf-id="hf-64cm" class="eyebrow">route one</div>
-          <div data-hf-id="hf-a7m2" class="sm" style="font-size:42px">All four keys align</div>
+          <div data-hf-id="hf-nxw9" class="sm" style="font-size:42px">All four keys align</div>
           <div data-hf-id="hf-yidb" class="lead">Machine, network, and both Word-file names — on the same peers.</div>
         </div>
         <div data-hf-id="hf-7fxo" class="vrule"></div>
         <div data-hf-id="hf-7mcz" class="c">
           <div data-hf-id="hf-mbfg" class="eyebrow">route two</div>
-          <div data-hf-id="hf-h9ep" class="sm" style="font-size:42px">A known-bad neighbour</div>
+          <div data-hf-id="hf-np0y" class="sm" style="font-size:42px">A known-bad neighbour</div>
           <div data-hf-id="hf-m1g5" class="lead">An already-flagged paper sharing both a network and a document trail.</div>
         </div>
         <div data-hf-id="hf-50ck" class="vrule"></div>
         <div data-hf-id="hf-781y" class="c">
           <div data-hf-id="hf-ve26" class="eyebrow">route three</div>
-          <div data-hf-id="hf-7f69" class="sm" style="font-size:42px">The document already failed</div>
+          <div data-hf-id="hf-3sli" class="sm" style="font-size:42px">The document already failed</div>
           <div data-hf-id="hf-2g4p" class="lead">The Word-file check blocked it on its own evidence.</div>
         </div>
       </div>
       <div data-hf-id="hf-hx7w" class="hair"></div>
       <p data-hf-id="hf-z4hf" class="lead">And the cluster has to look like a group, not one busy author — <span data-hf-id="hf-hg3p" class="note" style="font-size:20px">2+ authors · 2+ institutions · no name owning half of it · 90-day window</span></p>
     </div><!-- /main -->
-  </div>
-  <script>
-    window.__timelines = window.__timelines || {};
-    window.__timelines["10-block"] = gsap.timeline({ paused: true });
-  </script>
+      </div>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+
+      var R  = document.querySelector('[data-composition-id="10-block"]');
+      var q  = function (s) { return R.querySelector(s); };
+      var qa = function (s) { return Array.prototype.slice.call(R.querySelectorAll(s)); };
+      var SC = q('.scene');
+      var tl = gsap.timeline({ paused: true });
+
+      function count(el, to, dur, at, opt) {
+        opt = opt || {};
+        var dec = opt.dec || 0, suf = opt.suf || '', st = { v: opt.from || 0 };
+        var write = function (v) {
+          el.textContent = (dec ? v.toFixed(dec)
+                                : Math.round(v).toLocaleString('en-US')) + suf;
+        };
+        write(st.v);
+        tl.to(st, { v: to, duration: dur, ease: opt.ease || 'power2.out',
+                    onUpdate: function () { write(st.v); } }, at);
+      }
+
+
+      var cols = qa('.cols > .c');
+
+      tl.fromTo(SC, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power1.inOut' }, 0);
+      tl.fromTo(q('.head'), { autoAlpha: 0, y: 24 },
+        { autoAlpha: 1, y: 0, duration: 0.8, ease: 'power3.out' }, 0.3);
+
+      cols.forEach(function (c, i) {
+        tl.fromTo(c, { autoAlpha: 0, y: 38 },
+          { autoAlpha: 1, y: 0, duration: 0.7, ease: 'power3.out' }, 1.5 + i * 2.5);
+      });
+      tl.fromTo(qa('.vrule'), { scaleY: 0 },
+        { scaleY: 1, duration: 0.6, ease: 'power2.inOut', stagger: 2.5 }, 3.4);
+
+      tl.fromTo(q('.hair'), { scaleX: 0 },
+        { scaleX: 1, duration: 0.8, ease: 'power2.inOut' }, 9.8);
+      tl.fromTo(q('.main > .lead'), { autoAlpha: 0, y: 16 },
+        { autoAlpha: 1, y: 0, duration: 0.8, ease: 'power2.out' }, 10.1);
+      window.__timelines["10-block"] = tl;
+    </script>
+  </template>
 </body>
 </html>

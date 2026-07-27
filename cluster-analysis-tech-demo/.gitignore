@@ -6,3 +6,5 @@ node_modules/
 .thumbnails/
 .hyperframes/backup/
 snapshots/
+renders/
+.waveform-cache/
