@@ -403,6 +403,9 @@
 
     /* Budget frame: keep the stat band under the title, not floating in empty flex space */
     .cols.cards { flex: none; align-items: stretch; }
+
+    /* the weight column is gone, so the key label can have the room it needs to stay on one line */
+    .krow .kn { width: 400px; }
     </style>
 
     <div data-hf-id="hf-q4gn" id="root" data-composition-id="04-tokens" data-duration="14.6" data-width="1920" data-height="1080">
@@ -417,31 +420,27 @@
       <div data-hf-id="hf-8gny" style="display:flex;flex-direction:column;flex:1;min-height:0;justify-content:center">
         <div data-hf-id="hf-hx7w" class="hair"></div>
         <div data-hf-id="hf-rbqd" class="krow">
-          <span data-hf-id="hf-tlui" class="kw">10</span>
           <span data-hf-id="hf-fqhc" class="kn">The machine</span>
           <span data-hf-id="hf-i1r5" class="kd">The device fingerprint — the strongest signal we have.</span>
           <span data-hf-id="hf-h9at" class="kf mono">device</span>
         </div>
         <div data-hf-id="hf-k3d0" class="hair"></div>
         <div data-hf-id="hf-2sft" class="krow">
-          <span data-hf-id="hf-q3m1" class="kw">8</span>
           <span data-hf-id="hf-qq57" class="kn">The network</span>
           <span data-hf-id="hf-k8ni" class="kd">Where the submission came from, stored as a hash.</span>
           <span data-hf-id="hf-4efq" class="kf mono">ip</span>
         </div>
         <div data-hf-id="hf-iwfx" class="hair"></div>
         <div data-hf-id="hf-3zcw" class="krow">
-          <span data-hf-id="hf-qwn1" class="kw">8</span>
-          <span data-hf-id="hf-88xg" class="kn">Who wrote it</span>
-          <span data-hf-id="hf-s3zg" class="kd">The author name saved inside the Word file itself.</span>
-          <span data-hf-id="hf-946i" class="kf mono">wd_author</span>
+          <span data-hf-id="hf-88xg" class="kn">The document</span>
+          <span data-hf-id="hf-s3zg" class="kd">An identity field the manuscript file carries in its own properties.</span>
+          <span data-hf-id="hf-946i" class="kf mono">wd_*</span>
         </div>
         <div data-hf-id="hf-jaqy" class="hair"></div>
         <div data-hf-id="hf-3l1v" class="krow">
-          <span data-hf-id="hf-s3k4" class="kw">8</span>
-          <span data-hf-id="hf-glu8" class="kn accent">Who last saved it</span>
-          <span data-hf-id="hf-2tvi" class="kd">The one nobody remembers is there.</span>
-          <span data-hf-id="hf-o854" class="kf mono">wd_edited_by</span>
+          <span data-hf-id="hf-glu8" class="kn">The document, again</span>
+          <span data-hf-id="hf-2tvi" class="kd">A second field from the same metadata.</span>
+          <span data-hf-id="hf-o854" class="kf mono">wd_*</span>
         </div>
         <div data-hf-id="hf-pc97" class="hair"></div>
       </div>
@@ -488,7 +487,7 @@
       }
 
 
-      var rows = qa('.krow'), W = [10, 8, 8, 8];
+      var rows = qa('.krow');
 
       tl.fromTo(SC, { opacity: 0 }, { opacity: 1, duration: 0.5, ease: 'power1.inOut' }, 0);
       tl.fromTo(q('.head'), { autoAlpha: 0, y: 24 },
@@ -500,7 +499,6 @@
         var at = 1.4 + i * 2.05;
         tl.fromTo(r, { autoAlpha: 0, x: -44 },
           { autoAlpha: 1, x: 0, duration: 0.65, ease: 'power3.out' }, at);
-        count(r.querySelector('.kw'), W[i], 0.7, at + 0.2);
       });
 
       tl.fromTo(q('.main > .note'), { autoAlpha: 0 }, { autoAlpha: 1, duration: 0.7 }, 10.0);

@@ -119,24 +119,30 @@ Footnote, small: incomplete profiles are thrown away, so blank fingerprints neve
 - src: compositions/frames/04-tokens.html
 - duration: 14.6s (starts 52s)
 - transition_in: crossfade
-- scene: The machine · the network · who wrote it · who last saved it
-- voiceover: Four keys do the deciding. The machine. The network. And two names hiding inside the Word file — who wrote it, and who last saved it. Authors tend to forget that second one exists.
+- scene: The machine · the network · two document properties
+- voiceover: Four keys do the deciding. The machine. The network. And two identity fields a manuscript file carries in its own properties. Share any one of them, and two papers land in the same lookup.
 - narrativeRole: mechanism evidence
 - blueprint: card-stagger
 
-Human label first, field name second, weight as a quiet number:
+Human label first, field name second. Weights are deliberately absent — a bare number
+next to a key reads as precision the viewer can't interpret, and the ranking maths isn't
+the point of this frame.
 
-| On screen | Field | Weight |
-| --- | --- | --- |
-| The machine | device | 10 |
-| The network | ip | 8 |
-| Who wrote it | wd_author | 8 |
-| Who last saved it | wd_edited_by | 8 |
+| On screen | Field |
+| --- | --- |
+| The machine | device |
+| The network | ip |
+| The document | wd_* |
+| The document, again | wd_* |
+
+The two document rows stay generic on purpose. Naming which property tends to survive a
+clean-up is the one detail that would let someone defeat the check, so the frame discloses
+that manuscript files carry identity fields and stops there.
 
 Dimmed row underneath: language and company help with ranking but never decide alone.
 Struck through: email — too many people share a mail provider for it to mean anything.
 
-**Animation:** four cards deal in like playing cards; weights count up; a Word document opens to reveal the two hidden name fields.
+**Animation:** four rows deal in like playing cards between hairline rules.
 
 ## Frame 5 — The ceiling
 
