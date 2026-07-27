@@ -144,9 +144,12 @@
     .krow .kf { color:rgba(255,255,255,0.66); }
     .mk i { color:rgba(255,255,255,0.8); }
     .sigdot { opacity:0.55; }
+
+    /* Budget frame: keep the stat band under the title, not floating in empty flex space */
+    .cols.cards { flex: none; align-items: stretch; }
     </style>
 
-    <div data-hf-id="hf-2wln" id="root" data-composition-id="05-caps" data-duration="18.0" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-q2i0" id="root" data-composition-id="05-caps" data-duration="17.2" data-width="1920" data-height="1080">
       <div data-hf-id="hf-wua0" class="scene">
         <div data-hf-id="hf-m7dd" class="bg"></div>
 
@@ -181,7 +184,7 @@
       var q  = function (s) { return R.querySelector(s); };
       var qa = function (s) { return Array.prototype.slice.call(R.querySelectorAll(s)); };
       var SC = q('.scene');
-      var K = 1.2;                       // frame stretch factor — see SKETCH_LEN in the build script
+      var K = 1.1467;                       // frame stretch factor — see SKETCH_LEN in the build script
       var _tl = gsap.timeline({ paused: true });
 
       function stretch(v) {

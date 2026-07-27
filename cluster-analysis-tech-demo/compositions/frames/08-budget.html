@@ -302,7 +302,7 @@
     .stops .stop { flex: 1; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
     .stops .link { flex: 0 0 90px; height: 1px; background: rgba(255,255,255,0.2); }
   
-    .cols.cards { gap: 18px; align-items: center; }
+    .cols.cards { gap: 18px; flex: none; align-items: stretch; }
     .cols.cards > .c {
       padding: 34px 32px;
       background: rgba(255,255,255,0.07);
@@ -312,6 +312,22 @@
       gap: 16px;
     }
     .cols.cards > .c.win { border-color: rgba(157,255,184,0.45); background: rgba(157,255,184,0.09); }
+  
+    
+    
+    
+  
+    .band {
+      display: flex; flex-direction: column; gap: 18px;
+      flex: 0 0 auto; width: 100%;
+    }
+    .main {
+      justify-content: flex-start !important;
+      gap: 0 !important;
+      padding-top: 0 !important;
+    }
+    .cols.cards { flex: none !important; margin-top: 0 !important; }
+    .budget-track { margin-top: auto; }
 
     /* ---- sub-composition scaffold + animation affordances ---- */
     #root { position:absolute; inset:0; overflow:hidden; box-sizing:border-box;
@@ -334,14 +350,18 @@
     .krow .kf { color:rgba(255,255,255,0.66); }
     .mk i { color:rgba(255,255,255,0.8); }
     .sigdot { opacity:0.55; }
+
+    /* Budget frame: keep the stat band under the title, not floating in empty flex space */
+    .cols.cards { flex: none; align-items: stretch; }
     </style>
 
-    <div data-hf-id="hf-0f21" id="root" data-composition-id="08-budget" data-duration="22.0" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-31oj" id="root" data-composition-id="08-budget" data-duration="21.1" data-width="1920" data-height="1080">
       <div data-hf-id="hf-wua0" class="scene">
         <div data-hf-id="hf-m7dd" class="bg"></div>
 
 
     <div data-hf-id="hf-k15r" class="main">
+      <div data-hf-id="hf-a71x" class="band">
       <div data-hf-id="hf-z992" class="head">
         <h1 data-hf-id="hf-7kgq" class="title">What it actually costs</h1>
         <p data-hf-id="hf-a1a4" class="sub">Measured on a 63,792-paper snapshot — not a model.</p>
@@ -364,7 +384,8 @@
           <div data-hf-id="hf-efp3" class="lead">ever reach a human<div data-hf-id="hf-w5nb" class="note">3.7% warn · 2.7% block</div></div>
         </div>
       </div>
-      <div data-hf-id="hf-ibu8" style="display:flex;align-items:center;gap:34px;flex:none;padding-bottom:26px">
+      </div><!-- /band -->
+      <div data-hf-id="hf-ph4w" class="budget-track" style="display:flex;align-items:center;gap:34px;flex:none;padding-bottom:26px;margin-top:auto">
         <div data-hf-id="hf-akly" class="eyebrow" style="width:200px">candidates per paper</div>
         <div data-hf-id="hf-2t0t" class="track2">
           <div data-hf-id="hf-txmo" class="fill2" style="width:18.5%"></div>
@@ -387,7 +408,7 @@
       var q  = function (s) { return R.querySelector(s); };
       var qa = function (s) { return Array.prototype.slice.call(R.querySelectorAll(s)); };
       var SC = q('.scene');
-      var K = 1.1892;                       // frame stretch factor — see SKETCH_LEN in the build script
+      var K = 1.1405;                       // frame stretch factor — see SKETCH_LEN in the build script
       var _tl = gsap.timeline({ paused: true });
 
       function stretch(v) {

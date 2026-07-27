@@ -122,6 +122,10 @@
     .stops { display: flex; align-items: center; flex: 1; }
     .stops .stop { flex: 1; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
     .stops .link { flex: 0 0 90px; height: 1px; background: rgba(255,255,255,0.2); }
+  
+    /* block routes — top-align so a wrapping title can't sit higher than its neighbours */
+    .cols > .c { justify-content: flex-start; padding-top: 28px; }
+    .cols > .c .sm { min-height: 2.4em; line-height: 1.15; }
 
     /* ---- sub-composition scaffold + animation affordances ---- */
     #root { position:absolute; inset:0; overflow:hidden; box-sizing:border-box;
@@ -144,9 +148,12 @@
     .krow .kf { color:rgba(255,255,255,0.66); }
     .mk i { color:rgba(255,255,255,0.8); }
     .sigdot { opacity:0.55; }
+
+    /* Budget frame: keep the stat band under the title, not floating in empty flex space */
+    .cols.cards { flex: none; align-items: stretch; }
     </style>
 
-    <div data-hf-id="hf-bjx2" id="root" data-composition-id="10-block" data-duration="16.9" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-2j6h" id="root" data-composition-id="10-block" data-duration="16.0" data-width="1920" data-height="1080">
       <div data-hf-id="hf-wua0" class="scene">
         <div data-hf-id="hf-m7dd" class="bg"></div>
 
@@ -170,7 +177,7 @@
         <div data-hf-id="hf-50ck" class="vrule"></div>
         <div data-hf-id="hf-781y" class="c">
           <div data-hf-id="hf-ve26" class="eyebrow">route three</div>
-          <div data-hf-id="hf-3sli" class="sm" style="font-size:42px">The document already failed</div>
+          <div data-hf-id="hf-n3y9" class="sm" style="font-size:42px">Document check failed</div>
           <div data-hf-id="hf-2g4p" class="lead">The Word-file check blocked it on its own evidence.</div>
         </div>
       </div>
@@ -187,7 +194,7 @@
       var q  = function (s) { return R.querySelector(s); };
       var qa = function (s) { return Array.prototype.slice.call(R.querySelectorAll(s)); };
       var SC = q('.scene');
-      var K = 1.2158;                       // frame stretch factor — see SKETCH_LEN in the build script
+      var K = 1.1511;                       // frame stretch factor — see SKETCH_LEN in the build script
       var _tl = gsap.timeline({ paused: true });
 
       function stretch(v) {
