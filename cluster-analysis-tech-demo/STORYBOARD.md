@@ -36,7 +36,7 @@ Full narration reads as one continuous script — see `voiceover` per frame, in 
 
 - status: animated
 - src: compositions/frames/00-title.html
-- duration: 14.4s (starts 0s)
+- duration: 15.4s (starts 0s)
 - poster: 0.5s
 - transition_in: cut
 - scene: Cluster Analysis — title
@@ -48,8 +48,17 @@ Locked — do not restyle. The title and outro carry the Frontiers lockup inside
 the **Frontiers logo | AIRA · Cluster Analysis** bar rides the twelve interior frames only,
 so the two bookends never show two logos at once.
 
-The reveal finishes around 3.6s and then holds while the greeting plays out. The slot is
-sized to the narration, not the animation.
+The greeting is deliberately broken into three spoken segments with silence held between
+them: **"Hi."** — 0.85s — **"Let's take a look at how AIRA's Cluster Analysis works."** —
+0.70s — then the papermill lines. Punctuation alone will not buy this; Kokoro gives a period
+about 0.2s, which reads as ordinary sentence rhythm rather than an intentional beat, so the
+segments are synthesised separately, trimmed to their speech, and joined with explicit
+silence.
+
+The first pause is placed to coincide with the title words landing (~1.1-2.4s), so the beat
+is filled with movement rather than reading as dead air. The reveal finishes around 3.6s and
+then holds. The slot is sized to the narration, not the animation — K was left as authored,
+since a longer pause should not slow the reveal down.
 
 **Animation:** title settles, thesis line wipes in beneath it. Nothing fancy — the next frame does the work.
 
