@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "preferences": {
+    "destination": {
+      "value": "embed",
+      "confirmed_in": [
+        "cluster-analysis-tech-demo"
+      ],
+      "updated_at": "2026-07-26T16:57:52.458Z"
+    },
+    "aspect": {
+      "value": "1920x1080",
+      "confirmed_in": [
+        "cluster-analysis-tech-demo"
+      ],
+      "updated_at": "2026-07-26T16:57:52.500Z"
+    },
+    "language": {
+      "value": "en",
+      "confirmed_in": [
+        "cluster-analysis-tech-demo"
+      ],
+      "updated_at": "2026-07-26T16:57:52.551Z"
+    },
+    "flow": {
+      "value": "companion",
+      "confirmed_in": [
+        "cluster-analysis-tech-demo"
+      ],
+      "updated_at": "2026-07-26T16:57:52.592Z"
+    },
+    "storyboard": {
+      "value": "yes",
+      "confirmed_in": [
+        "cluster-analysis-tech-demo"
+      ],
+      "updated_at": "2026-07-26T16:57:52.642Z"
+    }
+  },
+  "sightings": {}
+}

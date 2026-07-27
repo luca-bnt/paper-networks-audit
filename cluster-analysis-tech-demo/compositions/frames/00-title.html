@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, height=1080">
+  <title>Title</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:1920px; height:1080px; overflow:hidden; background:#0b1670; font-family:Inter,system-ui,sans-serif; color:#fff; }
+    #root { position:relative; width:1920px; height:1080px; background:
+      radial-gradient(1200px 760px at 50% -12%, rgba(255,255,255,0.18), transparent 56%),
+      radial-gradient(1000px 680px at 86% 116%, rgba(90,130,230,0.32), transparent 60%),
+      linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%); }
+
+    .brand-bar {
+      position:absolute; top:28px; left:72px; z-index:5;
+      display:flex; align-items:center; gap:14px; pointer-events:none;
+    }
+    .brand-bar img { height:28px; width:auto; display:block; }
+    .brand-bar .pipe { color:rgba(255,255,255,0.35); font-size:22px; font-weight:300; line-height:1; }
+    .brand-bar .product {
+      font-size:15px; font-weight:600; letter-spacing:0.04em; color:rgba(255,255,255,0.88);
+    }
+
+    .center {
+      position:absolute; inset:0; display:flex; flex-direction:column;
+      align-items:center; justify-content:center; text-align:center; gap:22px; padding:0 120px;
+    }
+    .kicker {
+      font-size:14px; font-weight:600; letter-spacing:0.18em; text-transform:uppercase; color:#7ee8ff;
+    }
+    .title {
+      font-size:72px; font-weight:700; letter-spacing:-0.04em; line-height:1.05; max-width:1200px;
+    }
+    .sub {
+      font-size:22px; color:rgba(255,255,255,0.78); line-height:1.45; max-width:820px;
+    }
+  </style>
+</head>
+<body>
+  <div data-hf-id="hf-xisg" id="root" data-composition-id="00-title" data-start="0" data-duration="9" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-add3" class="brand-bar">
+      <img data-hf-id="hf-vy8b" src="assets/frontiers.png" alt="Frontiers">
+      <span data-hf-id="hf-s1d3" class="pipe">|</span>
+      <span data-hf-id="hf-0ch0" class="product">AIRA · Cluster Analysis</span>
+    </div>
+    <div data-hf-id="hf-0oij" class="center">
+      <div data-hf-id="hf-v43a" class="kicker">AIRA in-review check</div>
+      <h1 data-hf-id="hf-b4cg" class="title">Cluster Analysis</h1>
+      <p data-hf-id="hf-imi4" class="sub">Index identity. Cap the noise. Shortlist the peers that earn a BLOCK or WARN.</p>
+    </div>
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["00-title"] = gsap.timeline({ paused: true });
+  </script>
+</body>
+</html>

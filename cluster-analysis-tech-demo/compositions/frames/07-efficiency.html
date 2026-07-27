@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, height=1080">
+  <title>Squared, or straight</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      background: #0b1670;
+      font-family: Inter, system-ui, sans-serif;
+      color: #fff;
+    }
+
+    #root {
+      position: relative;
+      width: 1920px;
+      height: 1080px;
+      background:
+        radial-gradient(1200px 760px at 50% -12%, rgba(255, 255, 255, 0.14), transparent 56%),
+        linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%);
+    }
+
+    .brand-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 24px 56px;
+      pointer-events: none;
+    }
+
+    .brand-bar img {
+      height: 26px;
+      width: auto;
+      display: block;
+    }
+
+    .brand-bar .pipe {
+      color: rgba(255, 255, 255, 0.35);
+      font-size: 20px;
+      font-weight: 300;
+      line-height: 1;
+    }
+
+    .brand-bar .product {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    .label {
+      position: absolute;
+      top: 24px;
+      right: 56px;
+      height: 30px;
+      padding: 0 14px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #7ee8ff;
+      border: 1px solid rgba(126, 232, 255, 0.45);
+      background: rgba(126, 232, 255, 0.12);
+      z-index: 21;
+    }
+
+    .main {
+      position: absolute;
+      left: 64px;
+      right: 64px;
+      top: 92px;
+      bottom: 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 22px;
+      min-height: 0;
+    }
+
+    .head {
+      flex: 0 0 auto;
+    }
+
+    .title {
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      max-width: 1400px;
+    }
+
+    .sub {
+      margin-top: 8px;
+      font-size: 17px;
+      color: rgba(255, 255, 255, 0.78);
+      line-height: 1.35;
+      max-width: 1200px;
+    }
+
+    .stage {
+      flex: 0 1 640px;
+      max-height: 640px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-height: 0;
+      width: 100%;
+    }
+
+    .block {
+      background: rgba(255, 255, 255, 0.09);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 12px;
+      padding: 28px 30px;
+    }
+
+    .accent {
+      color: #7ee8ff;
+    }
+
+    .big {
+      font-size: 84px;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      color: #7ee8ff;
+    }
+
+    .muted {
+      color: rgba(255, 255, 255, 0.55);
+      font-size: 15px;
+    }
+
+    .coral {
+      color: #ff7b9c;
+    }
+
+    .p {
+      font-size: 17px;
+      color: rgba(255, 255, 255, 0.85);
+      line-height: 1.4;
+    }
+
+    .h {
+      font-size: 22px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    /* --- versus row --- */
+    .versus {
+      display: flex;
+      gap: 18px;
+      align-items: stretch;
+      flex: 1.25;
+      min-height: 0;
+    }
+
+    .versus .side {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 12px;
+    }
+
+    .versus .side.win {
+      border-color: rgba(126, 232, 255, 0.5);
+      background: rgba(126, 232, 255, 0.1);
+    }
+
+    .notation {
+      font-size: 30px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .gap {
+      flex: 0 0 210px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .gap .x {
+      font-size: 66px;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      color: #9dffb8;
+      line-height: 1;
+    }
+
+    /* --- decoder --- */
+    .decoder {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      flex: 0 0 auto;
+    }
+
+    .decoder .cell {
+      padding: 18px 22px;
+      display: flex;
+      align-items: baseline;
+      gap: 14px;
+    }
+
+    .decoder .sym {
+      font-size: 30px;
+      font-weight: 700;
+      color: #7ee8ff;
+      min-width: 26px;
+    }
+
+    /* --- scaling strip --- */
+    .scale {
+      display: flex;
+      gap: 0;
+      align-items: stretch;
+      flex: 0 0 auto;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .scale .cellx {
+      flex: 1;
+      padding: 18px 26px;
+      border-right: 1px solid rgba(255, 255, 255, 0.16);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .scale .cellx:last-child {
+      border-right: none;
+    }
+
+    .scale .hd {
+      font-size: 13px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: rgba(255, 255, 255, 0.5);
+      font-weight: 600;
+    }
+
+    .scale .v {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+  
+    /* ---- v2: fewer boxes, bigger type, content on the background ---- */
+    .title { font-size: 68px; letter-spacing: -0.035em; line-height: 1.02; }
+    .sub { font-size: 22px; margin-top: 12px; color: rgba(255,255,255,0.72); }
+    .main { gap: 26px; }
+
+    .eyebrow {
+      font-size: 14px; font-weight: 600; letter-spacing: 0.18em;
+      text-transform: uppercase; color: rgba(255,255,255,0.48);
+    }
+    .hair { height: 1px; background: rgba(255,255,255,0.16); width: 100%; flex: none; }
+    .vrule { width: 1px; background: rgba(255,255,255,0.14); align-self: center; height: 62%; flex: none; }
+
+    .xl { font-size: 176px; font-weight: 700; letter-spacing: -0.05em; line-height: 0.88; color: #7ee8ff; }
+    .lg { font-size: 128px; font-weight: 700; letter-spacing: -0.045em; line-height: 0.94; color: #7ee8ff; }
+    .md { font-size: 64px; font-weight: 700; letter-spacing: -0.035em; line-height: 1.06; }
+    .sm { font-size: 40px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+    .lead { font-size: 26px; line-height: 1.4; color: rgba(255,255,255,0.86); }
+    .note { font-size: 18px; line-height: 1.45; color: rgba(255,255,255,0.5); }
+    .mono { font-family: "JetBrains Mono", monospace; }
+
+    .coral { color: #ff7b9c; }
+    .mint { color: #9dffb8; }
+    .violet { color: #c4b5ff; }
+
+    .cols { display: flex; flex: 1; min-height: 0; align-items: stretch; }
+    .cols.tight { flex: none; }
+    .cols > .c {
+      flex: 1; min-width: 0; padding: 0 46px;
+      display: flex; flex-direction: column; justify-content: center; gap: 14px;
+    }
+    .cols > .c:first-child { padding-left: 0; }
+    .cols > .c:last-child { padding-right: 0; }
+    .cols > .c.mid { align-items: center; text-align: center; }
+
+    .matrix { display: grid; grid-template-columns: repeat(10, 1fr); gap: 9px; width: 100%; }
+    .matrix i { display: block; aspect-ratio: 1; border-radius: 4px; background: rgba(255,255,255,0.11); }
+
+    .krow { display: flex; align-items: baseline; gap: 34px; padding: 26px 0; }
+    .krow .kw { font-size: 58px; font-weight: 700; letter-spacing: -0.04em; color: #7ee8ff; width: 84px; flex: none; }
+    .krow .kn { font-size: 36px; font-weight: 600; letter-spacing: -0.02em; width: 330px; flex: none; }
+    .krow .kd { font-size: 21px; color: rgba(255,255,255,0.8); flex: 1; }
+    .krow .kf { font-size: 15px; color: rgba(255,255,255,0.4); flex: none; }
+
+    .track2 { position: relative; flex: 1; height: 10px; border-radius: 5px; background: rgba(255,255,255,0.12); }
+    .track2 .fill2 { position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: rgba(126,232,255,0.45); }
+    .mk { position: absolute; top: 0; }
+    .mk b { position: absolute; top: -7px; left: 0; width: 2px; height: 24px; background: rgba(255,255,255,0.8); }
+    .mk i { position: absolute; top: 26px; left: 0; transform: translateX(-50%);
+            font-style: normal; font-size: 16px; white-space: nowrap; color: rgba(255,255,255,0.72); }
+    .mk.end b { background: #7ee8ff; }
+    .mk.end i { transform: translateX(-100%); color: #7ee8ff; }
+
+    .stops { display: flex; align-items: center; flex: 1; }
+    .stops .stop { flex: 1; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+    .stops .link { flex: 0 0 90px; height: 1px; background: rgba(255,255,255,0.2); }
+  </style>
+</head>
+
+<body>
+  <div data-hf-id="hf-9p4z" id="root" data-composition-id="07-efficiency" data-start="0" data-duration="14" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-add3" class="brand-bar">
+      <img data-hf-id="hf-vy8b" src="assets/frontiers.png" alt="Frontiers">
+      <span data-hf-id="hf-s1d3" class="pipe">|</span>
+      <span data-hf-id="hf-0ch0" class="product">AIRA · Cluster Analysis</span>
+    </div>
+    <div data-hf-id="hf-7r5h" class="label">The math</div>
+
+    <div data-hf-id="hf-k15r" class="main">
+      <div data-hf-id="hf-z992" class="head">
+        <h1 data-hf-id="hf-duva" class="title">Squared, or straight</h1>
+        <p data-hf-id="hf-u4cp" class="sub">Same window, same evidence. The difference is whether you compare every pair, or look up every key.</p>
+      </div>
+      <div data-hf-id="hf-6ra9" class="cols">
+        <div data-hf-id="hf-kmmr" class="c">
+          <div data-hf-id="hf-6lr1" class="eyebrow">compare every pair</div>
+          <div data-hf-id="hf-swx5" class="md coral" style="font-size:54px">O(N²)</div>
+          <div data-hf-id="hf-m7w9" class="lead">grows with the <strong data-hf-id="hf-ukm1">square</strong> of the archive</div>
+          <div data-hf-id="hf-mrqn" class="md coral" style="font-size:58px">2,034,677,736</div>
+          <div data-hf-id="hf-1yfj" class="note">23 days at a thousand a second</div>
+        </div>
+        <div data-hf-id="hf-7fxo" class="vrule"></div>
+        <div data-hf-id="hf-w2tu" class="c mid" style="flex:0.8">
+          <div data-hf-id="hf-evnx" class="eyebrow">measured</div>
+          <div data-hf-id="hf-6oiw" class="xl mint" style="font-size:142px">2,614×</div>
+          <div data-hf-id="hf-cfrg" class="lead">less work</div>
+        </div>
+        <div data-hf-id="hf-50ck" class="vrule"></div>
+        <div data-hf-id="hf-7mcz" class="c">
+          <div data-hf-id="hf-60d0" class="eyebrow">look up shared keys</div>
+          <div data-hf-id="hf-028x" class="md accent" style="font-size:54px">O(N · t · c)</div>
+          <div data-hf-id="hf-5tti" class="lead">grows in a <strong data-hf-id="hf-4qi6">straight line</strong></div>
+          <div data-hf-id="hf-jcld" class="md accent" style="font-size:58px">778,262</div>
+          <div data-hf-id="hf-fxwm" class="note">13 minutes at the same speed</div>
+        </div>
+      </div>
+      <div data-hf-id="hf-hx7w" class="hair"></div>
+      <p data-hf-id="hf-8exa" class="note"><strong data-hf-id="hf-witc" style="color:#7ee8ff">N</strong> papers in the window — 63,792 &#160;&#160;·&#160;&#160; <strong data-hf-id="hf-9h1q" style="color:#7ee8ff">t</strong> keys per paper — up to 6 &#160;&#160;·&#160;&#160; <strong data-hf-id="hf-en13" style="color:#7ee8ff">c</strong> ceiling per key — 120</p>
+      <div data-hf-id="hf-93nl" class="cols tight">
+        <div data-hf-id="hf-cckv" class="c" style="gap:6px">
+          <div data-hf-id="hf-icaq" class="eyebrow">today</div>
+          <div data-hf-id="hf-fs88" class="sm">2,614× less work</div>
+        </div>
+        <div data-hf-id="hf-3tfh" class="vrule"></div>
+        <div data-hf-id="hf-zr2n" class="c" style="gap:6px">
+          <div data-hf-id="hf-0br1" class="eyebrow">double the archive</div>
+          <div data-hf-id="hf-yofl" class="sm">5,229×</div>
+        </div>
+        <div data-hf-id="hf-47qi" class="vrule"></div>
+        <div data-hf-id="hf-zcrm" class="c" style="gap:6px">
+          <div data-hf-id="hf-dpwr" class="eyebrow">ten times the archive</div>
+          <div data-hf-id="hf-wnnq" class="sm accent">26,144×</div>
+        </div>
+      </div>
+    </div><!-- /main -->
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["07-efficiency"] = gsap.timeline({ paused: true });
+  </script>
+</body>
+
+</html>

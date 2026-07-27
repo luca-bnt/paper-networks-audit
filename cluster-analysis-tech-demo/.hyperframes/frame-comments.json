@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "pass": "sketch",
+  "submitted_at": "2026-07-27T10:31:07.446Z",
+  "comments": [
+    {
+      "frame": 3,
+      "src": "compositions/frames/02-thesis.html",
+      "title": "Search engines already solved this",
+      "text": "Title should be left aligned as for other slides"
+    },
+    {
+      "frame": 9,
+      "src": "compositions/frames/08-budget.html",
+      "title": "What it actually costs",
+      "text": "Here it might be worth bringing back some borders to make the stats pop"
+    },
+    {
+      "frame": 12,
+      "src": "compositions/frames/11-warn.html",
+      "title": "The near-miss lane",
+      "text": "Title should be left aligned as for other slides"
+    }
+  ]
+}

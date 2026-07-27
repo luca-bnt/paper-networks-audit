@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, height=1080">
+  <title>Telling colleagues from collusion</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    html, body { width:1920px; height:1080px; overflow:hidden; background:#0b1670; font-family:Inter,system-ui,sans-serif; color:#fff; }
+    #root { position:relative; width:1920px; height:1080px; background:
+      radial-gradient(1200px 760px at 50% -12%, rgba(255,255,255,0.14), transparent 56%),
+      linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%); }
+    .brand-bar {
+      position:absolute; top:0; left:0; right:0; z-index:20;
+      display:flex; align-items:center; gap:14px;
+      padding:24px 56px; pointer-events:none;
+    }
+    .brand-bar img { height:26px; width:auto; display:block; }
+    .brand-bar .pipe { color:rgba(255,255,255,0.35); font-size:20px; font-weight:300; line-height:1; }
+    .brand-bar .product { font-size:15px; font-weight:600; letter-spacing:0.04em; color:rgba(255,255,255,0.88); }
+    .label { position:absolute; top:24px; right:56px; height:30px; padding:0 14px; border-radius:999px; display:inline-flex; align-items:center;
+      font-size:11px; font-weight:600; letter-spacing:0.16em; text-transform:uppercase; color:#7ee8ff;
+      border:1px solid rgba(126,232,255,0.45); background:rgba(126,232,255,0.12); z-index:21; }
+
+    .main {
+      position:absolute; left:64px; right:64px; top:92px; bottom:44px;
+      display:flex; flex-direction:column; justify-content:center; gap:22px;
+      min-height:0;
+    }
+    .head { position:static; flex:0 0 auto; }
+    .title { max-width:1400px; }
+    .sub { max-width:1200px; }
+    .stage {
+      position:static; left:auto; right:auto; top:auto; bottom:auto;
+      flex:0 1 640px; height:640px; max-height:640px;
+      display:flex; gap:20px; align-items:stretch; min-height:0; width:100%;
+    }
+    .stage.col { flex-direction:column; }
+
+    .title { font-size:40px; font-weight:700; letter-spacing:-0.03em; line-height:1.05; }
+    .sub { margin-top:8px; font-size:17px; color:rgba(255,255,255,0.78); line-height:1.35; }
+    .block { background:rgba(255,255,255,0.09); border:1px solid rgba(255,255,255,0.22); border-radius:12px; padding:28px 30px; }
+    .block.fill { flex:1; display:flex; flex-direction:column; }
+    .accent { color:#7ee8ff; }
+    .big { font-size:84px; font-weight:700; letter-spacing:-0.04em; color:#7ee8ff; line-height:1; }
+    .big-sm { font-size:52px; font-weight:700; letter-spacing:-0.03em; color:#7ee8ff; line-height:1; }
+    .muted { color:rgba(255,255,255,0.55); font-size:15px; }
+    .row { display:flex; gap:16px; align-items:stretch; width:100%; }
+    .col { display:flex; flex-direction:column; gap:16px; height:100%; }
+    .chip { display:inline-flex; align-items:center; height:40px; padding:0 16px; border-radius:10px; border:1px solid rgba(255,255,255,0.25); background:rgba(255,255,255,0.1); font-size:15px; font-weight:500; }
+    .chip.off { text-decoration:line-through; opacity:0.45; }
+    .h { font-size:22px; font-weight:600; margin-bottom:10px; }
+    .p { font-size:17px; color:rgba(255,255,255,0.85); line-height:1.4; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:16px; width:100%; flex:1; }
+    .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px; width:100%; flex:1; }
+    .grid4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; width:100%; }
+    .grid5 { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; width:100%; flex:1; }
+    .arrow { display:flex; align-items:center; justify-content:center; font-size:32px; color:#7ee8ff; font-weight:700; min-width:36px; flex:none; }
+    .funnel { display:flex; align-items:stretch; gap:12px; width:100%; flex:1; }
+    .funnel .step { flex:1; text-align:center; padding:32px 18px; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:10px; }
+    .strike { position:relative; }
+    .strike::after { content:""; position:absolute; left:12%; right:12%; top:48%; height:5px; background:#ff7b9c; transform:rotate(-7deg); border-radius:2px; }
+    table.simple { width:100%; border-collapse:collapse; font-size:17px; flex:1; }
+    table.simple th, table.simple td { text-align:left; padding:16px 14px; border-bottom:1px solid rgba(255,255,255,0.15); vertical-align:top; }
+    table.simple th { color:rgba(255,255,255,0.55); font-weight:600; font-size:13px; letter-spacing:0.06em; text-transform:uppercase; }
+    .bar { height:22px; border-radius:6px; background:rgba(126,232,255,0.4); }
+    .grow { flex:1; }
+    .center-y { display:flex; flex-direction:column; justify-content:center; }
+
+  
+    /* ---- v2: fewer boxes, bigger type, content on the background ---- */
+    .title { font-size: 68px; letter-spacing: -0.035em; line-height: 1.02; }
+    .sub { font-size: 22px; margin-top: 12px; color: rgba(255,255,255,0.72); }
+    .main { gap: 26px; }
+
+    .eyebrow {
+      font-size: 14px; font-weight: 600; letter-spacing: 0.18em;
+      text-transform: uppercase; color: rgba(255,255,255,0.48);
+    }
+    .hair { height: 1px; background: rgba(255,255,255,0.16); width: 100%; flex: none; }
+    .vrule { width: 1px; background: rgba(255,255,255,0.14); align-self: center; height: 62%; flex: none; }
+
+    .xl { font-size: 176px; font-weight: 700; letter-spacing: -0.05em; line-height: 0.88; color: #7ee8ff; }
+    .lg { font-size: 128px; font-weight: 700; letter-spacing: -0.045em; line-height: 0.94; color: #7ee8ff; }
+    .md { font-size: 64px; font-weight: 700; letter-spacing: -0.035em; line-height: 1.06; }
+    .sm { font-size: 40px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+    .lead { font-size: 26px; line-height: 1.4; color: rgba(255,255,255,0.86); }
+    .note { font-size: 18px; line-height: 1.45; color: rgba(255,255,255,0.5); }
+    .mono { font-family: "JetBrains Mono", monospace; }
+
+    .coral { color: #ff7b9c; }
+    .mint { color: #9dffb8; }
+    .violet { color: #c4b5ff; }
+
+    .cols { display: flex; flex: 1; min-height: 0; align-items: stretch; }
+    .cols.tight { flex: none; }
+    .cols > .c {
+      flex: 1; min-width: 0; padding: 0 46px;
+      display: flex; flex-direction: column; justify-content: center; gap: 14px;
+    }
+    .cols > .c:first-child { padding-left: 0; }
+    .cols > .c:last-child { padding-right: 0; }
+    .cols > .c.mid { align-items: center; text-align: center; }
+
+    .matrix { display: grid; grid-template-columns: repeat(10, 1fr); gap: 9px; width: 100%; }
+    .matrix i { display: block; aspect-ratio: 1; border-radius: 4px; background: rgba(255,255,255,0.11); }
+
+    .krow { display: flex; align-items: baseline; gap: 34px; padding: 26px 0; }
+    .krow .kw { font-size: 58px; font-weight: 700; letter-spacing: -0.04em; color: #7ee8ff; width: 84px; flex: none; }
+    .krow .kn { font-size: 36px; font-weight: 600; letter-spacing: -0.02em; width: 330px; flex: none; }
+    .krow .kd { font-size: 21px; color: rgba(255,255,255,0.8); flex: 1; }
+    .krow .kf { font-size: 15px; color: rgba(255,255,255,0.4); flex: none; }
+
+    .track2 { position: relative; flex: 1; height: 10px; border-radius: 5px; background: rgba(255,255,255,0.12); }
+    .track2 .fill2 { position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: rgba(126,232,255,0.45); }
+    .mk { position: absolute; top: 0; }
+    .mk b { position: absolute; top: -7px; left: 0; width: 2px; height: 24px; background: rgba(255,255,255,0.8); }
+    .mk i { position: absolute; top: 26px; left: 0; transform: translateX(-50%);
+            font-style: normal; font-size: 16px; white-space: nowrap; color: rgba(255,255,255,0.72); }
+    .mk.end b { background: #7ee8ff; }
+    .mk.end i { transform: translateX(-100%); color: #7ee8ff; }
+
+    .stops { display: flex; align-items: center; flex: 1; }
+    .stops .stop { flex: 1; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+    .stops .link { flex: 0 0 90px; height: 1px; background: rgba(255,255,255,0.2); }
+  </style>
+</head>
+<body>
+  <div data-hf-id="hf-az86" id="root" data-composition-id="09-score" data-start="0" data-duration="12" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-add3" class="brand-bar">
+      <img data-hf-id="hf-vy8b" src="assets/frontiers.png" alt="Frontiers">
+      <span data-hf-id="hf-s1d3" class="pipe">|</span>
+      <span data-hf-id="hf-0ch0" class="product">AIRA · Cluster Analysis</span>
+    </div>
+    <div data-hf-id="hf-291b" class="label">Accuracy</div>
+    <div data-hf-id="hf-k15r" class="main">
+      <div data-hf-id="hf-z992" class="head">
+        <h1 data-hf-id="hf-l675" class="title">Telling colleagues from collusion</h1>
+        <p data-hf-id="hf-o3ot" class="sub">The score has one job: avoid the obvious wrong answer.</p>
+      </div>
+      <div data-hf-id="hf-6ra9" class="cols">
+        <div data-hf-id="hf-kmmr" class="c">
+          <div data-hf-id="hf-j8vz" class="eyebrow">same lab, shared network</div>
+          <div data-hf-id="hf-ag2p" class="md" style="font-size:96px">−2</div>
+          <div data-hf-id="hf-dtr0" class="bar" style="width:34%;height:14px"></div>
+          <div data-hf-id="hf-ip79" class="lead">Colleagues share offices. That isn't news.</div>
+        </div>
+        <div data-hf-id="hf-7fxo" class="vrule"></div>
+        <div data-hf-id="hf-7mcz" class="c">
+          <div data-hf-id="hf-xlq9" class="eyebrow">same machine, two unrelated institutions</div>
+          <div data-hf-id="hf-r1e4" class="md accent" style="font-size:96px">+2</div>
+          <div data-hf-id="hf-78z3" class="bar" style="width:86%;height:14px;background:rgba(126,232,255,0.75)"></div>
+          <div data-hf-id="hf-qqpx" class="lead">That one is harder to explain.</div>
+        </div>
+      </div>
+      <div data-hf-id="hf-hx7w" class="hair"></div>
+      <div data-hf-id="hf-93nl" class="cols tight">
+        <div data-hf-id="hf-781y" class="c"><div data-hf-id="hf-cv2o" class="lead"><strong data-hf-id="hf-g0mh">Recent beats old</strong> — reuse last week outranks an overlap from March.</div></div>
+        <div data-hf-id="hf-50ck" class="vrule"></div>
+        <div data-hf-id="hf-6tqx" class="c"><div data-hf-id="hf-usv6" class="lead"><strong data-hf-id="hf-1tjd" class="accent">+4 when two channels agree</strong> — one coincidence is cheap, two at once is expensive.</div></div>
+      </div>
+      <p data-hf-id="hf-hxnz" class="note mono">score = network + Σ weights + time_boost + affiliation_adjust + 4 if (device∨ip) ∧ (wd_*)</p>
+    </div><!-- /main -->
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["09-score"] = gsap.timeline({ paused: true });
+  </script>
+</body>
+</html>

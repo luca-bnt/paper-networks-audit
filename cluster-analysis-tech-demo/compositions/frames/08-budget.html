@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1920, height=1080">
+  <title>What it actually costs</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 1920px;
+      height: 1080px;
+      overflow: hidden;
+      background: #0b1670;
+      font-family: Inter, system-ui, sans-serif;
+      color: #fff;
+    }
+
+    #root {
+      position: relative;
+      width: 1920px;
+      height: 1080px;
+      background:
+        radial-gradient(1200px 760px at 50% -12%, rgba(255, 255, 255, 0.14), transparent 56%),
+        linear-gradient(162deg, #0e1878 0%, #1a32c4 58%, #1e38b0 100%);
+    }
+
+    .brand-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 24px 56px;
+      pointer-events: none;
+    }
+
+    .brand-bar img {
+      height: 26px;
+      width: auto;
+      display: block;
+    }
+
+    .brand-bar .pipe {
+      color: rgba(255, 255, 255, 0.35);
+      font-size: 20px;
+      font-weight: 300;
+      line-height: 1;
+    }
+
+    .brand-bar .product {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: rgba(255, 255, 255, 0.88);
+    }
+
+    .label {
+      position: absolute;
+      top: 24px;
+      right: 56px;
+      height: 30px;
+      padding: 0 14px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: #7ee8ff;
+      border: 1px solid rgba(126, 232, 255, 0.45);
+      background: rgba(126, 232, 255, 0.12);
+      z-index: 21;
+    }
+
+    .main {
+      position: absolute;
+      left: 64px;
+      right: 64px;
+      top: 92px;
+      bottom: 44px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 22px;
+      min-height: 0;
+    }
+
+    .head {
+      flex: 0 0 auto;
+    }
+
+    .title {
+      font-size: 40px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.05;
+      max-width: 1400px;
+    }
+
+    .sub {
+      margin-top: 8px;
+      font-size: 17px;
+      color: rgba(255, 255, 255, 0.78);
+      line-height: 1.35;
+      max-width: 1250px;
+    }
+
+    .stage {
+      flex: 0 1 640px;
+      max-height: 640px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      min-height: 0;
+      width: 100%;
+    }
+
+    .block {
+      background: rgba(255, 255, 255, 0.09);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 12px;
+      padding: 26px 28px;
+    }
+
+    .accent {
+      color: #7ee8ff;
+    }
+
+    .mint {
+      color: #9dffb8;
+    }
+
+    .muted {
+      color: rgba(255, 255, 255, 0.55);
+      font-size: 15px;
+    }
+
+    .p {
+      font-size: 17px;
+      color: rgba(255, 255, 255, 0.85);
+      line-height: 1.4;
+    }
+
+    .h {
+      font-size: 21px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    /* --- hero stats --- */
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .stats .block {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .stats .n.mint {
+      color: #9dffb8;
+    }
+
+    .stats .n {
+      font-size: 62px;
+      font-weight: 700;
+      letter-spacing: -0.04em;
+      line-height: 1;
+      color: #7ee8ff;
+    }
+
+    .stats .n .unit {
+      font-size: 26px;
+      font-weight: 600;
+      letter-spacing: 0;
+      margin-left: 4px;
+    }
+
+    /* --- spread bar --- */
+    .spread {
+      display: flex;
+      align-items: center;
+      gap: 26px;
+      flex: 0 0 auto;
+    }
+
+    .track {
+      position: relative;
+      flex: 1;
+      height: 46px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      overflow: hidden;
+    }
+
+    .track .fillbar {
+      position: absolute;
+      inset: 0 auto 0 0;
+      background: rgba(126, 232, 255, 0.32);
+    }
+
+    .track .tick {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: rgba(255, 255, 255, 0.75);
+    }
+
+    .track .tag {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 14px;
+      font-weight: 600;
+      white-space: nowrap;
+      background: rgba(11, 22, 112, 0.8);
+      padding: 3px 8px;
+      border-radius: 6px;
+    }
+
+    /* --- budget comparison --- */
+    .budget {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      flex: 0.9;
+      min-height: 0;
+    }
+
+    .budget .block {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      justify-content: center;
+    }
+
+    .budget .reads {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.62);
+    }
+
+    .foot {
+      flex: 0 0 auto;
+      padding: 16px 28px;
+    }
+  
+    /* ---- v2: fewer boxes, bigger type, content on the background ---- */
+    .title { font-size: 68px; letter-spacing: -0.035em; line-height: 1.02; }
+    .sub { font-size: 22px; margin-top: 12px; color: rgba(255,255,255,0.72); }
+    .main { gap: 26px; }
+
+    .eyebrow {
+      font-size: 14px; font-weight: 600; letter-spacing: 0.18em;
+      text-transform: uppercase; color: rgba(255,255,255,0.48);
+    }
+    .hair { height: 1px; background: rgba(255,255,255,0.16); width: 100%; flex: none; }
+    .vrule { width: 1px; background: rgba(255,255,255,0.14); align-self: center; height: 62%; flex: none; }
+
+    .xl { font-size: 176px; font-weight: 700; letter-spacing: -0.05em; line-height: 0.88; color: #7ee8ff; }
+    .lg { font-size: 128px; font-weight: 700; letter-spacing: -0.045em; line-height: 0.94; color: #7ee8ff; }
+    .md { font-size: 64px; font-weight: 700; letter-spacing: -0.035em; line-height: 1.06; }
+    .sm { font-size: 40px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.2; }
+    .lead { font-size: 26px; line-height: 1.4; color: rgba(255,255,255,0.86); }
+    .note { font-size: 18px; line-height: 1.45; color: rgba(255,255,255,0.5); }
+    .mono { font-family: "JetBrains Mono", monospace; }
+
+    .coral { color: #ff7b9c; }
+    .mint { color: #9dffb8; }
+    .violet { color: #c4b5ff; }
+
+    .cols { display: flex; flex: 1; min-height: 0; align-items: stretch; }
+    .cols.tight { flex: none; }
+    .cols > .c {
+      flex: 1; min-width: 0; padding: 0 46px;
+      display: flex; flex-direction: column; justify-content: center; gap: 14px;
+    }
+    .cols > .c:first-child { padding-left: 0; }
+    .cols > .c:last-child { padding-right: 0; }
+    .cols > .c.mid { align-items: center; text-align: center; }
+
+    .matrix { display: grid; grid-template-columns: repeat(10, 1fr); gap: 9px; width: 100%; }
+    .matrix i { display: block; aspect-ratio: 1; border-radius: 4px; background: rgba(255,255,255,0.11); }
+
+    .krow { display: flex; align-items: baseline; gap: 34px; padding: 26px 0; }
+    .krow .kw { font-size: 58px; font-weight: 700; letter-spacing: -0.04em; color: #7ee8ff; width: 84px; flex: none; }
+    .krow .kn { font-size: 36px; font-weight: 600; letter-spacing: -0.02em; width: 330px; flex: none; }
+    .krow .kd { font-size: 21px; color: rgba(255,255,255,0.8); flex: 1; }
+    .krow .kf { font-size: 15px; color: rgba(255,255,255,0.4); flex: none; }
+
+    .track2 { position: relative; flex: 1; height: 10px; border-radius: 5px; background: rgba(255,255,255,0.12); }
+    .track2 .fill2 { position: absolute; inset: 0 auto 0 0; border-radius: 5px; background: rgba(126,232,255,0.45); }
+    .mk { position: absolute; top: 0; }
+    .mk b { position: absolute; top: -7px; left: 0; width: 2px; height: 24px; background: rgba(255,255,255,0.8); }
+    .mk i { position: absolute; top: 26px; left: 0; transform: translateX(-50%);
+            font-style: normal; font-size: 16px; white-space: nowrap; color: rgba(255,255,255,0.72); }
+    .mk.end b { background: #7ee8ff; }
+    .mk.end i { transform: translateX(-100%); color: #7ee8ff; }
+
+    .stops { display: flex; align-items: center; flex: 1; }
+    .stops .stop { flex: 1; text-align: center; display: flex; flex-direction: column; gap: 12px; align-items: center; }
+    .stops .link { flex: 0 0 90px; height: 1px; background: rgba(255,255,255,0.2); }
+  
+    .cols.cards { gap: 18px; align-items: center; }
+    .cols.cards > .c {
+      padding: 34px 32px;
+      background: rgba(255,255,255,0.07);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 14px;
+      justify-content: center;
+      gap: 16px;
+    }
+    .cols.cards > .c.win { border-color: rgba(157,255,184,0.45); background: rgba(157,255,184,0.09); }
+  </style>
+</head>
+
+<body>
+  <div data-hf-id="hf-drvm" id="root" data-composition-id="08-budget" data-start="0" data-duration="12" data-width="1920" data-height="1080">
+    <div data-hf-id="hf-add3" class="brand-bar">
+      <img data-hf-id="hf-vy8b" src="assets/frontiers.png" alt="Frontiers">
+      <span data-hf-id="hf-s1d3" class="pipe">|</span>
+      <span data-hf-id="hf-0ch0" class="product">AIRA · Cluster Analysis</span>
+    </div>
+    <div data-hf-id="hf-im9q" class="label">Measured</div>
+
+    <div data-hf-id="hf-k15r" class="main">
+      <div data-hf-id="hf-z992" class="head">
+        <h1 data-hf-id="hf-7kgq" class="title">What it actually costs</h1>
+        <p data-hf-id="hf-a1a4" class="sub">Measured on a 63,792-paper snapshot — not a model.</p>
+      </div>
+      <div data-hf-id="hf-6ra9" class="cols cards">
+        <div data-hf-id="hf-kmmr" class="c">
+          <div data-hf-id="hf-bquv" class="lg">13</div>
+          <div data-hf-id="hf-fmx9" class="lead">candidates worth scoring<br data-hf-id="hf-x5px"><span data-hf-id="hf-w9xo" class="note">out of 63,791</span></div>
+        </div>
+        <div data-hf-id="hf-7mcz" class="c">
+          <div data-hf-id="hf-bvwy" class="lg">2.9<span data-hf-id="hf-37x0" style="font-size:44px">s</span></div>
+          <div data-hf-id="hf-i9n7" class="lead">to score the entire quarter<br data-hf-id="hf-rsrt"><span data-hf-id="hf-hc4z" class="note">0.045 ms per paper</span></div>
+        </div>
+        <div data-hf-id="hf-781y" class="c">
+          <div data-hf-id="hf-akw1" class="lg">20</div>
+          <div data-hf-id="hf-2t2u" class="lead">rows on the reviewer's card<br data-hf-id="hf-szow"><span data-hf-id="hf-dd1f" class="note">however big the archive gets</span></div>
+        </div>
+        <div data-hf-id="hf-6tqx" class="c win">
+          <div data-hf-id="hf-lyv3" class="lg mint">6.4<span data-hf-id="hf-zt1a" style="font-size:44px">%</span></div>
+          <div data-hf-id="hf-efp3" class="lead">ever reach a human<br data-hf-id="hf-sldv"><span data-hf-id="hf-xj9y" class="note">3.7% warn · 2.7% block</span></div>
+        </div>
+      </div>
+      <div data-hf-id="hf-ibu8" style="display:flex;align-items:center;gap:34px;flex:none;padding-bottom:26px">
+        <div data-hf-id="hf-akly" class="eyebrow" style="width:200px">candidates per paper</div>
+        <div data-hf-id="hf-2t0t" class="track2">
+          <div data-hf-id="hf-txmo" class="fill2" style="width:18.5%"></div>
+          <span data-hf-id="hf-11bq" class="mk" style="left:2.7%"><b data-hf-id="hf-xujp"></b><i data-hf-id="hf-fkn8">typical 13</i></span>
+          <span data-hf-id="hf-dxqv" class="mk" style="left:18.5%"><b data-hf-id="hf-ey49"></b><i data-hf-id="hf-wlh6">95% under 89</i></span>
+          <span data-hf-id="hf-1fto" class="mk" style="left:45%"><b data-hf-id="hf-g51c"></b><i data-hf-id="hf-5md3">worst ever 217</i></span>
+          <span data-hf-id="hf-e92r" class="mk end" style="left:100%"><b data-hf-id="hf-fqqb"></b><i data-hf-id="hf-7bdj">ceiling 480</i></span>
+        </div>
+      </div>
+      <div data-hf-id="hf-hx7w" class="hair"></div>
+      <p data-hf-id="hf-royw" class="lead">Word-file check reads <strong data-hf-id="hf-c4ct">1 file</strong>. &#160;A brute-force hunt reads <strong data-hf-id="hf-4tun">63,792</strong>. &#160;<span data-hf-id="hf-ps3k" class="accent">Cluster Analysis indexes 63,792 and touches 13.</span></p>
+    </div><!-- /main -->
+  </div>
+  <script>
+    window.__timelines = window.__timelines || {};
+    window.__timelines["08-budget"] = gsap.timeline({ paused: true });
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,8 @@
+output/
+node_modules/
+.DS_Store
+
+# HyperFrames working caches — regenerated on demand
+.thumbnails/
+.hyperframes/backup/
+snapshots/
