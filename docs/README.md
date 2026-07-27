@@ -14,9 +14,8 @@ This folder is the home for production planning and handover documents.
 | Document | Status | Purpose |
 |----------|--------|---------|
 | [architecture.md](./architecture.md) | Planned | System design, data flow, hosting, auth |
-| [open-questions.md](./open-questions.md) | Planned | Decisions still needed |
 
-Planned-but-absent stubs (`data-model.md`, `ux-spec.md`) are not linked until they exist.
+Planned-but-absent stubs (`data-model.md`, `ux-spec.md`) are not linked until they exist. Open decisions for Cluster Analysis live in the PRD.
 
 ## Prototype reference (not production code)
 
