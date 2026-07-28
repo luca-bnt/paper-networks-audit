@@ -41,13 +41,16 @@ if [[ "${SYNC_CACHE:-1}" == "1" ]]; then
   fi
 fi
 
-# Kiosk temp SQL passwords expire ~24h — fetch fresh if bearer token is configured
-if [[ -z "${AUDIT_DB_CS:-}" && -n "${KIOSK_BEARER_TOKEN:-}" && -f "$ROOT/get_creds.py" ]]; then
-  export AUDIT_DB_CS="$("$PY" "$ROOT/get_creds.py" 2>/dev/null | awk -F': ' '/^Connection string:/{print $2}')"
+# Kiosk temp SQL passwords expire ~24h — auto-fetch via get_creds.py (Bearer from env, az, or MSAL cache)
+if [[ -z "${AUDIT_DB_CS:-}" && -f "$ROOT/get_creds.py" ]]; then
+  if cs="$("$PY" "$ROOT/get_creds.py" --connection-string 2>/dev/null)"; then
+    export AUDIT_DB_CS="$cs"
+    echo "[creds] fetched fresh Kiosk SQL grant via get_creds.py"
+  fi
 fi
 
 if [[ -z "${AUDIT_DB_CS:-}" ]]; then
-  echo "Set AUDIT_DB_CS in .env or provide KIOSK_BEARER_TOKEN + get_creds.py" >&2
+  echo "Set AUDIT_DB_CS in .env, or install get_creds.py and run one-time: az login --tenant ... --scope api://56a24d11-e229-47d6-ac7f-a32194373319/.default" >&2
   exit 1
 fi
 
@@ -66,6 +69,20 @@ az storage blob upload \
   --overwrite true \
   --content-type "application/gzip" \
   --metadata "owner=$OWNER"
+
+if [[ -f audit-network/data/snapshot-meta.json ]]; then
+  az storage blob upload \
+    --account-name "$AZ_ACCOUNT" \
+    --container-name "$AZ_CONTAINER" \
+    --name "$AZ_PREFIX/data/snapshot-meta.json" \
+    --file audit-network/data/snapshot-meta.json \
+    --auth-mode login \
+    --overwrite true \
+    --content-type "application/json" \
+    --cache-control "no-cache, max-age=0" \
+    --metadata "owner=$OWNER"
+  echo "[deploy] uploaded snapshot-meta.json"
+fi
 
 if [[ "${SYNC_CACHE:-1}" == "1" && -f audit-pipeline/raw_snapshot.pkl ]]; then
   az storage blob upload \

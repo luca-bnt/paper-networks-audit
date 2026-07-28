@@ -311,9 +311,115 @@
   }
   .btn-reviewer-edit:hover { color: var(--text); background: #ffffff10; }
   .close { margin-left: auto; }
+
+  /* ---- boot / refresh splash ---- */
+  #bootScreen {
+    position: fixed; inset: 0; z-index: 10000;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 35%, #1a2240 0%, transparent 55%),
+      radial-gradient(ellipse 50% 40% at 70% 80%, #15201a 0%, transparent 50%),
+      var(--bg);
+    color: var(--text); padding: 32px 24px; text-align: center;
+    transition: opacity .35s ease, visibility .35s ease;
+  }
+  #bootScreen.boot-hide { opacity: 0; visibility: hidden; pointer-events: none; }
+  #bootScreen.boot-hide .boot-net { animation: none; }
+  .boot-net {
+    position: relative; width: min(280px, 70vw); height: min(180px, 40vw);
+    margin-bottom: 28px;
+  }
+  .boot-net svg { width: 100%; height: 100%; overflow: visible; }
+  .boot-net .edge {
+    fill: none; stroke: #3673f766; stroke-width: 1.4;
+    stroke-dasharray: 80; stroke-dashoffset: 80;
+    animation: boot-draw 2.4s ease-in-out infinite;
+  }
+  .boot-net .edge:nth-child(2) { animation-delay: .2s; stroke: #65C16155; }
+  .boot-net .edge:nth-child(3) { animation-delay: .4s; stroke: #E8762655; }
+  .boot-net .edge:nth-child(4) { animation-delay: .55s; stroke: #a78bfa55; }
+  .boot-net .edge:nth-child(5) { animation-delay: .7s; stroke: #22d3ee55; }
+  .boot-net .edge:nth-child(6) { animation-delay: .85s; stroke: #f472b655; }
+  .boot-net .node {
+    fill: var(--accent);
+    animation: boot-pulse 2.2s ease-in-out infinite;
+  }
+  .boot-net .node:nth-child(odd) { animation-delay: .4s; fill: #65C161; }
+  .boot-net .node.hub { fill: #E87626; }
+  .boot-brand {
+    font-size: 18px; font-weight: 600; letter-spacing: .3px; margin: 0 0 6px;
+  }
+  .boot-status {
+    color: var(--muted); font-size: 13px; min-height: 1.4em; margin-bottom: 28px;
+  }
+  .boot-status .dot {
+    display: inline-block; width: 4px; height: 4px; border-radius: 50%;
+    background: var(--accent); margin: 0 1px 2px; vertical-align: middle;
+    animation: boot-dot 1.2s ease-in-out infinite;
+  }
+  .boot-status .dot:nth-child(2) { animation-delay: .15s; }
+  .boot-status .dot:nth-child(3) { animation-delay: .3s; }
+  .boot-fact {
+    max-width: 420px; padding: 16px 18px; border-radius: 10px;
+    background: #171a21cc; border: 1px solid var(--line);
+    min-height: 88px; display: flex; flex-direction: column; justify-content: center;
+    transition: opacity .4s ease;
+  }
+  .boot-fact.swap { opacity: 0; }
+  .boot-fact-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: .7px;
+    color: var(--accent); margin-bottom: 6px; font-weight: 600;
+  }
+  .boot-fact-text { font-size: 13px; line-height: 1.5; color: var(--text); }
+  .boot-meta {
+    margin-top: 18px; font-size: 11px; color: var(--muted); min-height: 1.3em;
+  }
+  @keyframes boot-draw {
+    0% { stroke-dashoffset: 80; opacity: .35; }
+    45% { stroke-dashoffset: 0; opacity: 1; }
+    100% { stroke-dashoffset: -80; opacity: .35; }
+  }
+  @keyframes boot-pulse {
+    0%, 100% { opacity: .45; }
+    50% { opacity: 1; }
+  }
+  @keyframes boot-dot {
+    0%, 80%, 100% { opacity: .25; transform: translateY(0); }
+    40% { opacity: 1; transform: translateY(-2px); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .boot-net .edge, .boot-net .node, .boot-status .dot { animation: none; }
+    .boot-net .edge { stroke-dashoffset: 0; opacity: .7; }
+    .boot-net .node { opacity: .9; }
+    #bootScreen { transition: none; }
+  }
 </style>
 </head>
 <body>
+<div id="bootScreen" role="status" aria-live="polite" aria-busy="true">
+  <div class="boot-net" aria-hidden="true">
+    <svg viewBox="0 0 280 180" xmlns="http://www.w3.org/2000/svg">
+      <line class="edge" x1="40" y1="90" x2="120" y2="50" />
+      <line class="edge" x1="40" y1="90" x2="120" y2="130" />
+      <line class="edge" x1="120" y1="50" x2="200" y2="40" />
+      <line class="edge" x1="120" y1="50" x2="160" y2="100" />
+      <line class="edge" x1="120" y1="130" x2="160" y2="100" />
+      <line class="edge" x1="160" y1="100" x2="240" y2="110" />
+      <circle class="node" cx="40" cy="90" r="5" />
+      <circle class="node" cx="120" cy="50" r="5" />
+      <circle class="node hub" cx="160" cy="100" r="7" />
+      <circle class="node" cx="120" cy="130" r="5" />
+      <circle class="node" cx="200" cy="40" r="4" />
+      <circle class="node" cx="240" cy="110" r="5" />
+    </svg>
+  </div>
+  <h1 class="boot-brand">Paper Network Audit</h1>
+  <div class="boot-status" id="bootStatus">Loading network snapshot<span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+  <div class="boot-fact" id="bootFact">
+    <div class="boot-fact-text" id="bootFactText"></div>
+  </div>
+  <div class="boot-meta" id="bootMeta"></div>
+</div>
 <div id="app">
   <div id="left" class="col">
     <header>
@@ -687,8 +793,272 @@ const looksLikeEmail = (s) => /@/.test(String(s || ""));
 const personProxyTip = (s) => looksLikeEmail(s)
   ? "Primary email — name not available in BigQuery for this assignment"
   : "";
-// Bump when snapshot.json.gz is rebuilt — busts browser/CDN caches for the data file.
-const SNAPSHOT_REV = "20260717T151800";
+// Cache-bust fallback if snapshot-meta.json is unavailable (bump when rebuilding).
+const SNAPSHOT_REV_FALLBACK = "20260728T093036";
+const SNAPSHOT_META_URL = "data/snapshot-meta.json";
+const SNAPSHOT_URL = "data/snapshot.json.gz";
+const LS_SNAPSHOT_BUILT = "auditSnapshotBuiltUtc";
+const SNAPSHOT_POLL_MS = 5 * 60 * 1000; // check for newer data every 5 minutes
+const BOOT_FACT_MS = 6500;
+
+const BOOT_FACTS = [
+  "“Independent researchers” who somehow share one laptop, one timezone, and one emotional support email address.",
+  "If your western blot looks familiar, that’s not déjà vu — that’s product-market fit.",
+  "Somewhere, a mill is advertising “SCI papers, fast delivery, free revisions” like it’s takeaway.",
+  "Peer review is a conversation. Peer-review rings are a group chat with admin privileges.",
+  "Nothing says “unrelated submissions” like consecutive article IDs and the same device hash.",
+  "Authorship for sale: because why do the experiment when you can do the invoice?",
+  "Special issues: where guest editors occasionally guest-star in their own integrity case.",
+  "The abstract says novel. The template says otherwise.",
+  "You can fake a paper. It’s harder to fake never having met Excel’s random number generator.",
+  "PubPeer: where “interesting image” is never a compliment.",
+  "Citation cartels — because impact factor is just a multiplayer game if you bring friends.",
+  "Today’s cluster: 47 papers, 12 authors, 1 suspiciously confident cover letter.",
+  "If everyone is corresponding author, nobody is corresponding author.",
+  "“Data available upon reasonable request” — and somehow the request is never reasonable.",
+  "Your job: find the spider. Their job: insist it’s twelve unrelated flies.",
+  "Retractions don’t erase the PDF from hard drives. They do erase the vibes.",
+  "A good mill paper has methods. A great one has methods that also appear in next week’s submission.",
+  "Loading snapshot… please wait while we pretend this isn’t going to ruin someone’s afternoon.",
+];
+
+let snapshotRev = SNAPSHOT_REV_FALLBACK;
+let bootFactTimer = null;
+let snapshotPollTimer = null;
+
+function setBootStatus(msg, { dots = true } = {}) {
+  const el = $("bootStatus");
+  if (!el) return;
+  el.textContent = "";
+  el.appendChild(document.createTextNode(msg || ""));
+  if (dots) {
+    for (let i = 0; i < 3; i++) {
+      const d = document.createElement("span");
+      d.className = "dot";
+      el.appendChild(d);
+    }
+  }
+}
+function setBootMeta(msg) {
+  const el = $("bootMeta");
+  if (el) el.textContent = msg || "";
+}
+function pickBootFact(exclude) {
+  let fact = BOOT_FACTS[Math.floor(Math.random() * BOOT_FACTS.length)];
+  if (BOOT_FACTS.length > 1) {
+    while (fact === exclude) fact = BOOT_FACTS[Math.floor(Math.random() * BOOT_FACTS.length)];
+  }
+  return fact;
+}
+function showBootFact(text) {
+  const box = $("bootFact");
+  const txt = $("bootFactText");
+  if (!txt) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (reduce || !box) {
+    txt.textContent = text;
+    return;
+  }
+  box.classList.add("swap");
+  setTimeout(() => {
+    txt.textContent = text;
+    box.classList.remove("swap");
+  }, 280);
+}
+function startBootFacts() {
+  stopBootFacts();
+  let current = pickBootFact();
+  showBootFact(current);
+  bootFactTimer = setInterval(() => {
+    current = pickBootFact(current);
+    showBootFact(current);
+  }, BOOT_FACT_MS);
+}
+function stopBootFacts() {
+  if (bootFactTimer) { clearInterval(bootFactTimer); bootFactTimer = null; }
+}
+function showBootScreen(statusMsg) {
+  const el = $("bootScreen");
+  if (!el) return;
+  el.classList.remove("boot-hide");
+  el.setAttribute("aria-busy", "true");
+  el.removeAttribute("aria-hidden");
+  setBootStatus(statusMsg || "Loading network snapshot");
+  startBootFacts();
+}
+function hideBootScreen() {
+  stopBootFacts();
+  const el = $("bootScreen");
+  if (!el) return;
+  el.classList.add("boot-hide");
+  el.setAttribute("aria-busy", "false");
+  el.setAttribute("aria-hidden", "true");
+}
+
+async function fetchSnapshotMeta() {
+  try {
+    const res = await fetch(SNAPSHOT_META_URL + "?t=" + Date.now(), { cache: "no-store" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (_) {
+    return null;
+  }
+}
+
+function formatSnapshotMetaBits(m) {
+  if (!m) return "";
+  const bits = [];
+  if (m.count != null) bits.push(`${Number(m.count).toLocaleString()} papers`);
+  if (m.buckets != null) bits.push(`${Number(m.buckets).toLocaleString()} connections`);
+  if (m.windowDays != null) bits.push(`${m.windowDays}-day window`);
+  if (m.builtUtc) bits.push(`built ${String(m.builtUtc).slice(0, 10)}`);
+  return bits.join(" · ");
+}
+
+async function fetchSnapshot(url, rev) {
+  const bust = url + (url.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(rev || snapshotRev);
+  const res = await fetch(bust, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${url}: ${res.status}`);
+  if (url.endsWith(".gz")) {
+    if (typeof DecompressionStream === "undefined") throw new Error("Browser lacks DecompressionStream (use a current Chrome, Firefox, or Safari)");
+    return await new Response(res.body.pipeThrough(new DecompressionStream("gzip"))).json();
+  }
+  return await res.json();
+}
+
+function clearSnapshotState() {
+  indexMap.clear();
+  keptSet.clear();
+  bucketMeta.clear();
+  buckets.length = 0;
+  articleIdToRow = null;
+  articleIdScope = null;
+  articleIdScopeRaw = null;
+}
+
+async function initFromSnapshot() {
+  clearSnapshotState();
+  attrs = D.meta.attributes.filter(a => a !== "authorIp");
+  for (const attr of attrs)
+    for (const [ref, rows, nN, nO] of (D.index[attr] || [])) {
+      const key = attr + ":" + ref;
+      indexMap.set(key, rows); keptSet.add(key);
+      bucketMeta.set(key, { rows, nNames: nN, nOrgs: nO });
+      buckets.push({ attr, ref, rows, nNames: nN, nOrgs: nO });
+    }
+  const m = D.meta;
+  const metaBits = [`${m.count.toLocaleString()} papers`, `${m.buckets.toLocaleString()} connections`, `${m.windowDays}-day window`];
+  if (D.articles.status) metaBits.push(`${(D.dict.statuses || []).length} statuses`);
+  if (D.dict && D.dict.journals) metaBits.push(`${D.dict.journals.length} journals`);
+  if (m.builtUtc) metaBits.push(`snapshot ${m.builtUtc.slice(0, 10)}`);
+  $("meta").textContent = metaBits.join(" · ");
+  if (m.builtUtc) {
+    snapshotRev = revFromBuiltUtc(m.builtUtc);
+    try { localStorage.setItem(LS_SNAPSHOT_BUILT, m.builtUtc); } catch (_) {}
+  }
+  buildAttrToggles(); bindUI(); buildMetaFilters(); renderList(); setupCanvas(); buildLegend();
+  if (D.articles.pmFlag) for (let r = 0; r < D.articles.pmFlag.length; r++) if (D.articles.pmFlag[r]) flags.set(A("id", r), { by: "baked", utc: "" });
+  updateFlagCount();
+  if (FC) {
+    ["btnFlagged", "btnFlagDownload", "btnFlagRefresh"].forEach(id => $(id).style.display = "");
+    $("secReviewer").style.display = "";
+    $("fReviewer").value = localStorage.getItem(LS_NAME) || localStorage.getItem("auditReviewer") || "";
+    renderReviewerDisplay();
+    bindWorkflowUI();
+    await loadFlags();
+    await loadWorkflow();
+    pruneCmpBulkPickStorage();
+    if (!userName()) promptForName();
+  } else if ($("cmpBulkBar")) {
+    $("cmpBulkBar").style.display = "none";
+  }
+  applyShareParams();
+  updateGlobalFieldFilterUI();
+}
+
+function startSnapshotPolling() {
+  if (snapshotPollTimer) clearInterval(snapshotPollTimer);
+  snapshotPollTimer = setInterval(checkForNewerSnapshot, SNAPSHOT_POLL_MS);
+  if (!startSnapshotPolling._visBound) {
+    startSnapshotPolling._visBound = true;
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") checkForNewerSnapshot();
+    });
+  }
+}
+
+async function checkForNewerSnapshot() {
+  if (!D || !D.meta || !D.meta.builtUtc) return;
+  if ($("bootScreen") && !$("bootScreen").classList.contains("boot-hide")) return;
+  const meta = await fetchSnapshotMeta();
+  if (!meta || !meta.builtUtc) return;
+  const remoteMs = Date.parse(meta.builtUtc);
+  const localMs = Date.parse(D.meta.builtUtc);
+  if (!Number.isFinite(remoteMs) || !Number.isFinite(localMs)) {
+    if (meta.builtUtc === D.meta.builtUtc) return;
+  } else if (remoteMs <= localMs) {
+    return;
+  }
+  // Newer build on the server — reload so UI state stays consistent.
+  showBootScreen("New snapshot available — refreshing");
+  setBootMeta(formatSnapshotMetaBits(meta));
+  try { localStorage.setItem(LS_SNAPSHOT_BUILT, meta.builtUtc); } catch (_) {}
+  // Brief pause so the splash + fact is readable before reload.
+  await new Promise(r => setTimeout(r, 1800));
+  location.reload();
+}
+
+async function boot() {
+  showBootScreen("Checking for latest snapshot");
+  startBootFacts();
+  let remoteMeta = null;
+  try {
+    remoteMeta = await fetchSnapshotMeta();
+    if (remoteMeta && remoteMeta.builtUtc) {
+      snapshotRev = revFromBuiltUtc(remoteMeta.builtUtc);
+      setBootMeta(formatSnapshotMetaBits(remoteMeta));
+      const prev = (() => { try { return localStorage.getItem(LS_SNAPSHOT_BUILT); } catch (_) { return null; } })();
+      if (prev && prev !== remoteMeta.builtUtc) {
+        setBootStatus("Newer data found — loading");
+      } else {
+        setBootStatus("Loading network snapshot");
+      }
+    } else {
+      setBootStatus("Loading network snapshot");
+    }
+  } catch (_) {
+    setBootStatus("Loading network snapshot");
+  }
+
+  try {
+    D = await fetchSnapshot(SNAPSHOT_URL, snapshotRev);
+  } catch (e) {
+    setBootStatus("Failed to load snapshot", { dots: false });
+    setBootMeta("Serve over http (not file://). " + e.message);
+    $("meta").textContent = "Failed to load snapshot — serve over http (not file://). " + e.message;
+    return;
+  }
+
+  setBootStatus("Building connection index");
+  try {
+    await initFromSnapshot();
+  } catch (e) {
+    setBootStatus("Failed to initialise", { dots: false });
+    setBootMeta(String(e && e.message || e));
+    $("meta").textContent = "Failed to initialise: " + (e && e.message || e);
+    return;
+  }
+
+  hideBootScreen();
+  startSnapshotPolling();
+}
+
+/** Compact cache-bust token from an ISO builtUtc (or fallback). */
+function revFromBuiltUtc(builtUtc) {
+  if (!builtUtc) return SNAPSHOT_REV_FALLBACK;
+  return String(builtUtc).replace(/[-:]/g, "").replace(/\+.*/, "").replace(/\..*/, "");
+}
+
 // Preset email regex patterns (tested against the full author email string).
 const EMAIL_REGEX_PRESETS = [
   { label: "Short alpha + digits", pattern: "[a-z]{4,8}\\d{3,6}", hint: "e.g. hilp8387@…" },
@@ -1974,57 +2344,6 @@ function clusterMetaPills(rows) {
 }
 const valOf = (key) => { const i = key.indexOf(":"), a = key.slice(0, i); return str(ATTR_META[a].pool, +key.slice(i + 1)); };
 const attrOf = (key) => key.slice(0, key.indexOf(":"));
-
-async function fetchSnapshot(url) {
-  const bust = url + (url.includes("?") ? "&" : "?") + "v=" + encodeURIComponent(SNAPSHOT_REV);
-  const res = await fetch(bust, { cache: "no-store" });
-  if (!res.ok) throw new Error(`${url}: ${res.status}`);
-  if (url.endsWith(".gz")) {
-    if (typeof DecompressionStream === "undefined") throw new Error("Browser lacks DecompressionStream (use a current Chrome, Firefox, or Safari)");
-    return await new Response(res.body.pipeThrough(new DecompressionStream("gzip"))).json();
-  }
-  return await res.json();
-}
-
-async function boot() {
-  try { D = await fetchSnapshot("data/snapshot.json.gz"); }
-  catch (e) { $("meta").textContent = "Failed to load snapshot — serve over http (not file://). " + e.message; return; }
-  articleIdToRow = null;
-  articleIdScope = null;
-  articleIdScopeRaw = null;
-  attrs = D.meta.attributes.filter(a => a !== "authorIp");
-  for (const attr of attrs)
-    for (const [ref, rows, nN, nO] of (D.index[attr] || [])) {
-      const key = attr + ":" + ref;
-      indexMap.set(key, rows); keptSet.add(key);
-      bucketMeta.set(key, { rows, nNames: nN, nOrgs: nO });
-      buckets.push({ attr, ref, rows, nNames: nN, nOrgs: nO });
-    }
-  const m = D.meta;
-  const metaBits = [`${m.count.toLocaleString()} papers`, `${m.buckets.toLocaleString()} connections`, `${m.windowDays}-day window`];
-  if (D.articles.status) metaBits.push(`${(D.dict.statuses || []).length} statuses`);
-  if (D.dict && D.dict.journals) metaBits.push(`${D.dict.journals.length} journals`);
-  if (m.builtUtc) metaBits.push(`snapshot ${m.builtUtc.slice(0, 10)}`);
-  $("meta").textContent = metaBits.join(" · ");
-  buildAttrToggles(); bindUI(); buildMetaFilters(); renderList(); setupCanvas(); buildLegend();
-  if (D.articles.pmFlag) for (let r = 0; r < D.articles.pmFlag.length; r++) if (D.articles.pmFlag[r]) flags.set(A("id", r), { by: "baked", utc: "" });
-  updateFlagCount();
-  if (FC) {
-    ["btnFlagged", "btnFlagDownload", "btnFlagRefresh"].forEach(id => $(id).style.display = "");
-    $("secReviewer").style.display = "";
-    $("fReviewer").value = localStorage.getItem(LS_NAME) || localStorage.getItem("auditReviewer") || "";
-    renderReviewerDisplay();
-    bindWorkflowUI();
-    await loadFlags();
-    await loadWorkflow();
-    pruneCmpBulkPickStorage();
-    if (!userName()) promptForName();
-  } else if ($("cmpBulkBar")) {
-    $("cmpBulkBar").style.display = "none";
-  }
-  applyShareParams();
-  updateGlobalFieldFilterUI();
-}
 
 function buildAttrToggles() {
   const box = $("attrToggles"); box.innerHTML = "";
@@ -3689,6 +4008,7 @@ function applyShareParams() {
 }
 
 initCollapsibleSections();
+startBootFacts(); // splash is visible from first paint
 boot();
 </script>
 </body>

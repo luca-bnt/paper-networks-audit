@@ -688,7 +688,8 @@ COMPONENT_ATTRS = ["email", "ip", "device", "wdAuthor", "wdEditedBy", "wdCompany
 # word-doc + weak attrs are capped low because their generic values are noise.
 DEFAULT_CAPS = {
     "email": 120, "ip": 120, "device": 120, "authorIp": 120,
-    "wdAuthor": 40, "wdEditedBy": 40, "wdCompany": 40,
+    # WD caps high: papermill rings reuse the same doc props at scale (signal, not noise)
+    "wdAuthor": 500, "wdEditedBy": 500, "wdCompany": 500,
     "locale": 25,
 }
 # Pool name per attribute (shared with the columnar string dictionaries).
@@ -698,11 +699,14 @@ ATTR_POOL = {
     "wdCompany": "wdCompanies", "authorIp": "authorIps",
 }
 # Generic Word-doc author/company values that must never link manuscripts.
+# OS / auto-tool placeholders only — do NOT stoplist publisher or org-like strings;
+# large shared WD hubs are papermill signal.
 GENERIC_WD = {
     "administrator", "admin", "windows user", "user", "microsoft", "microsoft office user",
     "microsoft office", "dell", "hp", "lenovo", "acer", "asus", "pc", "author", "default",
     "guest", "owner", "windows", "toshiba", "samsung", "office", "hpuser", "administrateur",
     "usuario", "utente", "windows 用户", "用户", "administrator1", "1", "123",
+    "python-docx", "un-named", "unnamed", "apache poi", "microsoft account",
 }
 
 
@@ -989,8 +993,20 @@ def main() -> None:
         fh.write(payload)
     size = out.stat().st_size
     m = snapshot["meta"]
+    # Lightweight sidecar for the UI to detect newer deploys without downloading the gzip.
+    meta_out = out.with_name("snapshot-meta.json")
+    meta_sidecar = {
+        "builtUtc": m["builtUtc"],
+        "windowDays": m["windowDays"],
+        "count": m["count"],
+        "buckets": m["buckets"],
+        "flags": m.get("flags", 0),
+        "bytesGz": size,
+    }
+    meta_out.write_text(json.dumps(meta_sidecar, separators=(",", ":")) + "\n", encoding="utf-8")
     print(
         f"[write] {out}  {size/1e6:.2f} MB gz  ({len(payload)/1e6:.1f} MB raw)\n"
+        f"        {meta_out.name}  builtUtc={m['builtUtc']}\n"
         f"        {m['count']:,} articles · {m['buckets']:,} shared-value buckets",
         file=sys.stderr,
     )
