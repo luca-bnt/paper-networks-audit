@@ -48,6 +48,63 @@ Analytics jobs may query beyond 90 days; the in-review evaluator must not.
 
 **Match tiers:** `block_evidence` | `warn` | `context` (show `context` only when the article outcome is BLOCK or WARN)
 
+### Short outcome description (card header copy)
+
+One sentence under the outcome. `{X}` = count of distinct peer manuscripts in the evidence set (lookup window = last 90 days). Use singular “paper” when `{X}=1`.
+
+| Outcome | Template |
+|---------|----------|
+| **B0** | The manuscript shares device, network and document metadata with {X} other paper(s) submitted in the last 90 days |
+| **B1** | The manuscript shares {network_phrase} and {doc_phrase} with {X} flagged paper(s) submitted in the last 90 days |
+| **B2** | The manuscript has document metadata that was previously flagged |
+| **WARN** | The manuscript shares {feature_list} with {X} other paper(s) submitted in the last 90 days |
+
+**B1 — `{network_phrase}`** (from matched `(device ∨ ip)` on the flagged peer evidence):
+
+| Matched | Phrase |
+|---------|--------|
+| device only | device |
+| ip only | network |
+| device and ip | device and network |
+
+**B1 — `{doc_phrase}`** (from matched `(wd_author ∨ wd_edited_by)`):
+
+| Matched | Phrase |
+|---------|--------|
+| wd_author only | document author |
+| wd_edited_by only | document last-modified-by |
+| both | document author and last-modified-by |
+
+**B1 — full combinations** (network × doc → sentence core before “with {X} flagged…”):
+
+1. device and document author  
+2. device and document last-modified-by  
+3. device and document author and last-modified-by  
+4. network and document author  
+5. network and document last-modified-by  
+6. network and document author and last-modified-by  
+7. device and network and document author  
+8. device and network and document last-modified-by  
+9. device and network and document author and last-modified-by  
+
+Example: *The manuscript shares device and network and document author with 3 flagged papers submitted in the last 90 days.*
+
+**WARN — `{feature_list}`:** human-readable labels for features shared with at least one peer that contributed to the WARN (score ≥ `T_warn`), joined with commas and “and”. Allowed labels (omit if not matched):
+
+| Token / signal | Label in `{feature_list}` |
+|----------------|---------------------------|
+| device | device |
+| ip | network |
+| subnet (when enabled, without same ip) | network proximity |
+| wd_author and/or wd_edited_by and/or wd_company | document metadata |
+| locale | locale |
+| time boost (≤30d) | time proximity |
+| conflicting affiliation adjust | conflicting affiliations |
+
+Example: *The manuscript shares device, document metadata and locale with 5 other papers submitted in the last 90 days.*
+
+If multiple BLOCK reasons apply, prefer copy priority **B0 > B1 > B2** (show one primary sentence; details remain in Matches).
+
 ---
 
 ## Outcomes
