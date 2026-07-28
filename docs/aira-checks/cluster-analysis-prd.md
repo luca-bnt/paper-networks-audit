@@ -41,16 +41,28 @@ Analytics jobs may query beyond 90 days; the in-review evaluator must not.
 | Header | Outcome (`BLOCK` / `WARN`) when raised |
 | Identity | Author, email, name/email similarity, WD author matches submitting author Y/N |
 | File metadata | WD author, company, last modified by |
-| Matches | Ranked peers: article id, date, status, affiliation, score, chips, tier |
+| Matches | Ranked peers (see below): article id, date, status, affiliation, score, chips, tier |
 | CTA | Open cluster explorer focused on this article (`?a=` + strongest hub) |
 
 **Chips:** Device · Network (IP) · Network proximity (subnet without same IP, when enabled) · Doc properties · Locale · Time proximity · Conflicting affiliations  
 
 **Match tiers:** `block_evidence` | `warn` | `context` (show `context` only when the article outcome is BLOCK or WARN)
 
+**Matches list behaviour**
+
+| Field / behaviour | Spec |
+|-------------------|------|
+| `match_total` | Count of **all** peers with score ≥ `T_retrieve` in the 90-day window (not capped). Show this total in the UI. |
+| Hydrated / listed peers | Top **`K=20`** by score (full feature rows + chips). |
+| Default visible | Top **5** of those 20. |
+| Show more | Remaining listed peers (up to 15 more) behind a control. Follow existing AIRA patterns (e.g. **Scope check**): “{N} more results” / show-more, not a bespoke control. |
+| If `match_total` > 20 | Still only list top 20 details; the total label reflects the full count (e.g. showing 20 of {match_total}). |
+
+Short-description `{X}` uses **`match_total`** (full retrieve set), not the visible or top-20 count.
+
 ### Short outcome description (card header copy)
 
-One line under the outcome. `{X}` = distinct peers in the 90-day evidence set (singular “paper” if `{X}=1`).
+One line under the outcome. `{X}` = **`match_total`** (all peers with score ≥ `T_retrieve` in the last 90 days; singular “paper” if `{X}=1`).
 
 | Outcome | Template |
 |---------|----------|
@@ -220,9 +232,10 @@ score = network
 
 Sort matches by score descending, then more decision-token overlaps, then newer `created_utc`.
 
-`T_retrieve` = **3** (minimum score to keep a peer).  
+`T_retrieve` = **3** (minimum score to count a peer toward `match_total`).  
 `T_warn` = **34**.  
-`K` = **20** (peers to hydrate with full `submission_features` for the card; UI may show fewer).
+`K` = **20** (max peers to hydrate and list on the card).  
+UI default visible = **5**; remainder of the K list behind show-more (Scope-check pattern).
 
 ---
 
@@ -230,18 +243,19 @@ Sort matches by score descending, then more decision-token overlaps, then newer 
 
 ```
 inputs:  article A, feature store, flag store, C1G27I3 outcome(A)
-output:  BLOCK | WARN | PASS, ranked matches, chips, deep-link
+output:  BLOCK | WARN | PASS, match_total, top-K ranked matches, chips, short description, deep-link
 
 1. Normalize A → token set T.
 2. If C1G27I3(A) == BLOCK → article BLOCK (B2); still attach matches if any.
 3. One batched lookup of all tokens in T:
      keep only peers with created_utc within the last 90 days; skip over-cap values; exclude A.
-4. Group hits by prior article_id; score; keep score ≥ T_retrieve; take top K.
-5. Load submission_features for top K; apply time/affiliation; re-sort.
-6. BLOCK if B0, B1, or B2 (definitions above).
-7. Else WARN if max peer score ≥ T_warn.
-8. Else PASS.
-9. On BLOCK/WARN: populate card; chips from matched tokens; deep-link to explorer.
+4. Group hits by prior article_id; score; keep score ≥ T_retrieve.
+5. match_total = count of those peers (full set — do not cap this number).
+6. Take top K by score; load submission_features; apply time/affiliation; re-sort.
+7. BLOCK if B0, B1, or B2 (definitions above).
+8. Else WARN if max peer score ≥ T_warn.
+9. Else PASS.
+10. On BLOCK/WARN: short description ({X}=match_total), chips, deep-link; card lists top K (UI shows 5 + “N more results”).
 ```
 
 ---
