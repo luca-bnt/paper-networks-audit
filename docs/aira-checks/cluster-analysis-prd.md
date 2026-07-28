@@ -50,60 +50,53 @@ Analytics jobs may query beyond 90 days; the in-review evaluator must not.
 
 ### Short outcome description (card header copy)
 
-One sentence under the outcome. `{X}` = count of distinct peer manuscripts in the evidence set (lookup window = last 90 days). Use singular “paper” when `{X}=1`.
+One line under the outcome. `{X}` = distinct peers in the 90-day evidence set (singular “paper” if `{X}=1`).
 
 | Outcome | Template |
 |---------|----------|
-| **B0** | The manuscript shares device, network and document metadata with {X} other paper(s) submitted in the last 90 days |
-| **B1** | The manuscript shares {network_phrase} and {doc_phrase} with {X} flagged paper(s) submitted in the last 90 days |
-| **B2** | The manuscript has document metadata that was previously flagged |
-| **WARN** | The manuscript shares {feature_list} with {X} other paper(s) submitted in the last 90 days |
+| **B0** | Shares device, network and file metadata with {X} other paper(s) in the last 90 days |
+| **B1** | Shares {network_phrase} and {file_phrase} with {X} flagged paper(s) in the last 90 days |
+| **B2** | Has file metadata that was previously flagged |
+| **WARN** | Shares {feature_list} with {X} other paper(s) in the last 90 days |
 
-**B1 — `{network_phrase}`** (from matched `(device ∨ ip)` on the flagged peer evidence):
+**B1 — `{network_phrase}`** (`device` / `ip` on flagged-peer evidence):
 
 | Matched | Phrase |
 |---------|--------|
 | device only | device |
 | ip only | network |
-| device and ip | device and network |
+| both | device and network |
 
-**B1 — `{doc_phrase}`** (from matched `(wd_author ∨ wd_edited_by)`):
+**B1 — `{file_phrase}`** (`wd_author` / `wd_edited_by`):
 
 | Matched | Phrase |
 |---------|--------|
-| wd_author only | document author |
-| wd_edited_by only | document last-modified-by |
-| both | document author and last-modified-by |
+| exactly one | some file metadata |
+| both | file metadata |
 
-**B1 — full combinations** (network × doc → sentence core before “with {X} flagged…”):
+**B1 combinations:**
 
-1. device and document author  
-2. device and document last-modified-by  
-3. device and document author and last-modified-by  
-4. network and document author  
-5. network and document last-modified-by  
-6. network and document author and last-modified-by  
-7. device and network and document author  
-8. device and network and document last-modified-by  
-9. device and network and document author and last-modified-by  
+1. device and some file metadata  
+2. device and file metadata  
+3. network and some file metadata  
+4. network and file metadata  
+5. device and network and some file metadata  
+6. device and network and file metadata  
 
-Example: *The manuscript shares device and network and document author with 3 flagged papers submitted in the last 90 days.*
+**WARN — `{feature_list}`:** matched labels among WARN peers, joined with commas and “and”:
 
-**WARN — `{feature_list}`:** human-readable labels for features shared with at least one peer that contributed to the WARN (score ≥ `T_warn`), joined with commas and “and”. Allowed labels (omit if not matched):
-
-| Token / signal | Label in `{feature_list}` |
-|----------------|---------------------------|
+| Signal | Label |
+|--------|-------|
 | device | device |
 | ip | network |
-| subnet (when enabled, without same ip) | network proximity |
-| wd_author and/or wd_edited_by and/or wd_company | document metadata |
+| subnet (no same ip) | network proximity |
+| exactly one of wd_author / wd_edited_by (or wd_company only) | some file metadata |
+| both wd_author and wd_edited_by | file metadata |
 | locale | locale |
-| time boost (≤30d) | time proximity |
-| conflicting affiliation adjust | conflicting affiliations |
+| time proximity | time proximity |
+| conflicting affiliations | conflicting affiliations |
 
-Example: *The manuscript shares device, document metadata and locale with 5 other papers submitted in the last 90 days.*
-
-If multiple BLOCK reasons apply, prefer copy priority **B0 > B1 > B2** (show one primary sentence; details remain in Matches).
+If several BLOCK reasons fire, primary copy order: **B1 > B0 > B2**.
 
 ---
 
