@@ -21,9 +21,18 @@ Reference field math in this repo: [`device_profile_id.py`](../../device_profile
 
 - Replacing the network explorer UI (deep-link only).
 - Using submitting email or author-declared IP as lookup tokens (display only).
-- Purging historical feature rows for retention (analytics keep them; query windows apply at read time).
+- Treating the feature store as a rolling 90-day window that drops older rows.
 
 ---
+
+## Storage vs lookup window
+
+| Layer | Policy |
+|-------|--------|
+| **Storage** | Keep **all** `submission_features` and `feature_lookup` rows indefinitely (for analytics and offline eval). Do **not** purge when data ages past 90 days. |
+| **Check lookup** | Operational matching for this AIRA check uses only peers from the last **90 days (3 months)**, applied as a `created_utc` filter at query time. |
+
+Analytics jobs may query beyond 90 days; the in-review evaluator must not.
 
 ## Reviewer UI
 
@@ -68,7 +77,7 @@ A peer set (hub) for a decision token is usable for B0/B1 only if **all** hold:
 | Filter | Rule |
 |--------|------|
 | Size | Between **5** and the token [cap](#feature-tokens) (inclusive) |
-| Window | Members within the token’s query horizon (decision network tokens: **90d**) |
+| Window | Members within the last **90 days (3 months)** |
 | Authors | ≥ 2 distinct submitting authors |
 | Organisations | ≥ 2 distinct organisations |
 | Author dominance | Subject’s submitting author appears on ≤ **50%** of members |
@@ -102,9 +111,9 @@ A peer set (hub) for a decision token is usable for B0/B1 only if **all** hold:
 
 **Indexes:** `(feature_type, feature_value, created_utc)` including `article_id`; `(article_id)` for rebuild/delete.
 
-**Retention:** Do not delete rows when they age past a horizon. Horizons filter **queries** only so history remains available for analytics.
+**Retention / windows:** See [Storage vs lookup window](#storage-vs-lookup-window). Store forever; filter lookups to 90 days.
 
-**Write path:** Upsert when fingerprints or WD indicators arrive; daily reconcile as correctness backstop.
+**Write path:** Upsert when fingerprints or WD indicators arrive; daily reconcile as correctness backstop (reconcile does **not** delete aged-out rows).
 
 **Sources:** `DeviceFingerprints`; Indicator definition **75** / check **C1G27I3** (Word doc properties); article author/org/status/title from the warehouse.
 
@@ -114,18 +123,20 @@ A peer set (hub) for a decision token is usable for B0/B1 only if **all** hold:
 
 ## Feature tokens
 
-| Type | Source | Role | Query horizon | Cap | Weight |
+| Type | Source | Role | Lookup window | Cap | Weight |
 |------|--------|------|---------------|-----|--------|
 | `device` | [Device profile id](#device-profile-id) | decision | 90d | 120 | 10 |
 | `ip` | `IpHash` truncated to 16 hex | decision | 90d | 120 | 8 |
-| `wd_author` | Indicator 75; drop `GENERIC_WD` | decision | 365d | 500 | 8 |
-| `wd_edited_by` | Indicator 75; drop `GENERIC_WD` | decision | 365d | 500 | 8 |
-| `wd_company` | Indicator 75; drop `GENERIC_WD` | rank | 365d | 500 | 6 |
+| `wd_author` | Indicator 75; drop `GENERIC_WD` | decision | 90d | 500 | 8 |
+| `wd_edited_by` | Indicator 75; drop `GENERIC_WD` | decision | 90d | 500 | 8 |
+| `wd_company` | Indicator 75; drop `GENERIC_WD` | rank | 90d | 500 | 6 |
 | `locale` | `{Languages}\|{Timezone}` | rank | 90d | 25 | 1 |
 | `asn` | — | **off** (data unusable today) | — | — | — |
 | `subnet` | truncated-IP / subnet hash (future ingest) | rank (planned; replaces ASN) | TBD | TBD | TBD (nested under IP when live) |
 
 **Not indexed** (store on `submission_features` for display only): submitting `email`, `authorIp`.
+
+**Lookup window:** All tokens used by this check are matched against peers from the last **90 days (3 months)** only. Rows older than that remain in the tables for analytics.
 
 **Caps:** If document frequency of `(type, value)` exceeds the cap, skip that token for lookup and scoring (fanout control). Word-doc caps are intentionally high: shared Author / Company / Last-modified-by across many submissions is papermill signal, not noise.
 
@@ -174,7 +185,7 @@ output:  BLOCK | WARN | PASS, ranked matches, chips, deep-link
 1. Normalize A → token set T.
 2. If C1G27I3(A) == BLOCK → article BLOCK (B2); still attach matches if any.
 3. One batched lookup of all tokens in T:
-     filter by per-type query horizon; skip over-cap values; exclude A.
+     keep only peers with created_utc within the last 90 days; skip over-cap values; exclude A.
 4. Group hits by prior article_id; score; keep score ≥ T_retrieve; take top K.
 5. Load submission_features for top K; apply time/affiliation; re-sort.
 6. BLOCK if B0, B1, or B2 (definitions above).
@@ -205,6 +216,7 @@ output:  BLOCK | WARN | PASS, ranked matches, chips, deep-link
 | Check registration & result contract | Confirmed |
 | Flags | **New table.** Network UI flags manuscripts via an API; sync into that table → `is_flagged` for B1 |
 | B2 | Word document properties check **C1G27I3** |
+| Storage vs lookup | **Store all history** (no 90-day purge). **Lookup = last 90 days (3 months)** for the in-review check |
 | ASN | Useless with current data; do not enable. Prefer **subnet** later |
 | Deep-link URL (`?a=`, hub focus) | **TBD** |
 | Production table/column names | **TBD** (logical names in this PRD stand until then) |
@@ -214,5 +226,5 @@ output:  BLOCK | WARN | PASS, ranked matches, chips, deep-link
 
 ## Delivery slices (suggested)
 
-1. Feature store (`submission_features` + `feature_lookup`) + upsert/reconcile + evaluator (BLOCK/WARN/PASS) + offline simulation harness.  
+1. Feature store (`submission_features` + `feature_lookup`, **retain all history**) + upsert/reconcile + evaluator with **90-day lookup filter** (BLOCK/WARN/PASS) + offline simulation harness.  
 2. In-review card, chips, deep-link, flags API → new flags table sync, feature-flagged cutover.
