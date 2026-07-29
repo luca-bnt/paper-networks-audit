@@ -118,13 +118,13 @@ If several BLOCK reasons fire, primary copy order: **B1 > B0 > B2**.
 
 | Code | Rule |
 |------|------|
-| **B0** | Subject shares **all four** decision tokens (`device` ∧ `ip` ∧ `wd_author` ∧ `wd_edited_by`), each in a peer set that passes [attached filters](#attached-filters-block-only) |
+| **B0** | Subject shares **all four** decision tokens (`device` ∧ `ip` ∧ `wd_author` ∧ `wd_edited_by`), each in a peer set that passes [attached filters](#attached-filters) |
 | **B1** | Exists an **integrity-flagged** peer that shares `(ip ∨ device)` **and** `(wd_author ∨ wd_edited_by)` on filter-passing evidence |
 | **B2** | Word document properties check **C1G27I3** already returned BLOCK for this article |
 
 ### WARN
 
-Not BLOCK, and max peer [score](#scoring) ≥ `T_warn` (**34**).
+Not BLOCK, and max peer [score](#scoring) ≥ `T_warn` (**34**), counting only matched tokens whose peer set passes [attached filters](#attached-filters).
 
 ### PASS
 
@@ -132,9 +132,9 @@ Neither BLOCK nor WARN.
 
 ---
 
-## Attached filters (BLOCK only)
+## Attached filters
 
-A peer set (hub) for a decision token is usable for B0/B1 only if **all** hold:
+A peer set (hub) for a token is usable as evidence for **B0, B1 and WARN** only if **all** hold:
 
 | Filter | Rule |
 |--------|------|
@@ -145,6 +145,8 @@ A peer set (hub) for a decision token is usable for B0/B1 only if **all** hold:
 | Author dominance | Subject’s submitting author appears on ≤ **50%** of members |
 
 `locale` and network-proximity tokens (`asn` / future `subnet`) never satisfy the network half of B1.
+
+Filters gate the **BLOCK and WARN decisions** only. Retrieval, `match_total` and match ranking stay unfiltered, so the card can still show weaker context peers.
 
 ---
 
@@ -232,8 +234,8 @@ score = network
 
 Sort matches by score descending, then more decision-token overlaps, then newer `created_utc`.
 
-`T_retrieve` = **3** (minimum score to count a peer toward `match_total`).  
-`T_warn` = **34**.  
+`T_retrieve` = **3** (minimum score to count a peer toward `match_total`; unfiltered).  
+`T_warn` = **34**, applied to the filter-passing score only. Calibrated on unfiltered scores — re-run the offline simulation once the filter gate is in.  
 `K` = **20** (max peers to hydrate and list on the card).  
 UI default visible = **5**; remainder of the K list behind show-more (Scope-check pattern).
 
@@ -253,7 +255,7 @@ output:  BLOCK | WARN | PASS, match_total, top-K ranked matches, chips, short de
 5. match_total = count of those peers (full set — do not cap this number).
 6. Take top K by score; load submission_features; apply time/affiliation; re-sort.
 7. BLOCK if B0, B1, or B2 (definitions above).
-8. Else WARN if max peer score ≥ T_warn.
+8. Else WARN if max peer score ≥ T_warn, scoring only tokens whose peer set passes attached filters.
 9. Else PASS.
 10. On BLOCK/WARN: short description ({X}=match_total), chips, deep-link; card lists top K (UI shows 5 + “N more results”).
 ```
