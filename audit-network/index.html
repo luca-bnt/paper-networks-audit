@@ -444,6 +444,7 @@
       <label class="chk"><input type="checkbox" id="fDiffOrgs" checked> Different organisations</label>
       <label class="chk"><input type="checkbox" id="fFlaggedOnly"> <span style="color:#D51A2C">⚑</span> Only clusters with a flagged paper</label>
       <label class="chk"><input type="checkbox" id="fHideAllRejected" checked> Hide all-rejected clusters</label>
+      <label class="chk" id="hideAllSeenRow" style="display:none"><input type="checkbox" id="fHideAllSeen"> Hide all-seen clusters</label>
       <label class="chk" id="lowNameEmailRow" style="display:none"><input type="checkbox" id="fLowNameEmailSim"> Low name/email similarity (&lt;20%)</label>
       <div class="row" id="journalRow"><label>Journal</label><select id="fJournal" disabled><option value="">All journals</option></select></div>
       <div class="row" id="statusRow"><label>Status</label>
@@ -585,7 +586,7 @@
           <h5>Filters</h5>
           <ul>
             <li><b>Different submitting authors / organisations</b> — exclude homogeneous clusters.</li>
-            <li><b>Only flagged clusters</b>, <b>hide all-rejected clusters</b>, <b>low name/email similarity</b>.</li>
+            <li><b>Only flagged clusters</b>, <b>hide all-rejected clusters</b>, <b>hide all-seen clusters</b> (off by default), <b>low name/email similarity</b>.</li>
             <li><b>Journal</b> and <b>status</b> (rejected only / active only).</li>
             <li><b>Min papers</b> and sort by size, distinct authors, or distinct orgs.</li>
             <li>List header shows <b>cluster count</b> and <b>unique papers</b> across those filtered clusters (a paper in several clusters is counted once).</li>
@@ -957,6 +958,7 @@ async function initFromSnapshot() {
   updateFlagCount();
   if (FC) {
     ["btnFlagged", "btnFlagDownload", "btnFlagRefresh"].forEach(id => $(id).style.display = "");
+    if ($("hideAllSeenRow")) $("hideAllSeenRow").style.display = "";
     $("secReviewer").style.display = "";
     $("fReviewer").value = localStorage.getItem(LS_NAME) || localStorage.getItem("auditReviewer") || "";
     renderReviewerDisplay();
@@ -1983,6 +1985,7 @@ function buildShareParams(extra) {
   if (!$("fDiffOrgs").checked) p.set("do", "0");
   if ($("fFlaggedOnly").checked) p.set("fl", "1");
   if (!$("fHideAllRejected").checked) p.set("har", "0");
+  if ($("fHideAllSeen")?.checked) p.set("has", "1");
   if ($("fLowNameEmailSim")?.checked) p.set("nes", "1");
   const jn = $("fJournal") ? $("fJournal").value : ""; if (jn) p.set("jn", jn);
   const sta = $("fStatus") ? $("fStatus").value : ""; if (sta) p.set("sta", sta);
@@ -2317,6 +2320,10 @@ function shouldHideAllRejectedCluster(rows) {
   if (sta === "rej") return false;
   return hideAllRejectedClusters() && clusterAllRejected(rows);
 }
+const hideAllSeenClusters = () => !!($("fHideAllSeen") && $("fHideAllSeen").checked);
+function shouldHideAllSeenCluster(rows) {
+  return hideAllSeenClusters() && clusterAllPapersSeen(rows);
+}
 function clusterMetaPills(rows) {
   if (!D.articles.status && !D.articles.journal) return "";
   const statuses = new Map(), journals = new Map();
@@ -2497,7 +2504,7 @@ function bindUI() {
       else syncShare();
     }, typingId ? 350 : 0);
   };
-  ["fDiffAuthors","fDiffOrgs","fFlaggedOnly","fHideAllRejected","fLowNameEmailSim","fJournal","fStatus","fMinSize","fSort","fSearch"].forEach(id => $(id).addEventListener("input", onFilterChange));
+  ["fDiffAuthors","fDiffOrgs","fFlaggedOnly","fHideAllRejected","fHideAllSeen","fLowNameEmailSim","fJournal","fStatus","fMinSize","fSort","fSearch"].forEach(id => { if ($(id)) $(id).addEventListener("input", onFilterChange); });
   $("fEmailRegex").addEventListener("input", () => { rebuildEmailFilter(); onFilterChange(); });
   initEmailRegexPresets();
   bindCmpTableScroll();
@@ -2712,6 +2719,7 @@ function currentBuckets() {
     if (diffO && dc.nOrgs < 2) return false;
     if (onlyFlagged && !full.some(isFlagged)) return false;
     if (shouldHideAllRejectedCluster(full)) return false;
+    if (shouldHideAllSeenCluster(full)) return false;
     if (q && !(strFull(ATTR_META[b.attr].pool, b.ref) || str(ATTR_META[b.attr].pool, b.ref) || "").toLowerCase().includes(q)) return false;
     // Article-id search: keep cluster only if at least one searched paper is in it.
     if (articleIdScope && !full.some(paperInArticleSearch)) return false;
@@ -2823,6 +2831,7 @@ function currentUnits() {
       if (!full.length) continue;
       if (onlyFlagged && !hasFlagged(full)) continue;
       if (shouldHideAllRejectedCluster(full)) continue;
+      if (shouldHideAllSeenCluster(full)) continue;
       if (q && !(str("emails", ref) || "").toLowerCase().includes(q)) continue;
       const fr = scopedClusterRows(rows);
       if (!fr.length) continue;
@@ -2848,6 +2857,7 @@ function currentUnits() {
     if (diffO && u.nOrgs < 2) return false;
     if (onlyFlagged && !hasFlagged(full)) return false;
     if (shouldHideAllRejectedCluster(full)) return false;
+    if (shouldHideAllSeenCluster(full)) return false;
     if (q) return u.parts.some(p => (str(ATTR_META[p.attr].pool, p.ref) || "").toLowerCase().includes(q));
     return true;
   });
@@ -3979,6 +3989,7 @@ function applyShareParams() {
   if (p.has("do")) $("fDiffOrgs").checked = p.get("do") !== "0";
   if (p.has("fl")) $("fFlaggedOnly").checked = p.get("fl") === "1";
   if (p.has("har")) $("fHideAllRejected").checked = p.get("har") !== "0";
+  if (p.get("has") === "1" && $("fHideAllSeen")) $("fHideAllSeen").checked = true;
   if (p.get("nes") === "1" && $("fLowNameEmailSim")) $("fLowNameEmailSim").checked = true;
   if (p.get("jn") && $("fJournal")) $("fJournal").value = p.get("jn");
   if (p.get("sta") && $("fStatus")) $("fStatus").value = p.get("sta");
