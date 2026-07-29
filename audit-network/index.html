@@ -13,6 +13,19 @@
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
     font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+  /* Dark scrollbars (Firefox + Chromium/WebKit) */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #3a4252 transparent;
+  }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background: #3a4252; border-radius: 8px;
+    border: 2px solid transparent; background-clip: padding-box;
+  }
+  *::-webkit-scrollbar-thumb:hover { background: #525b6e; background-clip: padding-box; border: 2px solid transparent; }
+  *::-webkit-scrollbar-corner { background: transparent; }
   #app { display: grid; grid-template-columns: 330px 1fr 340px; height: 100vh; }
   .col { overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
   #left { border-right: 1px solid var(--line); background: var(--panel); }
@@ -30,7 +43,20 @@
     display: inline-flex; align-items: center; justify-content: center; padding: 0;
   }
   .btn-info:hover { color: var(--accent); border-color: var(--accent); }
-  .scroll { overflow-y: auto; flex: 1; min-height: 0; }
+  .scroll { overflow-y: auto; flex: 1 1 0; min-height: 0; }
+  /* Upper left controls scroll independently so the cluster list stays reachable. */
+  #leftControls {
+    flex: 0 1 auto;
+    max-height: min(52vh, 480px);
+    overflow-y: auto;
+    min-height: 0;
+    overscroll-behavior: contain;
+    border-bottom: 1px solid var(--line);
+  }
+  #left .list-head { flex: none; }
+  #bucketList { flex: 1 1 0; min-height: 140px; }
+  #right > header { flex: none; }
+  #detail { flex: 1 1 0; min-height: 0; }
   .section { padding: 10px 14px; border-bottom: 1px solid var(--line); }
   .section h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
     color: var(--muted); margin: 0 0 8px; }
@@ -124,6 +150,45 @@
     gap: 8px; align-items: center; background: linear-gradient(#0f1115ee, #0f111500);
     pointer-events: none; font-size: 12px; }
   #topbar .btn, #topbar .crumb { pointer-events: auto; }
+  #btnWatchAlerts { display: none; position: relative; }
+  #btnWatchAlerts.has-alerts { display: inline-block; }
+  #btnWatchAlerts .watch-badge {
+    display: none; position: absolute; top: -5px; right: -5px; min-width: 16px; height: 16px;
+    padding: 0 4px; border-radius: 8px; background: var(--orange); color: #fff;
+    font-size: 10px; font-weight: 600; line-height: 16px; text-align: center;
+  }
+  #btnWatchAlerts.has-alerts .watch-badge { display: inline-block; }
+  #watchToast {
+    position: fixed; right: 20px; bottom: 20px; z-index: 90; display: none;
+    width: min(380px, calc(100vw - 32px)); padding: 12px 14px;
+    background: var(--panel); border: 1px solid #E8762666; border-radius: 10px;
+    box-shadow: 0 12px 32px #000a; color: var(--text);
+  }
+  #watchToast.open { display: block; }
+  #watchToast .watch-toast-head {
+    display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px;
+  }
+  #watchToast .watch-toast-title { flex: 1; font-size: 13px; font-weight: 600; margin: 0; }
+  #watchToast .watch-toast-body { font-size: 12px; color: var(--muted); margin: 0 0 8px; line-height: 1.4; }
+  #watchToast .watch-toast-close {
+    flex: none; width: 24px; height: 24px; border: none; border-radius: 4px;
+    background: transparent; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1;
+  }
+  #watchToast .watch-toast-close:hover { color: var(--text); background: #ffffff10; }
+  .watch-alert-links { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
+  .watch-alert-link {
+    display: flex; align-items: baseline; gap: 8px; width: 100%;
+    padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--panel2); color: var(--text); text-align: left; cursor: pointer; font: inherit;
+  }
+  .watch-alert-link:hover { border-color: var(--accent); }
+  .watch-alert-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .watch-alert-link .wal-label {
+    flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px; color: var(--accent); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .watch-alert-link .wal-meta { flex: none; font-size: 10px; color: var(--muted); }
+  #watchInboxModal .watch-inbox-empty { font-size: 12px; color: var(--muted); margin: 8px 0; }
   .btn { background: var(--panel2); color: var(--text); border: 1px solid var(--line);
     border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 12px; }
   .btn:hover { border-color: var(--accent); }
@@ -236,14 +301,44 @@
   .track-icon:hover { opacity: .85; }
   .cmp-bulk { flex-wrap: wrap; align-items: center; }
   .cmp-bulk .cmp-bulk-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-  #managerPanel {
-    display: none; margin: 8px 0; padding: 10px; border-radius: 8px;
-    background: #1a2332; border: 1px solid #E8762666;
+  .submodal-box.manager-box {
+    max-width: 720px; max-height: 90vh; padding: 18px 20px 16px;
   }
-  #managerPanel.open { display: block; }
-  #managerPanel .mgr-stat { font-size: 12px; margin: 4px 0; }
-  #managerPanel table.mgr { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 8px; }
-  #managerPanel table.mgr th, #managerPanel table.mgr td { border: 1px solid var(--line); padding: 4px 6px; text-align: left; }
+  .mgr-grid {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+    margin: 10px 0 14px;
+  }
+  @media (max-width: 640px) {
+    .mgr-grid { grid-template-columns: 1fr; }
+  }
+  .mgr-card {
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
+    padding: 10px 12px; min-height: 64px;
+  }
+  .mgr-card .mgr-k { font-size: 11px; color: var(--muted); margin-bottom: 4px; line-height: 1.35; }
+  .mgr-card .mgr-v { font-size: 20px; font-weight: 600; letter-spacing: .2px; }
+  .mgr-card .mgr-hint { font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.35; }
+  .mgr-card.warn { border-color: #E8762666; }
+  .mgr-card.accent { border-color: #3673f766; }
+  .mgr-section-title {
+    font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
+    color: var(--muted); margin: 14px 0 6px;
+  }
+  table.mgr { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 6px; }
+  table.mgr th, table.mgr td { border: 1px solid var(--line); padding: 4px 6px; text-align: left; }
+  table.mgr th { color: var(--muted); font-weight: 600; }
+  .mgr-cluster-list { margin: 8px 0 0; max-height: 220px; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; }
+  .mgr-cluster-link {
+    display: flex; align-items: baseline; gap: 8px; width: 100%;
+    padding: 8px 10px; border: none; border-bottom: 1px solid var(--line);
+    background: var(--panel2); color: var(--text); text-align: left; cursor: pointer; font: inherit;
+  }
+  .mgr-cluster-link:last-child { border-bottom: none; }
+  .mgr-cluster-link:hover { background: #232a3a; }
+  .mgr-cluster-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .mgr-cluster-link .mgr-cl-label { flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 11px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--accent); }
+  .mgr-cluster-link .mgr-cl-meta { flex: none; font-size: 10px; color: var(--muted); }
   .submodal {
     position: fixed; inset: 0; z-index: 80; display: none; align-items: center; justify-content: center;
     background: #00000088; pointer-events: auto;
@@ -425,6 +520,7 @@
       </div>
       <div class="sub" id="meta">loading…</div>
     </header>
+    <div id="leftControls">
     <div class="section collapsible" id="secConnTypes">
       <button type="button" class="section-head" id="secConnTypesHead" aria-expanded="true" aria-controls="secConnTypesBody">
         <h2>Connection type</h2>
@@ -492,10 +588,10 @@
         <input type="hidden" id="fReviewer">
         <label class="chk" id="incognitoRow" style="display:none"><input type="checkbox" id="fIncognito"> Incognito (do not track seen / checked)</label>
         <button type="button" class="btn" id="btnManager" style="display:none;width:100%;margin-top:8px">Manager summary</button>
-        <div id="managerPanel"></div>
       </div>
     </div>
-    <div class="section" style="padding-bottom:6px;display:flex;align-items:center;gap:8px">
+    </div>
+    <div class="section list-head" style="padding-bottom:6px;display:flex;align-items:center;gap:8px">
       <h2 style="margin:0;flex:1;min-width:0"><span id="listTitle">Connections</span> <span class="count" id="bucketCount"></span></h2>
       <button type="button" class="btn" id="btnClustersCsv" title="Download current filtered clusters as CSV (id, URL, counts)">↓ CSV</button>
     </div>
@@ -511,6 +607,7 @@
       <button class="btn" id="btnFlagged" title="Show flagged papers" style="display:none">⚑ <span id="flagCount">0</span></button>
       <button class="btn" id="btnFlagDownload" title="Download all flag records (CSV): article id, flagger name, comment, active and removed, all time" style="display:none">↓ CSV</button>
       <button class="btn" id="btnFlagRefresh" title="Reload flags from server" style="display:none">⟳</button>
+      <button class="btn" id="btnWatchAlerts" title="Clusters you follow with new papers" aria-label="Watch alerts">Watch <span class="watch-badge" id="watchBadge">0</span></button>
       <button class="btn" id="btnCompare">Compare papers</button>
       <button class="btn" id="btnRelayout">Re-layout</button>
     </div>
@@ -669,8 +766,17 @@
         <div class="help-feature-block">
           <h5>Manager summary</h5>
           <ul>
-            <li>Password-protected panel under <b>Reviewer</b> (remembered in this browser).</li>
-            <li>Per-user counts: seen, checked, resolved, flagged articles.</li>
+            <li>Password-protected modal from <b>Reviewer → Manager summary</b> (remembered in this browser).</li>
+            <li>Workload KPIs for the current filtered clusters (untouched, unchecked, new unseen papers in existing clusters over the last 3 days, with links to those clusters).</li>
+            <li>Per-user all-time counts: seen, checked, resolved, flagged articles.</li>
+          </ul>
+        </div>
+        <div class="help-feature-block">
+          <h5>Watch alerts</h5>
+          <ul>
+            <li>If a cluster where <b>you</b> have seen most of the older papers gains submissions from the last day, a toast appears (auto-hides in 8s; pauses while hovered).</li>
+            <li>Cluster links open the compare table for that cluster.</li>
+            <li><b>Watch</b> in the top bar reopens the current alert list anytime a badge is shown.</li>
           </ul>
         </div>
         <div class="help-feature-block">
@@ -707,6 +813,38 @@
     <div class="submodal-actions">
       <button type="button" class="btn" id="managerPwCancel">Cancel</button>
       <button type="button" class="btn" id="managerPwOk">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<div id="managerModal" class="submodal" aria-hidden="true">
+  <div class="submodal-box manager-box" role="dialog" aria-labelledby="managerModalTitle">
+    <h3 id="managerModalTitle">Manager summary</h3>
+    <p class="muted" style="font-size:12px;margin:0 0 4px">Workload figures use the <b>current connection types and filters</b> (same clusters as the left list). Team totals are all-time for this flags table.</p>
+    <div id="managerModalBody"></div>
+    <div class="submodal-actions">
+      <button type="button" class="btn" id="btnManagerLock">Lock manager mode</button>
+      <button type="button" class="btn" id="managerModalClose">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="watchToast" role="status" aria-live="polite" aria-atomic="false">
+  <div class="watch-toast-head">
+    <h3 class="watch-toast-title">New papers in your clusters</h3>
+    <button type="button" class="watch-toast-close" id="watchToastClose" aria-label="Dismiss notification">×</button>
+  </div>
+  <p class="watch-toast-body" id="watchToastBody"></p>
+  <div class="watch-alert-links" id="watchToastLinks"></div>
+</div>
+
+<div id="watchInboxModal" class="submodal" aria-hidden="true">
+  <div class="submodal-box" role="dialog" aria-labelledby="watchInboxTitle">
+    <h3 id="watchInboxTitle">Watch alerts</h3>
+    <p class="muted" style="font-size:12px;margin:0 0 10px">Clusters where you have seen most of the earlier papers, and new submissions arrived in the last day. Open a cluster to jump to its compare table.</p>
+    <div id="watchInboxBody"></div>
+    <div class="submodal-actions">
+      <button type="button" class="btn" id="watchInboxClose">Close</button>
     </div>
   </div>
 </div>
@@ -972,6 +1110,7 @@ async function initFromSnapshot() {
   }
   applyShareParams();
   updateGlobalFieldFilterUI();
+  if (FC && userName()) refreshWatchAlerts({ announce: true });
 }
 
 function startSnapshotPolling() {
@@ -1188,7 +1327,7 @@ async function bulkToggleFlags(rowIndices, on) {
   if ($("fFlaggedOnly").checked) { renderList(); if (mode === "overview") showOverview(); }
   if ($("modal").classList.contains("open")) { renderCompareTable(); syncCmpBulkBar(); }
   else if (cmpHighlightR != null) showPaperDetail(cmpHighlightR);
-  renderManagerPanel();
+  refreshManagerIfOpen();
 }
 async function toggleFlag(id, after) {
   if (!FC) { alert("Flagging is not configured for this deployment."); return; }
@@ -1211,7 +1350,7 @@ async function toggleFlag(id, after) {
   if ($("fFlaggedOnly").checked) { renderList(); if (mode === "overview") showOverview(); }
   if (after) after();
   if ($("modal").classList.contains("open")) renderCompareTable();
-  renderManagerPanel();
+  refreshManagerIfOpen();
 }
 async function saveComment(id, after) {
   if (!FC || !flags.has(id)) return;
@@ -1378,12 +1517,14 @@ function refreshTrackUIForArticle(idNum) {
     updateTrackCellForRow(r);
     if (cmpHighlightR === r) refreshDetailTrackStrip(r);
   }
-  renderManagerPanel();
+  refreshManagerIfOpen();
+  refreshWatchAlerts({ announce: true });
 }
 
 function refreshTrackUIIfOpen() {
   if ($("modal") && $("modal").classList.contains("open")) renderCompareTable();
-  renderManagerPanel();
+  refreshManagerIfOpen();
+  refreshWatchAlerts({ announce: false });
 }
 
 function bindTrackIconClicks(root) {
@@ -1515,7 +1656,8 @@ async function loadWorkflow() {
     ]);
     rebuildWorkflowMaps(seenE, checkedE, resolvedE);
   } catch (e) { console.warn("[workflow] load failed:", e); }
-  renderManagerPanel();
+  refreshManagerIfOpen();
+  refreshWatchAlerts({ announce: false });
   refreshClusterSeenUI();
 }
 
@@ -1694,9 +1836,162 @@ function ensureUserName() {
   return false;
 }
 
+function utcDaysAgoStr(n) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+function clusterRowsForStats(u) {
+  return u.fullRows || u.rows || [];
+}
+function clusterHasAnyChecked(rows) {
+  return rows.some(r => articleCheckedList(A("id", r)).length > 0);
+}
+function clusterHasAnySeen(rows) {
+  return rows.some(r => isArticleSeenId(A("id", r)));
+}
+const MANAGER_RECENT_DAYS = 3;
+
+function managerUnitLabel(u) {
+  if (!u) return "";
+  if (u.kind === "emailrx") return u.label || "Email pattern";
+  if (u.kind === "single") {
+    const meta = ATTR_META[u.attr] || { label: u.attr, pool: "" };
+    const val = (meta.pool ? str(meta.pool, u.ref) : "") || "(empty)";
+    return `${meta.label}: ${val}`;
+  }
+  if (u.kind === "combo" && u.parts?.length) {
+    return u.parts.map(p => {
+      const meta = ATTR_META[p.attr] || { label: p.attr, pool: "" };
+      const val = (meta.pool ? str(meta.pool, p.ref) : "") || "(empty)";
+      return `${meta.label}: ${val}`;
+    }).join(" · ");
+  }
+  return u.key || "Cluster";
+}
+
+function computeManagerWorkload() {
+  const units = (typeof currentUnits === "function" && D) ? currentUnits() : [];
+  const since = utcDaysAgoStr(MANAGER_RECENT_DAYS);
+  let untouched = 0, notFullySeen = 0, unchecked = 0, withFlag = 0;
+  const paperIds = new Set();
+  let papersSeen = 0, papersChecked = 0, papersFlagged = 0, papersResolved = 0;
+  const newInExisting = new Set();
+  const newInClusters = new Set();
+  const clustersWithNew = [];
+
+  for (const u of units) {
+    const rows = clusterRowsForStats(u);
+    if (!rows.length) continue;
+    if (!clusterHasAnySeen(rows)) untouched++;
+    if (!clusterAllPapersSeen(rows)) notFullySeen++;
+    if (!clusterHasAnyChecked(rows)) unchecked++;
+    if (rows.some(isFlagged)) withFlag++;
+
+    const hasOlder = rows.some(r => (A("date", r) || "") && A("date", r) < since);
+    let newCount = 0, newUnseenCount = 0;
+    for (const r of rows) {
+      const id = A("id", r);
+      if (!paperIds.has(id)) {
+        paperIds.add(id);
+        if (isArticleSeenId(id)) papersSeen++;
+        if (articleCheckedList(id).length) papersChecked++;
+        if (isFlagged(r)) papersFlagged++;
+        if (isResolved(r)) papersResolved++;
+      }
+      const dt = A("date", r) || "";
+      if (!dt || dt < since) continue;
+      newInClusters.add(id);
+      newCount++;
+      if (hasOlder && !isArticleSeenId(id)) {
+        newInExisting.add(id);
+        newUnseenCount++;
+      }
+    }
+    if (hasOlder && newCount > 0) {
+      clustersWithNew.push({
+        key: u.key,
+        label: managerUnitLabel(u),
+        newCount,
+        newUnseenCount,
+        size: rows.length,
+      });
+    }
+  }
+
+  clustersWithNew.sort((a, b) => b.newUnseenCount - a.newUnseenCount || b.newCount - a.newCount || b.size - a.size);
+
+  return {
+    since,
+    recentDays: MANAGER_RECENT_DAYS,
+    clusters: units.length,
+    untouched,
+    notFullySeen,
+    unchecked,
+    withFlag,
+    papers: paperIds.size,
+    papersSeen,
+    papersUnseen: Math.max(0, paperIds.size - papersSeen),
+    papersChecked,
+    papersUnchecked: Math.max(0, paperIds.size - papersChecked),
+    papersFlagged,
+    papersResolved,
+    newInExistingUnseen: newInExisting.size,
+    newInClusters: newInClusters.size,
+    clustersWithNew,
+  };
+}
+
+function mgrCard(label, value, hint, cls) {
+  return `<div class="mgr-card${cls ? " " + cls : ""}"><div class="mgr-k">${label}</div><div class="mgr-v">${Number(value).toLocaleString()}</div>${hint ? `<div class="mgr-hint">${hint}</div>` : ""}</div>`;
+}
+
+function mgrClustersWithNewHtml(list) {
+  if (!list.length) {
+    return `<div class="muted" style="font-size:11px;margin-top:8px">No existing clusters gained new papers in this window.</div>`;
+  }
+  const items = list.map(c => {
+    const unseenBit = c.newUnseenCount
+      ? `${c.newUnseenCount.toLocaleString()} unseen new`
+      : "all new already seen";
+    return `<button type="button" class="mgr-cluster-link" data-cluster-key="${escapeHtml(c.key)}" title="${escapeHtml(c.label)}">
+      <span class="mgr-cl-label">${escapeHtml(c.label)}</span>
+      <span class="mgr-cl-meta">${c.newCount.toLocaleString()} new · ${unseenBit} · ${c.size.toLocaleString()} total</span>
+    </button>`;
+  }).join("");
+  return `<div class="mgr-section-title" style="margin-top:12px">Clusters with new entries (${list.length.toLocaleString()})</div>
+    <div class="muted" style="font-size:11px;margin-bottom:4px">Click a cluster to open it in the graph.</div>
+    <div class="mgr-cluster-list">${items}</div>`;
+}
+
+function openManagerCluster(key) {
+  if (!key || !D) return;
+  const u = currentUnits().find(x => x.key === key);
+  closeManagerSummary();
+  if (u) focusUnit(u);
+  else if (bucketMeta.has(key)) focusHub(key);
+  else {
+    showOverview();
+    alert("That cluster is no longer in the current filtered list.");
+  }
+}
+
+function bindManagerClusterLinks(root) {
+  if (!root) return;
+  root.querySelectorAll(".mgr-cluster-link[data-cluster-key]").forEach(el => {
+    el.addEventListener("click", () => openManagerCluster(el.dataset.clusterKey));
+  });
+}
+
+function isManagerModalOpen() {
+  return !!($("managerModal") && $("managerModal").classList.contains("open"));
+}
+
 function renderManagerPanel() {
-  const panel = $("managerPanel");
-  if (!panel || !isManagerUnlocked()) return;
+  if (!isManagerUnlocked()) return;
+  const body = $("managerModalBody");
+  if (!body) return;
+  const w = computeManagerWorkload();
   const byUser = new Map();
   const bump = (who, field) => {
     if (!who) return;
@@ -1713,20 +2008,55 @@ function renderManagerPanel() {
     const s = byUser.get(u);
     return `<tr><td>${escapeHtml(u)}</td><td>${s.seen}</td><td>${s.checked}</td><td>${s.resolved}</td><td>${s.flagged}</td></tr>`;
   }).join("");
-  panel.innerHTML = `<div class="muted" style="font-size:11px;margin-bottom:6px">Manager summary (all time, this table)</div>
-    <div class="mgr-stat">Articles seen: <b>${seenByArticle.size.toLocaleString()}</b> · checked: <b>${checkedByArticle.size.toLocaleString()}</b> · resolved: <b>${resolvedByArticle.size.toLocaleString()}</b> · flagged: <b>${flags.size.toLocaleString()}</b></div>
-    <table class="mgr"><thead><tr><th>User</th><th>Seen</th><th>Checked</th><th>Resolved</th><th>Flagged</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="muted">No activity yet</td></tr>'}</tbody></table>
-    <button type="button" class="btn" id="btnManagerLock" style="margin-top:8px;width:100%">Lock manager mode</button>`;
-  panel.classList.add("open");
-  $("btnManagerLock").addEventListener("click", () => {
-    localStorage.removeItem(LS_MANAGER);
-    panel.classList.remove("open");
-    panel.innerHTML = "";
-  });
+
+  body.innerHTML = `
+    <div class="mgr-section-title">Workload (current filters)</div>
+    <div class="mgr-grid">
+      ${mgrCard("Clusters", w.clusters, "In the left list right now")}
+      ${mgrCard("Untouched clusters", w.untouched, "No paper seen yet", w.untouched ? "warn" : "")}
+      ${mgrCard("Not fully seen", w.notFullySeen, "At least one paper still unseen", w.notFullySeen ? "accent" : "")}
+      ${mgrCard("Unchecked clusters", w.unchecked, "No paper opened via review link")}
+      ${mgrCard("Clusters with a flag", w.withFlag, "At least one flagged paper", w.withFlag ? "warn" : "")}
+      ${mgrCard("Unique papers", w.papers, `${w.papersUnseen.toLocaleString()} unseen · ${w.papersUnchecked.toLocaleString()} unchecked`)}
+    </div>
+    <div class="mgr-section-title">Last ${w.recentDays} days (since ${escapeHtml(w.since)} UTC)</div>
+    <div class="mgr-grid">
+      ${mgrCard("New in existing clusters, unseen", w.newInExistingUnseen, `Submitted in the last ${w.recentDays} days into a cluster that already had older papers — not yet seen by anyone`, w.newInExistingUnseen ? "warn" : "")}
+      ${mgrCard("New papers in clusters", w.newInClusters, "All recent submissions that appear in current clusters (seen or not)")}
+    </div>
+    ${mgrClustersWithNewHtml(w.clustersWithNew)}
+    <div class="mgr-section-title">Team activity (all time, this table)</div>
+    <div class="muted" style="font-size:11px;margin-bottom:4px">Articles seen: <b>${seenByArticle.size.toLocaleString()}</b> · checked: <b>${checkedByArticle.size.toLocaleString()}</b> · resolved: <b>${resolvedByArticle.size.toLocaleString()}</b> · flagged: <b>${flags.size.toLocaleString()}</b>
+      · in view: seen ${w.papersSeen.toLocaleString()} / flagged ${w.papersFlagged.toLocaleString()} / resolved ${w.papersResolved.toLocaleString()}</div>
+    <table class="mgr"><thead><tr><th>User</th><th>Seen</th><th>Checked</th><th>Resolved</th><th>Flagged</th></tr></thead><tbody>${rows || '<tr><td colspan="5" class="muted">No activity yet</td></tr>'}</tbody></table>`;
+  bindManagerClusterLinks(body);
+}
+
+function openManagerSummary() {
+  if (!isManagerUnlocked()) { openManagerAuth(); return; }
+  renderManagerPanel();
+  const m = $("managerModal");
+  if (!m) return;
+  m.classList.add("open");
+  m.setAttribute("aria-hidden", "false");
+}
+
+function closeManagerSummary() {
+  const m = $("managerModal");
+  if (!m) return;
+  m.classList.remove("open");
+  m.setAttribute("aria-hidden", "true");
+}
+
+function lockManagerMode() {
+  localStorage.removeItem(LS_MANAGER);
+  closeManagerSummary();
+  const body = $("managerModalBody");
+  if (body) body.innerHTML = "";
 }
 
 function openManagerAuth() {
-  if (isManagerUnlocked()) { renderManagerPanel(); return; }
+  if (isManagerUnlocked()) { openManagerSummary(); return; }
   $("managerPwInput").value = "";
   const m = $("managerAuthModal");
   m.classList.add("open");
@@ -1738,6 +2068,207 @@ function closeManagerAuth() {
   const m = $("managerAuthModal");
   m.classList.remove("open");
   m.setAttribute("aria-hidden", "true");
+}
+
+function refreshManagerIfOpen() {
+  if (isManagerUnlocked() && isManagerModalOpen()) renderManagerPanel();
+}
+
+// -------- watch alerts: new papers in clusters the current user mostly saw --------
+const WATCH_RECENT_DAYS = 1;
+const WATCH_TOAST_MS = 8000;
+let watchAlerts = [];
+let watchToastTimer = null;
+let watchToastDeadline = 0;
+let watchToastRemaining = WATCH_TOAST_MS;
+let watchToastPaused = false;
+let watchAnnouncedKeys = new Set();
+
+function userSeenCountInRows(rows, name) {
+  if (!name || !rows?.length) return 0;
+  let n = 0;
+  for (const r of rows) {
+    if (articleSeenList(A("id", r)).some(x => x.by === name)) n++;
+  }
+  return n;
+}
+
+function findWatchClusters() {
+  const name = userName();
+  if (!FC || !name || !D || typeof currentUnits !== "function") return [];
+  const since = utcDaysAgoStr(WATCH_RECENT_DAYS);
+  const out = [];
+  for (const u of currentUnits()) {
+    const rows = clusterRowsForStats(u);
+    if (rows.length < 2) continue;
+    const older = [];
+    const newer = [];
+    for (const r of rows) {
+      const dt = A("date", r) || "";
+      if (!dt) continue;
+      if (dt >= since) newer.push(r);
+      else older.push(r);
+    }
+    if (!older.length || !newer.length) continue;
+    const seenOlder = userSeenCountInRows(older, name);
+    if (seenOlder <= older.length / 2) continue;
+    const newUnseen = newer.filter(r => !isArticleSeenId(A("id", r))).length;
+    out.push({
+      key: u.key,
+      label: managerUnitLabel(u),
+      newCount: newer.length,
+      newUnseen,
+      seenOlder,
+      olderCount: older.length,
+      size: rows.length,
+    });
+  }
+  out.sort((a, b) => b.newUnseen - a.newUnseen || b.newCount - a.newCount || b.size - a.size);
+  return out;
+}
+
+function watchAlertLinksHtml(list) {
+  if (!list.length) return "";
+  return list.map(c => {
+    const meta = `${c.newCount.toLocaleString()} new · you saw ${c.seenOlder}/${c.olderCount}`;
+    return `<button type="button" class="watch-alert-link" data-cluster-key="${escapeHtml(c.key)}" title="${escapeHtml(c.label)}">
+      <span class="wal-label">${escapeHtml(c.label)}</span>
+      <span class="wal-meta">${meta}</span>
+    </button>`;
+  }).join("");
+}
+
+function bindWatchAlertLinks(root) {
+  if (!root) return;
+  root.querySelectorAll(".watch-alert-link[data-cluster-key]").forEach(el => {
+    el.addEventListener("click", () => openWatchCluster(el.dataset.clusterKey));
+  });
+}
+
+function updateWatchNavButton() {
+  const btn = $("btnWatchAlerts");
+  const badge = $("watchBadge");
+  if (!btn) return;
+  const n = watchAlerts.length;
+  const show = !!(FC && userName() && n > 0);
+  btn.classList.toggle("has-alerts", show);
+  if (badge) badge.textContent = String(n);
+  btn.title = show
+    ? `${n} cluster${n === 1 ? "" : "s"} you mostly saw gained new papers in the last day`
+    : "Clusters you follow with new papers";
+}
+
+function clearWatchToastTimer() {
+  if (watchToastTimer) { clearTimeout(watchToastTimer); watchToastTimer = null; }
+}
+
+function scheduleWatchToastHide(ms) {
+  clearWatchToastTimer();
+  watchToastRemaining = ms;
+  watchToastDeadline = Date.now() + ms;
+  watchToastTimer = setTimeout(() => {
+    watchToastTimer = null;
+    if (!watchToastPaused) hideWatchToast();
+  }, ms);
+}
+
+function hideWatchToast() {
+  clearWatchToastTimer();
+  watchToastPaused = false;
+  watchToastRemaining = WATCH_TOAST_MS;
+  const el = $("watchToast");
+  if (!el) return;
+  el.classList.remove("open");
+}
+
+function showWatchToast(list) {
+  const el = $("watchToast");
+  const body = $("watchToastBody");
+  const links = $("watchToastLinks");
+  if (!el || !body || !links || !list.length) return;
+  const n = list.length;
+  body.textContent = n === 1
+    ? "A cluster you mostly reviewed has new submissions from the last day."
+    : `${n} clusters you mostly reviewed have new submissions from the last day.`;
+  links.innerHTML = watchAlertLinksHtml(list);
+  bindWatchAlertLinks(links);
+  el.classList.add("open");
+  for (const c of list) watchAnnouncedKeys.add(c.key);
+  watchToastPaused = false;
+  scheduleWatchToastHide(WATCH_TOAST_MS);
+}
+
+function pauseWatchToast() {
+  if (!$("watchToast")?.classList.contains("open") || watchToastPaused) return;
+  watchToastPaused = true;
+  clearWatchToastTimer();
+  watchToastRemaining = Math.max(0, watchToastDeadline - Date.now());
+}
+
+function resumeWatchToast() {
+  if (!$("watchToast")?.classList.contains("open") || !watchToastPaused) return;
+  watchToastPaused = false;
+  scheduleWatchToastHide(watchToastRemaining || WATCH_TOAST_MS);
+}
+
+function openWatchCluster(key) {
+  if (!key || !D) return;
+  const u = currentUnits().find(x => x.key === key);
+  hideWatchToast();
+  closeWatchInbox();
+  if (u) {
+    focusUnit(u);
+    openCompare();
+    return;
+  }
+  if (bucketMeta.has(key)) {
+    focusHub(key);
+    openCompare();
+    return;
+  }
+  showOverview();
+  alert("That cluster is no longer in the current filtered list.");
+}
+
+function renderWatchInbox() {
+  const body = $("watchInboxBody");
+  if (!body) return;
+  if (!watchAlerts.length) {
+    body.innerHTML = `<div class="watch-inbox-empty">No watch alerts right now. Alerts appear when a cluster you mostly saw gains papers submitted in the last day.</div>`;
+    return;
+  }
+  body.innerHTML = `<div class="watch-alert-links">${watchAlertLinksHtml(watchAlerts)}</div>`;
+  bindWatchAlertLinks(body);
+}
+
+function openWatchInbox() {
+  refreshWatchAlerts({ announce: false });
+  renderWatchInbox();
+  const m = $("watchInboxModal");
+  if (!m) return;
+  m.classList.add("open");
+  m.setAttribute("aria-hidden", "false");
+}
+
+function closeWatchInbox() {
+  const m = $("watchInboxModal");
+  if (!m) return;
+  m.classList.remove("open");
+  m.setAttribute("aria-hidden", "true");
+}
+
+function refreshWatchAlerts({ announce = false } = {}) {
+  if (!FC || !D) {
+    watchAlerts = [];
+    updateWatchNavButton();
+    return;
+  }
+  watchAlerts = findWatchClusters();
+  updateWatchNavButton();
+  if ($("watchInboxModal")?.classList.contains("open")) renderWatchInbox();
+  if (!announce || !userName()) return;
+  const fresh = watchAlerts.filter(c => !watchAnnouncedKeys.has(c.key));
+  if (fresh.length) showWatchToast(fresh);
 }
 
 async function bulkResolve(rowIndices, on) {
@@ -1754,7 +2285,7 @@ async function bulkResolve(rowIndices, on) {
   if (fail) alert(`${ok} updated · ${fail} failed`);
   updateFlagCount(); draw();
   if ($("modal").classList.contains("open")) renderCompareTable();
-  renderManagerPanel();
+  refreshManagerIfOpen();
 }
 
 async function bulkClearSeen(rowIndices) {
@@ -1764,7 +2295,7 @@ async function bulkClearSeen(rowIndices) {
   if (!confirm(`Remove all seen records for ${ids.length} paper(s)?`)) return;
   await clearSeenForArticles(ids);
   if ($("modal").classList.contains("open")) renderCompareTable();
-  renderManagerPanel();
+  refreshManagerIfOpen();
 }
 
 async function bulkClearChecked(rowIndices) {
@@ -1774,7 +2305,7 @@ async function bulkClearChecked(rowIndices) {
   if (!confirm(`Remove all checked records for ${ids.length} paper(s)?`)) return;
   await clearCheckedForArticles(ids);
   if ($("modal").classList.contains("open")) renderCompareTable();
-  renderManagerPanel();
+  refreshManagerIfOpen();
 }
 
 function bindWorkflowUI() {
@@ -1792,6 +2323,7 @@ function bindWorkflowUI() {
     setUserName(n);
     closeNamePrompt();
     await flushPendingSeen();
+    refreshWatchAlerts({ announce: true });
   });
   $("btnManager").addEventListener("click", openManagerAuth);
   $("managerPwCancel").addEventListener("click", closeManagerAuth);
@@ -1799,9 +2331,20 @@ function bindWorkflowUI() {
     if ($("managerPwInput").value === MANAGER_PW) {
       localStorage.setItem(LS_MANAGER, "1");
       closeManagerAuth();
-      renderManagerPanel();
+      openManagerSummary();
     } else alert("Incorrect password.");
   });
+  if ($("managerModalClose")) $("managerModalClose").addEventListener("click", closeManagerSummary);
+  if ($("btnManagerLock")) $("btnManagerLock").addEventListener("click", lockManagerMode);
+  if ($("managerModal")) $("managerModal").addEventListener("click", e => { if (e.target.id === "managerModal") closeManagerSummary(); });
+  if ($("btnWatchAlerts")) $("btnWatchAlerts").addEventListener("click", openWatchInbox);
+  if ($("watchToastClose")) $("watchToastClose").addEventListener("click", hideWatchToast);
+  if ($("watchToast")) {
+    $("watchToast").addEventListener("mouseenter", pauseWatchToast);
+    $("watchToast").addEventListener("mouseleave", resumeWatchToast);
+  }
+  if ($("watchInboxClose")) $("watchInboxClose").addEventListener("click", closeWatchInbox);
+  if ($("watchInboxModal")) $("watchInboxModal").addEventListener("click", e => { if (e.target.id === "watchInboxModal") closeWatchInbox(); });
   $("trackDetailClose").addEventListener("click", closeTrackDetail);
   $("trackDetailModal").addEventListener("click", e => { if (e.target.id === "trackDetailModal") closeTrackDetail(); });
   if ($("cmpBulkResolve")) $("cmpBulkResolve").addEventListener("click", () => bulkResolve([...cmpSelected], true));
@@ -2360,9 +2903,13 @@ function buildAttrToggles() {
   box.addEventListener("change", () => {
     // Re-run search scoping + cluster view when connection types change.
     if (parseArticleIdSearch($("fSearch").value)) {
-      if (maybeFocusArticleSearch()) return;
+      if (maybeFocusArticleSearch()) {
+        refreshWatchAlerts({ announce: true });
+        return;
+      }
     }
     showOverview();
+    refreshWatchAlerts({ announce: true });
   });
 }
 const activeAttrs = () => [...document.querySelectorAll("#attrToggles input:checked")].map(i => i.dataset.attr);
@@ -2496,6 +3043,8 @@ function closeHelpModal() {
 function bindUI() {
   const onFilterChange = () => {
     renderList();
+    refreshManagerIfOpen();
+    refreshWatchAlerts({ announce: true });
     clearTimeout(searchFocusTimer);
     const typingId = document.activeElement === $("fSearch") && parseArticleIdSearch($("fSearch").value) !== null;
     searchFocusTimer = setTimeout(() => {
@@ -2561,6 +3110,10 @@ function bindUI() {
     if (e.key === "Escape") {
       const help = $("helpModal");
       if (help && help.classList.contains("open")) { closeHelpModal(); return; }
+      if ($("managerModal") && $("managerModal").classList.contains("open")) { closeManagerSummary(); return; }
+      if ($("watchInboxModal") && $("watchInboxModal").classList.contains("open")) { closeWatchInbox(); return; }
+      if ($("watchToast") && $("watchToast").classList.contains("open")) { hideWatchToast(); return; }
+      if ($("managerAuthModal") && $("managerAuthModal").classList.contains("open")) { closeManagerAuth(); return; }
       const pop = $("cmpFilterPop");
       if (pop && pop.style.display !== "none") { hideCmpFieldFilterPop(); return; }
       closeModal();
