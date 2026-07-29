@@ -664,10 +664,19 @@
       <ul>
         <li>Choose <b>connection types</b>, apply <b>filters</b>, then click a <b>cluster</b> in the list or graph.</li>
         <li>Open <b>Compare papers</b> to review the cluster side by side; click a paper node for the detail panel.</li>
-        <li>Set your name under <b>Reviewer</b> so seen, checked, resolve, and flag actions are attributed to you.</li>
+        <li>Set your name under <b>Reviewer</b> so seen, checked, resolve, flag, and <b>Watch</b> alerts are attributed to you.</li>
+        <li>On small screens, scroll the left filter panels separately from the cluster list so nothing is cut off.</li>
       </ul>
       <h4>Features</h4>
       <div class="help-features">
+        <div class="help-feature-block">
+          <h5>Data updates &amp; loading</h5>
+          <ul>
+            <li>On load, the app checks for a newer snapshot and shows a short splash while data decompresses.</li>
+            <li>While a tab stays open, it polls for newer data (and when you return to the tab). If a newer snapshot is available, it refreshes automatically.</li>
+            <li>Snapshot date appears in the left header after load.</li>
+          </ul>
+        </div>
         <div class="help-feature-block">
           <h5>Connection types &amp; clustering</h5>
           <ul>
@@ -682,7 +691,10 @@
           <h5>Filters</h5>
           <ul>
             <li><b>Different submitting authors / organisations</b> — exclude homogeneous clusters.</li>
-            <li><b>Only flagged clusters</b>, <b>hide all-rejected clusters</b>, <b>hide all-seen clusters</b> (off by default), <b>low name/email similarity</b>.</li>
+            <li><b>Only flagged clusters</b> — clusters that contain at least one flagged paper.</li>
+            <li><b>Hide all-rejected clusters</b> — on by default; skipped when status is set to rejected only.</li>
+            <li><b>Hide all-seen clusters</b> — off by default; hides clusters where every paper already has a seen record (shown when team tracking is configured).</li>
+            <li><b>Low name/email similarity</b> — when that field exists in the snapshot.</li>
             <li><b>Journal</b> and <b>status</b> (rejected only / active only).</li>
             <li><b>Min papers</b> and sort by size, distinct authors, or distinct orgs.</li>
             <li>List header shows <b>cluster count</b> and <b>unique papers</b> across those filtered clusters (a paper in several clusters is counted once).</li>
@@ -732,6 +744,7 @@
             <li>Status column: risk colour on rejected rows; hover for the full rejection reason.</li>
             <li><b>Copy</b> exports the visible table as TSV for spreadsheets.</li>
             <li>Rejected rows sort to the bottom when sorting by papermill score.</li>
+            <li>Bulk actions (when configured): resolve, flag, unflag, clear resolve, mark unseen, mark unchecked.</li>
           </ul>
         </div>
         <div class="help-feature-block">
@@ -752,6 +765,7 @@
             <li>Click any icon for full history (user + timestamp). Hover for a quick list.</li>
             <li>Bulk: resolve, flag, unflag, clear resolve, mark unseen, mark unchecked.</li>
             <li>Cluster 👁 when every paper has a seen record; lists who viewed what.</li>
+            <li><b>Incognito</b> under Reviewer — do not write seen / checked for your session.</li>
           </ul>
         </div>
         <div class="help-feature-block">
@@ -765,23 +779,27 @@
         <div class="help-feature-block">
           <h5>Manager summary</h5>
           <ul>
-            <li>Password-protected modal from <b>Reviewer → Manager summary</b> (remembered in this browser).</li>
-            <li>Workload KPIs for the current filtered clusters, plus recent papers in previously-seen clusters (last 3 days) with links, and new papers overall.</li>
-            <li>Per-user all-time counts: seen, checked, resolved, flagged articles.</li>
+            <li>Password-protected modal from <b>Reviewer → Manager summary</b> (unlock remembered in this browser until you lock it).</li>
+            <li>Compact workload tiles for the <b>current filters</b>: clusters, untouched, unchecked, flagged, unique papers.</li>
+            <li><b>Last 3 days</b>: <b>New in seen clusters</b> (new papers that joined a cluster specialists had already seen) and <b>New overall</b> (all recent submissions under journal/status filters).</li>
+            <li>Clickable list of previously-seen clusters that gained new papers — opens that cluster in the graph.</li>
+            <li>Team activity table (all time): per-user seen, checked, resolved, flagged counts.</li>
           </ul>
         </div>
         <div class="help-feature-block">
           <h5>Watch alerts</h5>
           <ul>
-            <li>If a cluster where <b>you</b> have seen most of the older papers gains submissions from the last day, a toast appears (auto-hides in 8s; pauses while hovered).</li>
-            <li>Cluster links open the compare table for that cluster.</li>
-            <li><b>Watch</b> in the top bar reopens the current alert list anytime a badge is shown.</li>
+            <li>Requires your reviewer name. Matches clusters where <b>you</b> have seen most of the older papers and new submissions arrived in the <b>last day</b>.</li>
+            <li>A toast lists those clusters (auto-hides after 8 seconds; pauses while hovered; dismiss with × or Escape).</li>
+            <li>Click a cluster link to open it and jump to the <b>compare table</b>.</li>
+            <li><b>Watch</b> in the top bar (with badge) reopens the current alert list anytime alerts are active.</li>
+            <li>Uses the same connection types and filters as the left cluster list.</li>
           </ul>
         </div>
         <div class="help-feature-block">
           <h5>URL sharing</h5>
           <ul>
-            <li>URL updates live: connection types, filters, focused cluster, selected article, compare panel.</li>
+            <li>URL updates live: connection types, filters (including hide all-seen), focused cluster, selected article, compare panel.</li>
             <li>Bookmark or share the link to restore the same view for a colleague.</li>
           </ul>
         </div>
