@@ -767,7 +767,7 @@
           <h5>Manager summary</h5>
           <ul>
             <li>Password-protected modal from <b>Reviewer → Manager summary</b> (remembered in this browser).</li>
-            <li>Workload KPIs for the current filtered clusters (untouched, unchecked, new unseen papers in existing clusters over the last 3 days, with links to those clusters).</li>
+            <li>Workload KPIs for the current filtered clusters, plus recent papers in previously-seen clusters (last 3 days) with links, and new papers overall.</li>
             <li>Per-user all-time counts: seen, checked, resolved, flagged articles.</li>
           </ul>
         </div>
@@ -1876,9 +1876,19 @@ function computeManagerWorkload() {
   let untouched = 0, notFullySeen = 0, unchecked = 0, withFlag = 0;
   const paperIds = new Set();
   let papersSeen = 0, papersChecked = 0, papersFlagged = 0, papersResolved = 0;
-  const newInExisting = new Set();
-  const newInClusters = new Set();
+  // New papers (last N days) that joined a cluster specialists had already looked at.
+  const newInPrevSeenClusters = new Set();
+  // All new papers in the snapshot (meta filters only) — broader than cluster membership.
+  const newPapersGeneral = new Set();
   const clustersWithNew = [];
+
+  if (D) {
+    for (let r = 0; r < D.articles.id.length; r++) {
+      if (typeof paperMatchesMetaFilter === "function" && !paperMatchesMetaFilter(r)) continue;
+      const dt = A("date", r) || "";
+      if (dt && dt >= since) newPapersGeneral.add(A("id", r));
+    }
+  }
 
   for (const u of units) {
     const rows = clusterRowsForStats(u);
@@ -1888,8 +1898,8 @@ function computeManagerWorkload() {
     if (!clusterHasAnyChecked(rows)) unchecked++;
     if (rows.some(isFlagged)) withFlag++;
 
-    const hasOlder = rows.some(r => (A("date", r) || "") && A("date", r) < since);
-    let newCount = 0, newUnseenCount = 0;
+    const older = [];
+    const newer = [];
     for (const r of rows) {
       const id = A("id", r);
       if (!paperIds.has(id)) {
@@ -1900,26 +1910,24 @@ function computeManagerWorkload() {
         if (isResolved(r)) papersResolved++;
       }
       const dt = A("date", r) || "";
-      if (!dt || dt < since) continue;
-      newInClusters.add(id);
-      newCount++;
-      if (hasOlder && !isArticleSeenId(id)) {
-        newInExisting.add(id);
-        newUnseenCount++;
-      }
+      if (!dt) continue;
+      if (dt >= since) newer.push(r);
+      else older.push(r);
     }
-    if (hasOlder && newCount > 0) {
+    // "Previously seen" = older papers existed and at least one of them was already seen.
+    const previouslySeen = older.length > 0 && clusterHasAnySeen(older);
+    if (previouslySeen && newer.length) {
+      for (const r of newer) newInPrevSeenClusters.add(A("id", r));
       clustersWithNew.push({
         key: u.key,
         label: managerUnitLabel(u),
-        newCount,
-        newUnseenCount,
+        newCount: newer.length,
         size: rows.length,
       });
     }
   }
 
-  clustersWithNew.sort((a, b) => b.newUnseenCount - a.newUnseenCount || b.newCount - a.newCount || b.size - a.size);
+  clustersWithNew.sort((a, b) => b.newCount - a.newCount || b.size - a.size);
 
   return {
     since,
@@ -1936,8 +1944,8 @@ function computeManagerWorkload() {
     papersUnchecked: Math.max(0, paperIds.size - papersChecked),
     papersFlagged,
     papersResolved,
-    newInExistingUnseen: newInExisting.size,
-    newInClusters: newInClusters.size,
+    newInPrevSeenClusters: newInPrevSeenClusters.size,
+    newPapersGeneral: newPapersGeneral.size,
     clustersWithNew,
   };
 }
@@ -1948,18 +1956,15 @@ function mgrCard(label, value, hint, cls) {
 
 function mgrClustersWithNewHtml(list) {
   if (!list.length) {
-    return `<div class="muted" style="font-size:11px;margin-top:8px">No existing clusters gained new papers in this window.</div>`;
+    return `<div class="muted" style="font-size:11px;margin-top:8px">No previously-seen clusters gained new papers in this window.</div>`;
   }
   const items = list.map(c => {
-    const unseenBit = c.newUnseenCount
-      ? `${c.newUnseenCount.toLocaleString()} unseen new`
-      : "all new already seen";
     return `<button type="button" class="mgr-cluster-link" data-cluster-key="${escapeHtml(c.key)}" title="${escapeHtml(c.label)}">
       <span class="mgr-cl-label">${escapeHtml(c.label)}</span>
-      <span class="mgr-cl-meta">${c.newCount.toLocaleString()} new · ${unseenBit} · ${c.size.toLocaleString()} total</span>
+      <span class="mgr-cl-meta">${c.newCount.toLocaleString()} new · ${c.size.toLocaleString()} total</span>
     </button>`;
   }).join("");
-  return `<div class="mgr-section-title" style="margin-top:12px">Clusters with new entries (${list.length.toLocaleString()})</div>
+  return `<div class="mgr-section-title" style="margin-top:12px">Previously seen clusters with new papers (${list.length.toLocaleString()})</div>
     <div class="muted" style="font-size:11px;margin-bottom:4px">Click a cluster to open it in the graph.</div>
     <div class="mgr-cluster-list">${items}</div>`;
 }
@@ -2021,8 +2026,8 @@ function renderManagerPanel() {
     </div>
     <div class="mgr-section-title">Last ${w.recentDays} days (since ${escapeHtml(w.since)} UTC)</div>
     <div class="mgr-grid">
-      ${mgrCard("New in existing clusters, unseen", w.newInExistingUnseen, `Submitted in the last ${w.recentDays} days into a cluster that already had older papers — not yet seen by anyone`, w.newInExistingUnseen ? "warn" : "")}
-      ${mgrCard("New papers in clusters", w.newInClusters, "All recent submissions that appear in current clusters (seen or not)")}
+      ${mgrCard("New in previously seen clusters", w.newInPrevSeenClusters, `Submitted in the last ${w.recentDays} days into a cluster where specialists had already seen older papers`, w.newInPrevSeenClusters ? "warn" : "")}
+      ${mgrCard("New papers overall", w.newPapersGeneral, `All submissions in the last ${w.recentDays} days (current journal/status filters; not limited to clusters)`)}
     </div>
     ${mgrClustersWithNewHtml(w.clustersWithNew)}
     <div class="mgr-section-title">Team activity (all time, this table)</div>
