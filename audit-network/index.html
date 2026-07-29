@@ -305,25 +305,24 @@
     max-width: 720px; max-height: 90vh; padding: 18px 20px 16px;
   }
   .mgr-grid {
-    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
-    margin: 10px 0 14px;
-  }
-  @media (max-width: 640px) {
-    .mgr-grid { grid-template-columns: 1fr; }
+    display: flex; flex-wrap: wrap; gap: 6px;
+    margin: 6px 0 10px;
   }
   .mgr-card {
-    background: var(--panel2); border: 1px solid var(--line); border-radius: 8px;
-    padding: 10px 12px; min-height: 64px;
+    flex: 1 1 100px; min-width: 96px; max-width: 160px;
+    background: var(--panel2); border: 1px solid var(--line); border-radius: 6px;
+    padding: 6px 8px;
   }
-  .mgr-card .mgr-k { font-size: 11px; color: var(--muted); margin-bottom: 4px; line-height: 1.35; }
-  .mgr-card .mgr-v { font-size: 20px; font-weight: 600; letter-spacing: .2px; }
-  .mgr-card .mgr-hint { font-size: 10px; color: var(--muted); margin-top: 4px; line-height: 1.35; }
+  .mgr-card .mgr-k { font-size: 10px; color: var(--muted); margin-bottom: 2px; line-height: 1.25; }
+  .mgr-card .mgr-v { font-size: 16px; font-weight: 600; letter-spacing: .2px; line-height: 1.2; }
+  .mgr-card .mgr-hint { font-size: 10px; color: var(--muted); margin-top: 2px; line-height: 1.25; }
   .mgr-card.warn { border-color: #E8762666; }
   .mgr-card.accent { border-color: #3673f766; }
   .mgr-section-title {
     font-size: 11px; text-transform: uppercase; letter-spacing: .6px;
-    color: var(--muted); margin: 14px 0 6px;
+    color: var(--muted); margin: 10px 0 4px;
   }
+  .mgr-section-title:first-child { margin-top: 2px; }
   table.mgr { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 6px; }
   table.mgr th, table.mgr td { border: 1px solid var(--line); padding: 4px 6px; text-align: left; }
   table.mgr th { color: var(--muted); font-weight: 600; }
@@ -1873,7 +1872,7 @@ function managerUnitLabel(u) {
 function computeManagerWorkload() {
   const units = (typeof currentUnits === "function" && D) ? currentUnits() : [];
   const since = utcDaysAgoStr(MANAGER_RECENT_DAYS);
-  let untouched = 0, notFullySeen = 0, unchecked = 0, withFlag = 0;
+  let untouched = 0, unchecked = 0, withFlag = 0;
   const paperIds = new Set();
   let papersSeen = 0, papersChecked = 0, papersFlagged = 0, papersResolved = 0;
   // New papers (last N days) that joined a cluster specialists had already looked at.
@@ -1894,7 +1893,6 @@ function computeManagerWorkload() {
     const rows = clusterRowsForStats(u);
     if (!rows.length) continue;
     if (!clusterHasAnySeen(rows)) untouched++;
-    if (!clusterAllPapersSeen(rows)) notFullySeen++;
     if (!clusterHasAnyChecked(rows)) unchecked++;
     if (rows.some(isFlagged)) withFlag++;
 
@@ -1934,7 +1932,6 @@ function computeManagerWorkload() {
     recentDays: MANAGER_RECENT_DAYS,
     clusters: units.length,
     untouched,
-    notFullySeen,
     unchecked,
     withFlag,
     papers: paperIds.size,
@@ -1951,7 +1948,8 @@ function computeManagerWorkload() {
 }
 
 function mgrCard(label, value, hint, cls) {
-  return `<div class="mgr-card${cls ? " " + cls : ""}"><div class="mgr-k">${label}</div><div class="mgr-v">${Number(value).toLocaleString()}</div>${hint ? `<div class="mgr-hint">${hint}</div>` : ""}</div>`;
+  const tip = hint ? ` title="${escapeHtml(hint)}"` : "";
+  return `<div class="mgr-card${cls ? " " + cls : ""}"${tip}><div class="mgr-k">${label}</div><div class="mgr-v">${Number(value).toLocaleString()}</div></div>`;
 }
 
 function mgrClustersWithNewHtml(list) {
@@ -2018,16 +2016,15 @@ function renderManagerPanel() {
     <div class="mgr-section-title">Workload (current filters)</div>
     <div class="mgr-grid">
       ${mgrCard("Clusters", w.clusters, "In the left list right now")}
-      ${mgrCard("Untouched clusters", w.untouched, "No paper seen yet", w.untouched ? "warn" : "")}
-      ${mgrCard("Not fully seen", w.notFullySeen, "At least one paper still unseen", w.notFullySeen ? "accent" : "")}
-      ${mgrCard("Unchecked clusters", w.unchecked, "No paper opened via review link")}
-      ${mgrCard("Clusters with a flag", w.withFlag, "At least one flagged paper", w.withFlag ? "warn" : "")}
-      ${mgrCard("Unique papers", w.papers, `${w.papersUnseen.toLocaleString()} unseen · ${w.papersUnchecked.toLocaleString()} unchecked`)}
+      ${mgrCard("Untouched", w.untouched, "No paper seen yet", w.untouched ? "warn" : "")}
+      ${mgrCard("Unchecked", w.unchecked, "No paper opened via review link")}
+      ${mgrCard("Flagged", w.withFlag, "Clusters with at least one flagged paper", w.withFlag ? "warn" : "")}
+      ${mgrCard("Papers", w.papers, `${w.papersUnseen.toLocaleString()} unseen · ${w.papersUnchecked.toLocaleString()} unchecked`)}
     </div>
-    <div class="mgr-section-title">Last ${w.recentDays} days (since ${escapeHtml(w.since)} UTC)</div>
+    <div class="mgr-section-title">Last ${w.recentDays} days · since ${escapeHtml(w.since)} UTC</div>
     <div class="mgr-grid">
-      ${mgrCard("New in previously seen clusters", w.newInPrevSeenClusters, `Submitted in the last ${w.recentDays} days into a cluster where specialists had already seen older papers`, w.newInPrevSeenClusters ? "warn" : "")}
-      ${mgrCard("New papers overall", w.newPapersGeneral, `All submissions in the last ${w.recentDays} days (current journal/status filters; not limited to clusters)`)}
+      ${mgrCard("New in seen clusters", w.newInPrevSeenClusters, `New papers in the last ${w.recentDays} days that joined a cluster specialists had already seen`, w.newInPrevSeenClusters ? "warn" : "")}
+      ${mgrCard("New overall", w.newPapersGeneral, `All submissions in the last ${w.recentDays} days (journal/status filters; not limited to clusters)`)}
     </div>
     ${mgrClustersWithNewHtml(w.clustersWithNew)}
     <div class="mgr-section-title">Team activity (all time, this table)</div>
