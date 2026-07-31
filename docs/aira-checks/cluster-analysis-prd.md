@@ -42,29 +42,26 @@ Analytics jobs may query beyond 90 days; the in-review evaluator must not.
 | Header | Outcome (`BLOCK`) when raised |
 | Identity | Author, email, name/email similarity, WD author matches submitting author Y/N |
 | File metadata | WD author, company, last modified by |
-| Matches | Ranked **flagged** peers (see below): article id, date, status, affiliation, score, chips, tier |
+| Matches | Ranked **B1 matches** (see below): article id, date, status, affiliation, score, chips |
 | CTA | Open cluster explorer focused on this article (`?a=` + strongest hub) |
 
-Every match on the card is a manuscript already flagged for integrity — the check does not retrieve unflagged peers.
+Every row in Matches is a manuscript that is **flagged for integrity** *and* meets the [B1 pattern](#outcomes). Flagged papers matching only weakly (e.g. `locale` alone) are not listed, and unflagged peers are never retrieved. The section is therefore empty whenever the article is not a B1 — including a B2-only BLOCK.
 
 **Chips:** Device · Network (IP) · Network proximity (subnet without same IP, when enabled) · Doc properties · Locale · Time proximity · Conflicting affiliations  
-
-**Match tiers:** `block_evidence` (meets the B1 pattern) | `context` (flagged match that does not)
 
 **Matches list behaviour**
 
 | Field / behaviour | Spec |
 |-------------------|------|
-| `match_total` | Count of **all** flagged peers with score ≥ `T_retrieve` in the 90-day window (not capped). Show this total in the UI. |
-| `block_matches` | Subset of those that meet the B1 pattern. Drives the B1 copy — see below. |
-| Hydrated / listed peers | Top **`K`** by tier then score (full feature rows + chips). |
+| `match_total` | Count of **all** B1 matches in the 90-day window (not capped). Show this total in the UI. |
+| Hydrated / listed peers | Top **`K`** by score (full feature rows + chips). |
 | Default visible | Top **5** of those `K`. |
 | Show more | Remaining listed peers behind a control. Follow existing AIRA patterns (e.g. **Scope check**): “{N} more results” / show-more, not a bespoke control. |
 | If `match_total` > `K` | Still only list top `K` details; the total label reflects the full count (e.g. showing `K` of {match_total}). |
 
 ### Short outcome description (card header copy)
 
-One line under the outcome. `{X}` = **`block_matches`** (flagged papers meeting the B1 pattern; singular “paper” if `{X}=1`). Using `block_matches` rather than `match_total` keeps the sentence true: a flagged peer sharing only `locale` must not be counted as one that “shares device and file metadata”.
+One line under the outcome. `{X}` = **`match_total`** (B1 matches in the last 90 days; singular “paper” if `{X}=1`). Since the list only ever holds B1 matches, the sentence and the list always agree on the same number.
 
 | Outcome | Template |
 |---------|----------|
@@ -112,7 +109,7 @@ If both BLOCK reasons fire, primary copy order: **B1 > B2**.
 
 ### PASS
 
-Not B1 and not B2. A flagged match that does not meet the B1 pattern (e.g. shares only `device`) is still **listed on the card**, but does not by itself block.
+Not B1 and not B2. A flagged paper that matches only weakly (e.g. shares only `device`) neither blocks nor appears on the card.
 
 Codes `B1` / `B2` keep their names for continuity with tickets and existing dev conversations; there is no longer a `B0`.
 
@@ -202,12 +199,12 @@ score = network
       + 4 if (device ∨ ip) ∧ (wd_author ∨ wd_edited_by)
 ```
 
-Score now only **orders the matches list** — no outcome depends on a threshold. B1 is a structural rule, so a match either fits the pattern or it does not.
+Score now only **orders the matches list** — no outcome or membership depends on a threshold. B1 is a structural rule: a flagged peer either fits the pattern (and is listed) or it does not (and is invisible to the check).
 
-Sort matches by `block_evidence` tier first, then score descending, then more decision-token overlaps, then newer `created_utc`.
+Sort matches by score descending, then more decision-token overlaps, then newer `created_utc`.
 
-`T_retrieve` = **3** (minimum score for a flagged peer to be listed at all).  
-`K` = max flagged peers to hydrate and list on the card (**15**, per QM-2278).  
+No `T_retrieve`: any B1 match already scores at least 20 (weakest case: `ip` 8 + `wd_edited_by` 8 + the 4-point network×doc bonus), so a retrieval floor would never exclude anything.  
+`K` = max B1 matches to hydrate and list on the card (**15**, per QM-2278).  
 UI default visible = **5**; remainder of the `K` list behind show-more (Scope-check pattern).
 
 ---
@@ -216,24 +213,23 @@ UI default visible = **5**; remainder of the `K` list behind show-more (Scope-ch
 
 ```
 inputs:  article A, feature store, flag store, C1G27I3 outcome(A)
-output:  BLOCK | PASS, match_total, block_matches, top-K ranked matches,
+output:  BLOCK | PASS, match_total, top-K ranked matches,
          chips, short description, deep-link
 
 1. Normalize A → token set T.
 2. One batched lookup of all tokens in T, restricted to FLAGGED articles:
      keep only peers with created_utc within the last 90 days; skip over-cap values; exclude A.
-3. Group hits by flagged article_id; score; keep score ≥ T_retrieve.
-4. match_total = count of those flagged peers (full set — do not cap this number).
-5. Mark each peer block_evidence if it shares (ip ∨ device) ∧ (wd_author ∨ wd_edited_by);
-     block_matches = count of those.
-6. BLOCK if block_matches ≥ 1 (B1) or C1G27I3(A) == BLOCK (B2). Else PASS.
-7. Take top K by tier then score; load submission_features; apply time/affiliation; re-sort.
-8. On BLOCK: short description ({X}=block_matches), chips, deep-link;
+3. Group hits by flagged article_id.
+4. Keep only peers sharing (ip ∨ device) ∧ (wd_author ∨ wd_edited_by)  → the B1 matches.
+     Discard the rest: they neither block nor display.
+5. match_total = count of B1 matches (full set — do not cap this number).
+6. BLOCK if match_total ≥ 1 (B1) or C1G27I3(A) == BLOCK (B2). Else PASS.
+7. Take top K by score; load submission_features; apply time/affiliation; re-sort.
+8. On BLOCK: short description ({X}=match_total), chips, deep-link;
      card lists top K (UI shows 5 + “N more results”).
-9. On PASS: attach matches if any were found, as context.
 ```
 
-B2 no longer short-circuits the lookup: an article blocked by C1G27I3 should still show its flagged matches when it has them.
+A B2-only BLOCK has no B1 matches by definition, so its Matches section is empty — the card must read sensibly in that state.
 
 ---
 
