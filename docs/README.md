@@ -7,7 +7,7 @@ This folder is the home for production planning and handover documents.
 | Document | Status | Purpose |
 |----------|--------|---------|
 | [aira-checks/README.md](./aira-checks/README.md) | Active | Index of AIRA-check docs |
-| [aira-checks/cluster-analysis-prd.md](./aira-checks/cluster-analysis-prd.md) | Ready for implementation | Cluster Analysis in-review check (BLOCK / WARN / PASS) |
+| [aira-checks/cluster-analysis-prd.md](./aira-checks/cluster-analysis-prd.md) | Ready for implementation | Cluster Analysis in-review check (BLOCK / PASS) |
 
 ## Explorer (prototype notes)
 

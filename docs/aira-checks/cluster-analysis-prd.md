@@ -2,19 +2,19 @@
 
 **Status:** Ready for implementation  
 **Surface:** AIRA in-review check (replaces fingerprinting / metadata-analysis for this use case)  
-**Outcomes:** `BLOCK` | `WARN` | `PASS`
+**Outcomes:** `BLOCK` | `PASS`
 
-Finds prior submissions that share identity, network, or document-metadata features with the subject article; ranks them for the reviewer; raises BLOCK or WARN when evidence meets the rules below.
+Checks whether an incoming submission shares device, network or Word-file metadata with manuscripts already **flagged for integrity**. Raises BLOCK when it does, and lists the flagged matches as evidence.
 
-Reference field math in this repo: [`device_profile_id.py`](../../device_profile_id.py), [`audit_snapshot.py`](../../audit_snapshot.py) (`build`, `parse_worddoc`, `GENERIC_WD`, caps). Offline rate checks: [`simulate_cluster_check.py`](../../simulate_cluster_check.py).
+Reference field math in this repo: [`device_profile_id.py`](../../device_profile_id.py), [`audit_snapshot.py`](../../audit_snapshot.py) (`build`, `parse_worddoc`, `GENERIC_WD`, caps).
 
 ---
 
 ## Goals
 
-- Retrieve a small set of similar prior submissions for every incoming article.
-- Explain matches with clear evidence chips (device, IP, doc props, etc.).
-- **BLOCK** on strong multi-signal or flagged-peer patterns; **WARN** when similarity score is high but BLOCK rules are not met; otherwise **PASS**.
+- For every incoming article, find prior **flagged** submissions that share its features.
+- Explain each match with clear evidence chips (device, IP, doc props, etc.).
+- **BLOCK** on a flagged match that meets the rules below; otherwise **PASS**.
 - Keep Word-document property reuse as a first-class papermill signal (large shared hubs are intentional signal).
 
 ## Non-goals
@@ -22,6 +22,7 @@ Reference field math in this repo: [`device_profile_id.py`](../../device_profile
 - Replacing the network explorer UI (deep-link only).
 - Using submitting email or author-declared IP as lookup tokens (display only).
 - Treating the feature store as a rolling 90-day window that drops older rows.
+- Surfacing clusters among **unflagged** submissions — that is the explorer's job, not this check's.
 
 ---
 
@@ -38,38 +39,37 @@ Analytics jobs may query beyond 90 days; the in-review evaluator must not.
 
 | Block | Content |
 |-------|---------|
-| Header | Outcome (`BLOCK` / `WARN`) when raised |
+| Header | Outcome (`BLOCK`) when raised |
 | Identity | Author, email, name/email similarity, WD author matches submitting author Y/N |
 | File metadata | WD author, company, last modified by |
-| Matches | Ranked peers (see below): article id, date, status, affiliation, score, chips, tier |
+| Matches | Ranked **flagged** peers (see below): article id, date, status, affiliation, score, chips, tier |
 | CTA | Open cluster explorer focused on this article (`?a=` + strongest hub) |
+
+Every match on the card is a manuscript already flagged for integrity — the check does not retrieve unflagged peers.
 
 **Chips:** Device · Network (IP) · Network proximity (subnet without same IP, when enabled) · Doc properties · Locale · Time proximity · Conflicting affiliations  
 
-**Match tiers:** `block_evidence` | `warn` | `context` (show `context` only when the article outcome is BLOCK or WARN)
+**Match tiers:** `block_evidence` (meets the B1 pattern) | `context` (flagged match that does not)
 
 **Matches list behaviour**
 
 | Field / behaviour | Spec |
 |-------------------|------|
-| `match_total` | Count of **all** peers with score ≥ `T_retrieve` in the 90-day window (not capped). Show this total in the UI. |
-| Hydrated / listed peers | Top **`K=20`** by score (full feature rows + chips). |
-| Default visible | Top **5** of those 20. |
-| Show more | Remaining listed peers (up to 15 more) behind a control. Follow existing AIRA patterns (e.g. **Scope check**): “{N} more results” / show-more, not a bespoke control. |
-| If `match_total` > 20 | Still only list top 20 details; the total label reflects the full count (e.g. showing 20 of {match_total}). |
-
-Short-description `{X}` uses **`match_total`** (full retrieve set), not the visible or top-20 count.
+| `match_total` | Count of **all** flagged peers with score ≥ `T_retrieve` in the 90-day window (not capped). Show this total in the UI. |
+| `block_matches` | Subset of those that meet the B1 pattern. Drives the B1 copy — see below. |
+| Hydrated / listed peers | Top **`K`** by tier then score (full feature rows + chips). |
+| Default visible | Top **5** of those `K`. |
+| Show more | Remaining listed peers behind a control. Follow existing AIRA patterns (e.g. **Scope check**): “{N} more results” / show-more, not a bespoke control. |
+| If `match_total` > `K` | Still only list top `K` details; the total label reflects the full count (e.g. showing `K` of {match_total}). |
 
 ### Short outcome description (card header copy)
 
-One line under the outcome. `{X}` = **`match_total`** (all peers with score ≥ `T_retrieve` in the last 90 days; singular “paper” if `{X}=1`).
+One line under the outcome. `{X}` = **`block_matches`** (flagged papers meeting the B1 pattern; singular “paper” if `{X}=1`). Using `block_matches` rather than `match_total` keeps the sentence true: a flagged peer sharing only `locale` must not be counted as one that “shares device and file metadata”.
 
 | Outcome | Template |
 |---------|----------|
-| **B0** | Shares device, network and file metadata with {X} other paper(s) in the last 90 days |
 | **B1** | Shares {network_phrase} and {file_phrase} with {X} flagged paper(s) in the last 90 days |
 | **B2** | Has file metadata that was previously flagged |
-| **WARN** | Shares {feature_list} with {X} other paper(s) in the last 90 days |
 
 **B1 — `{network_phrase}`** (`device` / `ip` on flagged-peer evidence):
 
@@ -95,58 +95,26 @@ One line under the outcome. `{X}` = **`match_total`** (all peers with score ≥ 
 5. device and network and some file metadata  
 6. device and network and file metadata  
 
-**WARN — `{feature_list}`:** matched labels among WARN peers, joined with commas and “and”:
-
-| Signal | Label |
-|--------|-------|
-| device | device |
-| ip | network |
-| subnet (no same ip) | network proximity |
-| exactly one of wd_author / wd_edited_by (or wd_company only) | some file metadata |
-| both wd_author and wd_edited_by | file metadata |
-| locale | locale |
-| time proximity | time proximity |
-| conflicting affiliations | conflicting affiliations |
-
-If several BLOCK reasons fire, primary copy order: **B1 > B0 > B2**.
+If both BLOCK reasons fire, primary copy order: **B1 > B2**.
 
 ---
 
 ## Outcomes
 
-### BLOCK — any of
+### BLOCK — either of
 
 | Code | Rule |
 |------|------|
-| **B0** | Subject shares **all four** decision tokens (`device` ∧ `ip` ∧ `wd_author` ∧ `wd_edited_by`), each in a peer set that passes [attached filters](#attached-filters) |
-| **B1** | Exists an **integrity-flagged** peer that shares `(ip ∨ device)` **and** `(wd_author ∨ wd_edited_by)` on filter-passing evidence |
+| **B1** | Exists an **integrity-flagged** peer, submitted in the last 90 days, sharing `(ip ∨ device)` **and** `(wd_author ∨ wd_edited_by)` with the subject |
 | **B2** | Word document properties check **C1G27I3** already returned BLOCK for this article |
-
-### WARN
-
-Not BLOCK, and max peer [score](#scoring) ≥ `T_warn` (**34**), counting only matched tokens whose peer set passes [attached filters](#attached-filters).
-
-### PASS
-
-Neither BLOCK nor WARN.
-
----
-
-## Attached filters
-
-A peer set (hub) for a token is usable as evidence for **B0, B1 and WARN** only if **all** hold:
-
-| Filter | Rule |
-|--------|------|
-| Size | Between **5** and the token [cap](#feature-tokens) (inclusive) |
-| Window | Members within the last **90 days (3 months)** |
-| Authors | ≥ 2 distinct submitting authors |
-| Organisations | ≥ 2 distinct organisations |
-| Author dominance | Subject’s submitting author appears on ≤ **50%** of members |
 
 `locale` and network-proximity tokens (`asn` / future `subnet`) never satisfy the network half of B1.
 
-Filters gate the **BLOCK and WARN decisions** only. Retrieval, `match_total` and match ranking stay unfiltered, so the card can still show weaker context peers.
+### PASS
+
+Not B1 and not B2. A flagged match that does not meet the B1 pattern (e.g. shares only `device`) is still **listed on the card**, but does not by itself block.
+
+Codes `B1` / `B2` keep their names for continuity with tickets and existing dev conversations; there is no longer a `B0`.
 
 ---
 
@@ -175,6 +143,8 @@ Filters gate the **BLOCK and WARN decisions** only. Retrieval, `match_total` and
 
 **Indexes:** `(feature_type, feature_value, created_utc)` including `article_id`; `(article_id)` for rebuild/delete.
 
+**Flagged-only retrieval:** the check only ever needs flagged peers, so lookups are restricted to articles where `is_flagged` is true. Flagged manuscripts are a small fraction of the corpus, which makes the candidate set orders of magnitude smaller than a full-corpus lookup. Keep the flag denormalised on `feature_lookup` (or hold a flagged-only subset) so this is a narrow index seek rather than a large join. Unflagged rows are still written — a paper flagged later must become retrievable without a rebuild.
+
 **Retention / windows:** See [Storage vs lookup window](#storage-vs-lookup-window). Store forever; filter lookups to 90 days.
 
 **Write path:** Upsert when fingerprints or WD indicators arrive; daily reconcile as correctness backstop (reconcile does **not** delete aged-out rows).
@@ -202,7 +172,7 @@ Filters gate the **BLOCK and WARN decisions** only. Retrieval, `match_total` and
 
 **Lookup window:** All tokens used by this check are matched against peers from the last **90 days (3 months)** only. Rows older than that remain in the tables for analytics.
 
-**Caps:** If document frequency of `(type, value)` exceeds the cap, skip that token for lookup and scoring (fanout control). Word-doc caps are intentionally high: shared Author / Company / Last-modified-by across many submissions is papermill signal, not noise.
+**Caps:** If document frequency of `(type, value)` exceeds the cap, skip that token for lookup and scoring. Document frequency is counted across the **whole corpus**, not just flagged articles — a value is uninformative because it is everywhere, regardless of who carries it. With flagged-only retrieval the caps matter less for fanout and more as false-positive control: without them, one ubiquitous value shared with a single flagged paper could satisfy half of B1. Word-doc caps are intentionally high: shared Author / Company / Last-modified-by across many submissions is papermill signal, not noise.
 
 **`GENERIC_WD`:** Stoplist for OS and auto-tooling placeholders only (e.g. `administrator`, `microsoft office user`, `python-docx`, `un-named`). Do **not** stoplist publisher or organisation-like strings.
 
@@ -232,12 +202,13 @@ score = network
       + 4 if (device ∨ ip) ∧ (wd_author ∨ wd_edited_by)
 ```
 
-Sort matches by score descending, then more decision-token overlaps, then newer `created_utc`.
+Score now only **orders the matches list** — no outcome depends on a threshold. B1 is a structural rule, so a match either fits the pattern or it does not.
 
-`T_retrieve` = **3** (minimum score to count a peer toward `match_total`; unfiltered).  
-`T_warn` = **34**, applied to the filter-passing score only. Calibrated on unfiltered scores — re-run the offline simulation once the filter gate is in.  
-`K` = **20** (max peers to hydrate and list on the card).  
-UI default visible = **5**; remainder of the K list behind show-more (Scope-check pattern).
+Sort matches by `block_evidence` tier first, then score descending, then more decision-token overlaps, then newer `created_utc`.
+
+`T_retrieve` = **3** (minimum score for a flagged peer to be listed at all).  
+`K` = max flagged peers to hydrate and list on the card (**15**, per QM-2278).  
+UI default visible = **5**; remainder of the `K` list behind show-more (Scope-check pattern).
 
 ---
 
@@ -245,20 +216,24 @@ UI default visible = **5**; remainder of the K list behind show-more (Scope-chec
 
 ```
 inputs:  article A, feature store, flag store, C1G27I3 outcome(A)
-output:  BLOCK | WARN | PASS, match_total, top-K ranked matches, chips, short description, deep-link
+output:  BLOCK | PASS, match_total, block_matches, top-K ranked matches,
+         chips, short description, deep-link
 
 1. Normalize A → token set T.
-2. If C1G27I3(A) == BLOCK → article BLOCK (B2); still attach matches if any.
-3. One batched lookup of all tokens in T:
+2. One batched lookup of all tokens in T, restricted to FLAGGED articles:
      keep only peers with created_utc within the last 90 days; skip over-cap values; exclude A.
-4. Group hits by prior article_id; score; keep score ≥ T_retrieve.
-5. match_total = count of those peers (full set — do not cap this number).
-6. Take top K by score; load submission_features; apply time/affiliation; re-sort.
-7. BLOCK if B0, B1, or B2 (definitions above).
-8. Else WARN if max peer score ≥ T_warn, scoring only tokens whose peer set passes attached filters.
-9. Else PASS.
-10. On BLOCK/WARN: short description ({X}=match_total), chips, deep-link; card lists top K (UI shows 5 + “N more results”).
+3. Group hits by flagged article_id; score; keep score ≥ T_retrieve.
+4. match_total = count of those flagged peers (full set — do not cap this number).
+5. Mark each peer block_evidence if it shares (ip ∨ device) ∧ (wd_author ∨ wd_edited_by);
+     block_matches = count of those.
+6. BLOCK if block_matches ≥ 1 (B1) or C1G27I3(A) == BLOCK (B2). Else PASS.
+7. Take top K by tier then score; load submission_features; apply time/affiliation; re-sort.
+8. On BLOCK: short description ({X}=block_matches), chips, deep-link;
+     card lists top K (UI shows 5 + “N more results”).
+9. On PASS: attach matches if any were found, as context.
 ```
+
+B2 no longer short-circuits the lookup: an article blocked by C1G27I3 should still show its flagged matches when it has them.
 
 ---
 
@@ -267,10 +242,11 @@ output:  BLOCK | WARN | PASS, match_total, top-K ranked matches, chips, short de
 | Topic | Expectation |
 |-------|-------------|
 | Freshness | Upsert on enrich; daily reconcile; expose `builtUtc` / lag for ops |
-| Monitoring | Lookup latency, fanout, cap-skip rate, BLOCK/WARN/PASS rates, enrich lag |
-| Offline eval | Before tightening thresholds: BLOCK agreement vs prior hub logic; WARN false-positive sample; flagged-peer precision@K |
+| Flag propagation | A newly flagged manuscript must become retrievable promptly; track lag from flag to first BLOCK it causes |
+| Monitoring | Lookup latency, cap-skip rate, BLOCK/PASS rates, enrich lag, share of BLOCKs from B1 vs B2 |
+| Offline eval | Replay against history: BLOCK rate, B1 precision (sample flagged matches for plausibility), and how many BLOCKs come from a single flagged peer |
 | Network proximity | ASN off; prefer **subnet** hash once ingest exists (nested under IP for scoring) |
-| Cutover | Feature-flag the check; shadow (log-only) then enable WARN/BLOCK |
+| Cutover | Feature-flag the check; shadow (log-only) then enable BLOCK |
 
 ---
 
@@ -278,7 +254,10 @@ output:  BLOCK | WARN | PASS, match_total, top-K ranked matches, chips, short de
 
 | Topic | Decision |
 |-------|----------|
-| Severities | `BLOCK` / `WARN` / `PASS` confirmed supported on the target platform |
+| Severities | `BLOCK` / `PASS`. WARN removed — a score-based warning tier produced too many low-value hits to be actionable |
+| B0 removed | Multi-signal clustering among unflagged papers no longer blocks; it stays an explorer/analytics concern |
+| Attached filters removed | They existed to prove a hub was a real network before B0/WARN could fire. B1 is a direct match against an already-flagged paper, so hub credibility is not the question any more |
+| Retrieval scope | **Flagged papers only** — the only outcome that depends on peers is B1 |
 | Check registration & result contract | Confirmed |
 | Flags | **New table.** Network UI flags manuscripts via an API; sync into that table → `is_flagged` for B1 |
 | B2 | Word document properties check **C1G27I3** |
@@ -292,5 +271,7 @@ output:  BLOCK | WARN | PASS, match_total, top-K ranked matches, chips, short de
 
 ## Delivery slices (suggested)
 
-1. Feature store (`submission_features` + `feature_lookup`, **retain all history**) + upsert/reconcile + evaluator with **90-day lookup filter** (BLOCK/WARN/PASS) + offline simulation harness.  
+1. Feature store (`submission_features` + `feature_lookup`, **retain all history**) + upsert/reconcile + evaluator with **flagged-only, 90-day lookup** (BLOCK/PASS) + offline replay harness.  
 2. In-review card, chips, deep-link, flags API → new flags table sync, feature-flagged cutover.
+
+Because everything now depends on the flag store, the flags API and sync are a **prerequisite for slice 1 to be testable**, not just slice 2 — with no flags there are no matches and the check always passes.
