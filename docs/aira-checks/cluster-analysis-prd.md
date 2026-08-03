@@ -26,14 +26,14 @@ Reference field math in this repo: [`device_profile_id.py`](../../device_profile
 
 ---
 
-## Storage vs lookup window
+## Storage and lookup scope
 
 | Layer | Policy |
 |-------|--------|
-| **Storage** | Keep **all** `submission_features` and `feature_lookup` rows indefinitely (for analytics and offline eval). Do **not** purge when data ages past 90 days. |
-| **Check lookup** | Operational matching for this AIRA check uses only peers from the last **90 days (3 months)**, applied as a `created_utc` filter at query time. |
+| **Storage** | Keep **all** `submission_features` and `feature_lookup` rows indefinitely (for analytics and offline eval). Never purge on age. |
+| **Check lookup** | Matches against **flagged articles only**, with **no recency window**. A flagged manuscript is surfaced however long ago it was submitted. |
 
-Analytics jobs may query beyond 90 days; the in-review evaluator must not.
+There is deliberately no time limit on flagged matches: an integrity flag does not expire, and a papermill network that resurfaces after a year is exactly what this check exists to catch. Age is used for ranking (time proximity) and display, never to exclude.
 
 ## Reviewer UI
 
@@ -42,10 +42,10 @@ Analytics jobs may query beyond 90 days; the in-review evaluator must not.
 | Header | Outcome (`BLOCK`) when raised |
 | Identity | Author, email, name/email similarity, WD author matches submitting author Y/N |
 | File metadata | WD author, company, last modified by |
-| Matches | Ranked **B1 matches** (see below): article id, date, status, affiliation, score, chips |
+| Flagged Article Matches | Ranked **B1 matches** (see below): article id, date, status, affiliation, score, chips |
 | CTA | Open cluster explorer focused on this article (`?a=` + strongest hub) |
 
-Every row in Matches is a manuscript that is **flagged for integrity** *and* meets the [B1 pattern](#outcomes). Flagged papers matching only weakly (e.g. `locale` alone) are not listed, and unflagged peers are never retrieved. The section is therefore empty whenever the article is not a B1 — including a B2-only BLOCK.
+Section heading in the card: **Flagged Article Matches** (no sub-caption — the heading carries the meaning). Every row is a manuscript that is **flagged for integrity** *and* meets the [B1 pattern](#outcomes), from any submission date. Flagged papers matching only weakly (e.g. `locale` alone) are not listed, and unflagged peers are never retrieved. The section is therefore empty whenever the article is not a B1 — including a B2-only BLOCK. No per-row “flagged” marker is needed, since every row is flagged by definition.
 
 **Chips:** Device · Network (IP) · Network proximity (subnet without same IP, when enabled) · Doc properties · Locale · Time proximity · Conflicting affiliations  
 
@@ -53,7 +53,7 @@ Every row in Matches is a manuscript that is **flagged for integrity** *and* mee
 
 | Field / behaviour | Spec |
 |-------------------|------|
-| `match_total` | Count of **all** B1 matches in the 90-day window (not capped). Show this total in the UI. |
+| `match_total` | Count of **all** B1 matches, any submission date (not capped). Show this total in the UI. |
 | Hydrated / listed peers | Top **`K`** by score (full feature rows + chips). |
 | Default visible | Top **5** of those `K`. |
 | Show more | Remaining listed peers behind a control. Follow existing AIRA patterns (e.g. **Scope check**): “{N} more results” / show-more, not a bespoke control. |
@@ -61,11 +61,11 @@ Every row in Matches is a manuscript that is **flagged for integrity** *and* mee
 
 ### Short outcome description (card header copy)
 
-One line under the outcome. `{X}` = **`match_total`** (B1 matches in the last 90 days; singular “paper” if `{X}=1`). Since the list only ever holds B1 matches, the sentence and the list always agree on the same number.
+One line under the outcome. `{X}` = **`match_total`** (singular “paper” if `{X}=1`). Since the list only ever holds B1 matches, the sentence and the list always agree on the same number. No time qualifier in the copy — the match set is not bounded by one.
 
 | Outcome | Template |
 |---------|----------|
-| **B1** | Shares {network_phrase} and {file_phrase} with {X} flagged paper(s) in the last 90 days |
+| **B1** | Shares {network_phrase} and {file_phrase} with {X} flagged paper(s) |
 | **B2** | Has file metadata that was previously flagged |
 
 **B1 — `{network_phrase}`** (`device` / `ip` on flagged-peer evidence):
@@ -102,7 +102,7 @@ If both BLOCK reasons fire, primary copy order: **B1 > B2**.
 
 | Code | Rule |
 |------|------|
-| **B1** | Exists an **integrity-flagged** peer, submitted in the last 90 days, sharing `(ip ∨ device)` **and** `(wd_author ∨ wd_edited_by)` with the subject |
+| **B1** | Exists an **integrity-flagged** peer — of any age — sharing `(ip ∨ device)` **and** `(wd_author ∨ wd_edited_by)` with the subject |
 | **B2** | Word document properties check **C1G27I3** already returned BLOCK for this article |
 
 `locale` and network-proximity tokens (`asn` / future `subnet`) never satisfy the network half of B1.
@@ -128,7 +128,7 @@ Codes `B1` / `B2` keep their names for continuity with tickets and existing dev 
 | `ip_hash`, `device_profile_id`, `asn_hash`, `locale` | Connective values |
 | `wd_author`, `wd_edited_by`, `wd_company`, `wd_match` | Doc props |
 | `name_email_sim` | Display |
-| `is_flagged`, `flagged_utc`, `flagged_by` | From the new flags table (see below); active only; cleared on unflag; drives B1 |
+| `is_flagged`, `flagged_utc`, `flagged_by` | From the new flags table (see below); active flags only; cleared on unflag; drives B1. `flagged_utc` is for display and audit — it never limits matching |
 | `updated_utc` | Late fingerprint / indicator enrichment |
 
 ### `feature_lookup` — one row per searchable token
@@ -140,36 +140,41 @@ Codes `B1` / `B2` keep their names for continuity with tickets and existing dev 
 
 **Indexes:** `(feature_type, feature_value, created_utc)` including `article_id`; `(article_id)` for rebuild/delete.
 
-**Flagged-only retrieval:** the check only ever needs flagged peers, so lookups are restricted to articles where `is_flagged` is true. Flagged manuscripts are a small fraction of the corpus, which makes the candidate set orders of magnitude smaller than a full-corpus lookup. Keep the flag denormalised on `feature_lookup` (or hold a flagged-only subset) so this is a narrow index seek rather than a large join. Unflagged rows are still written — a paper flagged later must become retrievable without a rebuild.
+**Flagged-only retrieval:** the check only ever needs flagged peers, so lookups are restricted to articles where `is_flagged` is true. Flagged manuscripts are a small fraction of the corpus, which is what makes an unbounded time range affordable — the candidate set stays orders of magnitude smaller than a full-corpus lookup even with no date filter. Keep the flag denormalised on `feature_lookup` (or hold a flagged-only subset) so this is a narrow index seek rather than a large join. Unflagged rows are still written — a paper flagged later must become retrievable without a rebuild.
 
-**Retention / windows:** See [Storage vs lookup window](#storage-vs-lookup-window). Store forever; filter lookups to 90 days.
+**Retention / windows:** See [Storage and lookup scope](#storage-and-lookup-scope). Store forever; lookups filter on flag status only, never on age.
 
 **Write path:** Upsert when fingerprints or WD indicators arrive; daily reconcile as correctness backstop (reconcile does **not** delete aged-out rows).
 
 **Sources:** `DeviceFingerprints`; Indicator definition **75** / check **C1G27I3** (Word doc properties); article author/org/status/title from the warehouse.
 
-**Flags:** New dedicated table (not the prototype Azure Table long-term). The standalone network UI will call an API to flag manuscripts; those flags sync into this table and populate `is_flagged` for B1.
+**Flags:** New dedicated table (not the prototype Azure Table long-term). The standalone network UI calls an API to flag and unflag manuscripts; those flags sync into this table and populate `is_flagged`. Requirements:
+
+- Only **active** flags count. Unflagging must stop the paper matching, and must clear any BLOCK it was solely responsible for on re-evaluation.
+- Flagging or unflagging must take effect without a rebuild or backfill of the feature tables.
+- A flag applies regardless of when the paper was submitted or when the flag was raised.
+- Flag identity (`flagged_by`, `flagged_utc`) is carried for display and audit only.
 
 ---
 
 ## Feature tokens
 
-| Type | Source | Role | Lookup window | Cap | Weight |
-|------|--------|------|---------------|-----|--------|
-| `device` | [Device profile id](#device-profile-id) | decision | 90d | 120 | 10 |
-| `ip` | `IpHash` truncated to 16 hex | decision | 90d | 120 | 8 |
-| `wd_author` | Indicator 75; drop `GENERIC_WD` | decision | 90d | 500 | 8 |
-| `wd_edited_by` | Indicator 75; drop `GENERIC_WD` | decision | 90d | 500 | 8 |
-| `wd_company` | Indicator 75; drop `GENERIC_WD` | rank | 90d | 500 | 6 |
-| `locale` | `{Languages}\|{Timezone}` | rank | 90d | 25 | 1 |
-| `asn` | — | **off** (data unusable today) | — | — | — |
-| `subnet` | truncated-IP / subnet hash (future ingest) | rank (planned; replaces ASN) | TBD | TBD | TBD (nested under IP when live) |
+| Type | Source | Role | Cap | Weight |
+|------|--------|------|-----|--------|
+| `device` | [Device profile id](#device-profile-id) | decision | 120 | 10 |
+| `ip` | `IpHash` truncated to 16 hex | decision | 120 | 8 |
+| `wd_author` | Indicator 75; drop `GENERIC_WD` | decision | 500 | 8 |
+| `wd_edited_by` | Indicator 75; drop `GENERIC_WD` | decision | 500 | 8 |
+| `wd_company` | Indicator 75; drop `GENERIC_WD` | rank | 500 | 6 |
+| `locale` | `{Languages}\|{Timezone}` | rank | 25 | 1 |
+| `asn` | — | **off** (data unusable today) | — | — |
+| `subnet` | truncated-IP / subnet hash (future ingest) | rank (planned; replaces ASN) | TBD | TBD (nested under IP when live) |
 
 **Not indexed** (store on `submission_features` for display only): submitting `email`, `authorIp`.
 
-**Lookup window:** All tokens used by this check are matched against peers from the last **90 days (3 months)** only. Rows older than that remain in the tables for analytics.
+**No lookup window:** every token matches flagged peers of any age. The old per-token 90-day horizon is gone.
 
-**Caps:** If document frequency of `(type, value)` exceeds the cap, skip that token for lookup and scoring. Document frequency is counted across the **whole corpus**, not just flagged articles — a value is uninformative because it is everywhere, regardless of who carries it. With flagged-only retrieval the caps matter less for fanout and more as false-positive control: without them, one ubiquitous value shared with a single flagged paper could satisfy half of B1. Word-doc caps are intentionally high: shared Author / Company / Last-modified-by across many submissions is papermill signal, not noise.
+**Caps:** If document frequency of `(type, value)` exceeds the cap, skip that token for lookup and scoring. Document frequency is counted across the **whole corpus**, not just flagged articles — a value is uninformative because it is everywhere, regardless of who carries it. Caps are now the main false-positive control: without them, one ubiquitous value shared with a single flagged paper could satisfy half of B1, and with no date filter that exposure only grows as the flag set accumulates. Word-doc caps are intentionally high: shared Author / Company / Last-modified-by across many submissions is papermill signal, not noise.
 
 **`GENERIC_WD`:** Stoplist for OS and auto-tooling placeholders only (e.g. `administrator`, `microsoft office user`, `python-docx`, `un-named`). Do **not** stoplist publisher or organisation-like strings.
 
@@ -218,7 +223,7 @@ output:  BLOCK | PASS, match_total, top-K ranked matches,
 
 1. Normalize A → token set T.
 2. One batched lookup of all tokens in T, restricted to FLAGGED articles:
-     keep only peers with created_utc within the last 90 days; skip over-cap values; exclude A.
+     no date filter — flagged peers of any age qualify; skip over-cap values; exclude A.
 3. Group hits by flagged article_id.
 4. Keep only peers sharing (ip ∨ device) ∧ (wd_author ∨ wd_edited_by)  → the B1 matches.
      Discard the rest: they neither block nor display.
@@ -257,7 +262,7 @@ A B2-only BLOCK has no B1 matches by definition, so its Matches section is empty
 | Check registration & result contract | Confirmed |
 | Flags | **New table.** Network UI flags manuscripts via an API; sync into that table → `is_flagged` for B1 |
 | B2 | Word document properties check **C1G27I3** |
-| Storage vs lookup | **Store all history** (no 90-day purge). **Lookup = last 90 days (3 months)** for the in-review check |
+| Storage vs lookup | **Store all history.** Lookup is filtered by **flag status only — no recency window**; flags do not expire, so an old flagged paper must still surface |
 | ASN | Useless with current data; do not enable. Prefer **subnet** later |
 | Deep-link URL (`?a=`, hub focus) | **TBD** |
 | Production table/column names | **TBD** (logical names in this PRD stand until then) |
@@ -267,7 +272,7 @@ A B2-only BLOCK has no B1 matches by definition, so its Matches section is empty
 
 ## Delivery slices (suggested)
 
-1. Feature store (`submission_features` + `feature_lookup`, **retain all history**) + upsert/reconcile + evaluator with **flagged-only, 90-day lookup** (BLOCK/PASS) + offline replay harness.  
+1. Feature store (`submission_features` + `feature_lookup`, **retain all history**) + upsert/reconcile + evaluator with **flagged-only lookup, no recency window** (BLOCK/PASS) + offline replay harness.  
 2. In-review card, chips, deep-link, flags API → new flags table sync, feature-flagged cutover.
 
 Because everything now depends on the flag store, the flags API and sync are a **prerequisite for slice 1 to be testable**, not just slice 2 — with no flags there are no matches and the check always passes.
