@@ -65,7 +65,7 @@ One line under the outcome. `{X}` = **`match_total`** (singular “paper” if `
 
 | Outcome | Template |
 |---------|----------|
-| **B1** | Shares {network_phrase} and {file_phrase} with {X} flagged paper(s) |
+| **B1** | This manuscript shares {network_phrase} and {file_phrase} with {X} flagged paper(s) |
 | **B2** | Has file metadata that was previously flagged |
 
 **B1 — `{network_phrase}`** (`device` / `ip` on flagged-peer evidence):
