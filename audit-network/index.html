@@ -698,7 +698,7 @@
             <li><b>Journal</b> and <b>status</b> (rejected only / active only).</li>
             <li><b>Min papers</b> and sort by size, distinct authors, or distinct orgs.</li>
             <li>List header shows <b>cluster count</b> and <b>unique papers</b> across those filtered clusters (a paper in several clusters is counted once).</li>
-            <li><b>↓ CSV</b> next to the list — download the current filtered clusters (cluster id, shareable URL, paper/flagged/author/org counts) for assignment.</li>
+            <li><b>↓ CSV</b> next to the list — download the current filtered clusters (stable value-based cluster id, shareable URL, paper/flagged/author/org counts) for assignment. IDs survive snapshot rebuilds; assignment URLs omit the hide-all-seen filter so links still open after papers are marked seen.</li>
             <li><b>Search</b> — paste article IDs (comma, tab, or line separated) to narrow the data source to those papers; then connection types cluster within that set. With no connection type selected, all search papers appear. Or type a connection value to jump to it.</li>
           </ul>
         </div>
@@ -800,6 +800,8 @@
           <h5>URL sharing</h5>
           <ul>
             <li>URL updates live: connection types, filters (including hide all-seen), focused cluster, selected article, compare panel.</li>
+            <li>Cluster ids in the URL are value-based (e.g. <code>ip=…</code> / <code>combo|ip=…|device=…|</code>) so they stay stable when papers join or leave a cluster and across snapshot rebuilds.</li>
+            <li>Older dictionary-ref links (<code>ip:22</code> / <code>combo|ip#22|…</code>) still open against the current snapshot when those refs still match.</li>
             <li>Bookmark or share the link to restore the same view for a colleague.</li>
           </ul>
         </div>
@@ -1485,7 +1487,8 @@ function bindClusterSeenIcons(box) {
   box.querySelectorAll(".cluster-seen-icon").forEach(el => {
     el.addEventListener("click", e => e.stopPropagation());
     el.addEventListener("mouseenter", () => {
-      const u = currentUnits().find(x => x.key === el.dataset.clusterKey);
+      const u = resolveShareCluster(el.dataset.clusterKey)
+        || currentUnits().find(x => x.key === el.dataset.clusterKey);
       if (!u) return;
       const tipEl = $("trackTip");
       tipEl.innerHTML = clusterSeenPopoverHtml(u.rows);
@@ -1935,7 +1938,7 @@ function computeManagerWorkload() {
     if (previouslySeen && newer.length) {
       for (const r of newer) newInPrevSeenClusters.add(A("id", r));
       clustersWithNew.push({
-        key: u.key,
+        key: unitShareKey(u) || u.key,
         label: managerUnitLabel(u),
         newCount: newer.length,
         size: rows.length,
@@ -1987,14 +1990,12 @@ function mgrClustersWithNewHtml(list) {
 
 function openManagerCluster(key) {
   if (!key || !D) return;
-  const u = currentUnits().find(x => x.key === key);
   closeManagerSummary();
-  if (u) focusUnit(u);
-  else if (bucketMeta.has(key)) focusHub(key);
-  else {
-    showOverview();
-    alert("That cluster is no longer in the current filtered list.");
-  }
+  const u = resolveShareCluster(key);
+  if (u) { focusUnit(u); return; }
+  if (bucketMeta.has(key)) { focusHub(key); return; }
+  showOverview();
+  alert("That cluster is no longer available in the current snapshot.");
 }
 
 function bindManagerClusterLinks(root) {
@@ -2134,7 +2135,7 @@ function findWatchClusters() {
     if (seenOlder <= older.length / 2) continue;
     const newUnseen = newer.filter(r => !isArticleSeenId(A("id", r))).length;
     out.push({
-      key: u.key,
+      key: unitShareKey(u) || u.key,
       label: managerUnitLabel(u),
       newCount: newer.length,
       newUnseen,
@@ -2233,9 +2234,9 @@ function resumeWatchToast() {
 
 function openWatchCluster(key) {
   if (!key || !D) return;
-  const u = currentUnits().find(x => x.key === key);
   hideWatchToast();
   closeWatchInbox();
+  const u = resolveShareCluster(key);
   if (u) {
     focusUnit(u);
     openCompare();
@@ -2247,7 +2248,7 @@ function openWatchCluster(key) {
     return;
   }
   showOverview();
-  alert("That cluster is no longer in the current filtered list.");
+  alert("That cluster is no longer available in the current snapshot.");
 }
 
 function renderWatchInbox() {
@@ -2539,6 +2540,232 @@ function countFlaggedInRows(rows) {
   for (const r of rows) if (isFlagged(r)) n++;
   return n;
 }
+
+// -------- stable cluster share keys (value-based; survive snapshot rebuilds) --------
+// Legacy keys used dictionary refs (ip:22 / combo|ip#22|...) and break when pools reshuffle.
+function encClusterVal(v) {
+  return encodeURIComponent(v == null ? "" : String(v));
+}
+function decClusterVal(v) {
+  try { return decodeURIComponent(v); } catch (_) { return v; }
+}
+function valueForAttrRef(attr, ref) {
+  const pool = (ATTR_META[attr] || {}).pool;
+  return pool ? strFull(pool, ref) : "";
+}
+function findRefForAttrValue(attr, value) {
+  const pool = (ATTR_META[attr] || {}).pool;
+  const arr = (D && D.dict && pool) ? D.dict[pool] : null;
+  if (!arr) return -1;
+  return arr.indexOf(value);
+}
+function stableSingleShareKey(attr, value) {
+  return attr + "=" + encClusterVal(value);
+}
+function stableComboShareKey(parts) {
+  // parts: [{attr, value}] — keep declaration order (active attrs order)
+  return "combo|" + parts.map(p => p.attr + "=" + encClusterVal(p.value)).join("|") + "|";
+}
+function unitShareKey(u) {
+  if (!u) return "";
+  if (u.shareKey) return u.shareKey;
+  if (u.kind === "combo" && u.parts) {
+    return stableComboShareKey(u.parts.map(p => ({ attr: p.attr, value: valueForAttrRef(p.attr, p.ref) })));
+  }
+  if (u.kind === "single" && u.attr != null) {
+    return stableSingleShareKey(u.attr, valueForAttrRef(u.attr, u.ref));
+  }
+  if (u.kind === "emailrx") {
+    return "emailrx=" + encClusterVal(u.label || "");
+  }
+  return u.key || "";
+}
+function attachShareKey(u) {
+  if (u) u.shareKey = unitShareKey(u);
+  return u;
+}
+function attrsFromShareClusterKey(c) {
+  if (!c) return null;
+  if (c.startsWith("combo|")) {
+    const out = [];
+    for (const seg of c.slice(6).split("|").filter(Boolean)) {
+      const attr = seg.split(/[#=]/)[0];
+      if (ATTR_META[attr]) out.push(attr);
+    }
+    return out.length ? out : null;
+  }
+  const m = /^([A-Za-z]+)[=:]/.exec(c);
+  if (m && ATTR_META[m[1]]) return [m[1]];
+  if (c.startsWith("emailrx=") || c.startsWith("email:")) return ["email"];
+  return null;
+}
+/** Convert internal/legacy focus keys to stable value-based share keys when possible. */
+function toShareClusterKey(key) {
+  if (!key || !D) return key;
+  if (key.startsWith("combo|") && key.includes("=")) return key;
+  if (/^[A-Za-z]+=/.test(key) || key.startsWith("emailrx=")) return key;
+  if (key.startsWith("combo|") && key.includes("#")) {
+    const parts = [];
+    for (const seg of key.slice(6).split("|").filter(Boolean)) {
+      const i = seg.indexOf("#");
+      if (i < 0) return key;
+      const attr = seg.slice(0, i);
+      const ref = +seg.slice(i + 1);
+      if (!ATTR_META[attr] || !Number.isFinite(ref)) return key;
+      parts.push({ attr, value: valueForAttrRef(attr, ref) });
+    }
+    return stableComboShareKey(parts);
+  }
+  if (/^[A-Za-z]+:-?\d+$/.test(key)) {
+    const attr = attrOf(key);
+    const ref = +key.slice(key.indexOf(":") + 1);
+    if (!ATTR_META[attr] || !Number.isFinite(ref)) return key;
+    return stableSingleShareKey(attr, valueForAttrRef(attr, ref));
+  }
+  return key;
+}
+function comboPartsEqual(partsA, partsB) {
+  if (!partsA || !partsB || partsA.length !== partsB.length) return false;
+  const map = new Map(partsB.map(p => [p.attr, p.value != null ? p.value : valueForAttrRef(p.attr, p.ref)]));
+  for (const p of partsA) {
+    const v = p.value != null ? p.value : valueForAttrRef(p.attr, p.ref);
+    if (map.get(p.attr) !== v) return false;
+  }
+  return true;
+}
+function parseShareClusterParts(c) {
+  if (!c) return null;
+  if (c.startsWith("combo|")) {
+    const parts = [];
+    const legacy = c.includes("#") && !c.includes("=");
+    for (const seg of c.slice(6).split("|").filter(Boolean)) {
+      if (legacy) {
+        const i = seg.indexOf("#");
+        if (i < 0) return null;
+        const attr = seg.slice(0, i);
+        const ref = +seg.slice(i + 1);
+        if (!ATTR_META[attr] || !Number.isFinite(ref)) return null;
+        parts.push({ attr, ref, value: valueForAttrRef(attr, ref) });
+      } else {
+        const i = seg.indexOf("=");
+        if (i < 0) return null;
+        const attr = seg.slice(0, i);
+        const value = decClusterVal(seg.slice(i + 1));
+        if (!ATTR_META[attr]) return null;
+        const ref = findRefForAttrValue(attr, value);
+        parts.push({ attr, ref, value });
+      }
+    }
+    return { kind: "combo", parts };
+  }
+  if (c.startsWith("emailrx=")) {
+    return { kind: "emailrx", label: decClusterVal(c.slice(8)) };
+  }
+  const stable = /^([A-Za-z]+)=(.*)$/.exec(c);
+  if (stable && ATTR_META[stable[1]]) {
+    const attr = stable[1], value = decClusterVal(stable[2]);
+    return { kind: "single", attr, value, ref: findRefForAttrValue(attr, value) };
+  }
+  const legacy = /^([A-Za-z]+):(-?\d+)$/.exec(c);
+  if (legacy && ATTR_META[legacy[1]]) {
+    const attr = legacy[1], ref = +legacy[2];
+    return { kind: "single", attr, ref, value: valueForAttrRef(attr, ref) };
+  }
+  return null;
+}
+/** Rebuild a unit from a parsed share key, ignoring list filters (min size / seen / etc.). */
+function materializeShareUnit(parsed) {
+  if (!parsed || !D) return null;
+  if (parsed.kind === "combo" && parsed.parts && parsed.parts.length) {
+    const specs = [];
+    for (const p of parsed.parts) {
+      let ref = p.ref;
+      if (!(ref >= 0) && p.value != null) ref = findRefForAttrValue(p.attr, p.value);
+      if (!(ref >= 0) || !ATTR_META[p.attr]) return null;
+      const colName = col(p.attr);
+      if (!D.articles[colName]) return null;
+      specs.push({ attr: p.attr, ref, col: D.articles[colName] });
+    }
+    const rows = [];
+    const n = D.articles.id.length;
+    for (let r = 0; r < n; r++) {
+      let ok = true;
+      for (const s of specs) { if (s.col[r] !== s.ref) { ok = false; break; } }
+      if (ok) rows.push(r);
+    }
+    if (!rows.length) return null;
+    const parts = specs.map(s => ({ attr: s.attr, ref: s.ref }));
+    const key = "combo|" + parts.map(p => p.attr + "#" + p.ref).join("|") + "|";
+    const dc = distinctCounts(rows);
+    return attachShareKey({ kind: "combo", key, parts, rows, fullRows: rows, nNames: dc.nNames, nOrgs: dc.nOrgs });
+  }
+  if (parsed.kind === "single" && parsed.attr) {
+    let ref = parsed.ref;
+    if (!(ref >= 0) && parsed.value != null) ref = findRefForAttrValue(parsed.attr, parsed.value);
+    if (!(ref >= 0)) return null;
+    const ik = parsed.attr + ":" + ref;
+    const meta = bucketMeta.get(ik);
+    const rawRows = meta ? meta.rows : (() => {
+      const colName = col(parsed.attr);
+      if (!D.articles[colName]) return [];
+      const out = [];
+      for (let r = 0; r < D.articles.id.length; r++) if (D.articles[colName][r] === ref) out.push(r);
+      return out;
+    })();
+    if (!rawRows.length) return null;
+    const rows = scopedClusterRows(rawRows);
+    const use = rows.length ? rows : rawRows;
+    const dc = distinctCounts(metaFilteredRows(rawRows));
+    return attachShareKey({ kind: "single", key: ik, attr: parsed.attr, ref, rows: use, nNames: dc.nNames, nOrgs: dc.nOrgs });
+  }
+  if (parsed.kind === "emailrx" && parsed.label) {
+    return attachShareKey({ kind: "emailrx", key: "emailrx:" + parsed.label, label: parsed.label, rows: [] });
+  }
+  return null;
+}
+/**
+ * Find a cluster for a share/CSV key.
+ * Ignores hide-all-seen so assignment links still open after papers are marked seen.
+ * Accepts new value-based keys and legacy dictionary-ref keys (while the current snapshot still matches).
+ * Falls back to materializing the cluster when filters (min size, etc.) would hide it.
+ */
+function resolveShareCluster(c) {
+  if (!c || !D) return null;
+  const hideEl = $("fHideAllSeen");
+  const prevHas = !!(hideEl && hideEl.checked);
+  if (hideEl) hideEl.checked = false;
+  try {
+    const parsed = parseShareClusterParts(c);
+    const units = currentUnits();
+    for (const u of units) {
+      if (u.key === c || unitShareKey(u) === c) return u;
+      if (parsed && parsed.kind === "combo" && u.kind === "combo" && comboPartsEqual(u.parts, parsed.parts)) return u;
+      if (parsed && parsed.kind === "single" && u.kind === "single" && u.attr === parsed.attr) {
+        if (parsed.ref >= 0 && u.ref === parsed.ref) return u;
+        if (parsed.value != null && valueForAttrRef(u.attr, u.ref) === parsed.value) return u;
+      }
+      if (parsed && parsed.kind === "emailrx" && u.kind === "emailrx" && (u.label || "") === parsed.label) return u;
+    }
+    if (parsed) {
+      const built = materializeShareUnit(parsed);
+      if (built && built.rows && built.rows.length) return built;
+    }
+    if (bucketMeta.has(c)) {
+      const attr = attrOf(c);
+      const ref = +c.slice(c.indexOf(":") + 1);
+      const meta = bucketMeta.get(c);
+      const rows = scopedClusterRows(meta.rows);
+      if (rows.length) {
+        const dc = distinctCounts(metaFilteredRows(meta.rows));
+        return attachShareKey({ kind: "single", key: c, attr, ref, rows, nNames: dc.nNames, nOrgs: dc.nOrgs });
+      }
+    }
+    return null;
+  } finally {
+    if (hideEl) hideEl.checked = prevHas;
+  }
+}
+
 /** Share params for the current filter state (same fields as the live URL). */
 function buildShareParams(extra) {
   const p = new URLSearchParams();
@@ -2562,8 +2789,21 @@ function buildShareParams(extra) {
   }
   return p;
 }
+function clusterShareUrlForUnit(u) {
+  const shareKey = unitShareKey(u);
+  const p = buildShareParams({ c: shareKey });
+  p.delete("a");
+  p.delete("cmp");
+  // Assignment links must reopen the cluster even after it becomes fully seen.
+  p.delete("has");
+  // Pin connection types for this cluster so reopen does not depend on UI defaults.
+  if (u.kind === "combo" && u.parts) p.set("at", u.parts.map(x => x.attr).join(","));
+  else if (u.kind === "single" && u.attr) p.set("at", u.attr);
+  const qs = p.toString();
+  return `${location.origin}${location.pathname}${qs ? "?" + qs : ""}`;
+}
 function clusterShareUrl(clusterKey) {
-  const p = buildShareParams({ c: clusterKey });
+  const p = buildShareParams({ c: toShareClusterKey(clusterKey) });
   p.delete("a");
   p.delete("cmp");
   const qs = p.toString();
@@ -2575,9 +2815,10 @@ function downloadClustersCsv() {
   const headers = ["clusterId", "url", "connectionType", "value", "nPapers", "nFlagged", "nAuthors", "nOrgs"];
   const lines = [headers.map(csvCell).join(",")];
   for (const u of list) {
+    const id = unitShareKey(u);
     lines.push([
-      u.key,
-      clusterShareUrl(u.key),
+      id,
+      clusterShareUrlForUnit(u),
       clusterTypeLabel(u),
       clusterValueLabel(u),
       u.rows.length,
@@ -3383,7 +3624,7 @@ function computeCombos() {
     const dc = distinctCounts(rows);
     const scoped = articleIdScope ? rows.filter(paperInArticleSearch) : rows;
     if (articleIdScope && !scoped.length) continue;
-    units.push({ kind: "combo", key: "combo|" + key, parts, rows: scoped, fullRows: rows, nNames: dc.nNames, nOrgs: dc.nOrgs });
+    units.push(attachShareKey({ kind: "combo", key: "combo|" + key, parts, rows: scoped, fullRows: rows, nNames: dc.nNames, nOrgs: dc.nOrgs }));
   }
   return units;
 }
@@ -3409,7 +3650,7 @@ function currentUnits() {
       const fr = scopedClusterRows(rows);
       if (!fr.length) continue;
       const dc = distinctCounts(full);
-      units.push({ kind: "single", key: "email:" + ref, attr: "email", ref, rows: fr, nNames: dc.nNames, nOrgs: dc.nOrgs });
+      units.push(attachShareKey({ kind: "single", key: "email:" + ref, attr: "email", ref, rows: fr, nNames: dc.nNames, nOrgs: dc.nOrgs }));
     }
     units.sort((a, b) => sort === "authors" ? b.nNames - a.nNames || b.rows.length - a.rows.length
       : sort === "orgs" ? b.nOrgs - a.nOrgs || b.rows.length - a.rows.length
@@ -3417,7 +3658,7 @@ function currentUnits() {
     return units;
   }
   if (act.length === 1 && !rx)
-    return currentBuckets().map(b => ({ kind: "single", key: b.attr + ":" + b.ref, attr: b.attr, ref: b.ref, rows: b.rows, nNames: b.nNames, nOrgs: b.nOrgs }));
+    return currentBuckets().map(b => attachShareKey({ kind: "single", key: b.attr + ":" + b.ref, attr: b.attr, ref: b.ref, rows: b.rows, nNames: b.nNames, nOrgs: b.nOrgs }));
   const diffA = $("fDiffAuthors").checked, diffO = $("fDiffOrgs").checked;
   const onlyFlagged = $("fFlaggedOnly").checked;
   const minSize = Math.max(2, parseInt($("fMinSize").value) || 2);
@@ -4546,7 +4787,7 @@ const reviewUrl = (id) => `https://review.frontiersin.org/review/${id}/0/0`;
 // -------- share url --------
 function syncShare() {
   const extra = {};
-  if (mode === "focus" && focusKey) extra.c = focusKey;
+  if (mode === "focus" && focusKey) extra.c = toShareClusterKey(focusKey);
   if (selected != null && nodes[selected] && nodes[selected].type === "paper") extra.a = String(A("id", nodes[selected].r));
   if ($("modal").classList.contains("open")) extra.cmp = "1";
   const qs = buildShareParams(extra).toString();
@@ -4554,9 +4795,17 @@ function syncShare() {
 }
 function applyShareParams() {
   const p = new URLSearchParams(location.search);
+  const c = p.get("c");
   if (p.has("at")) {
     const want = new Set(p.get("at") ? p.get("at").split(",") : []);
     document.querySelectorAll("#attrToggles input").forEach(i => i.checked = want.has(i.dataset.attr));
+  } else if (c) {
+    // Infer connection types from the cluster key so legacy CSV links without at= still open.
+    const inferred = attrsFromShareClusterKey(c);
+    if (inferred) {
+      const want = new Set(inferred);
+      document.querySelectorAll("#attrToggles input").forEach(i => i.checked = want.has(i.dataset.attr));
+    }
   }
   if (p.has("da")) $("fDiffAuthors").checked = p.get("da") !== "0";
   if (p.has("do")) $("fDiffOrgs").checked = p.get("do") !== "0";
@@ -4571,16 +4820,13 @@ function applyShareParams() {
   if (p.get("q")) $("fSearch").value = p.get("q");
   if (p.get("re")) $("fEmailRegex").value = p.get("re");
   rebuildEmailFilter();
-  const c = p.get("c");
   if (c) {
-    if (bucketMeta.has(c)) focusHub(c);
-    else {
-      const u = currentUnits().find(x => x.key === c);
-      if (u) focusUnit(u);
-      else if (maybeFocusArticleSearch()) { /* q= search */ }
-      else if (p.get("a") && D.articles.id.indexOf(+p.get("a")) >= 0) focusPaper(D.articles.id.indexOf(+p.get("a")));
-      else showOverview();
-    }
+    const u = resolveShareCluster(c);
+    if (u) focusUnit(u);
+    else if (bucketMeta.has(c)) focusHub(c);
+    else if (maybeFocusArticleSearch()) { /* q= search */ }
+    else if (p.get("a") && D.articles.id.indexOf(+p.get("a")) >= 0) focusPaper(D.articles.id.indexOf(+p.get("a")));
+    else showOverview();
   } else if (maybeFocusArticleSearch()) { /* article search from q= */ }
   else if (p.get("a") && D.articles.id.indexOf(+p.get("a")) >= 0) focusPaper(D.articles.id.indexOf(+p.get("a")));
   else showOverview();
