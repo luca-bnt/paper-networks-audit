@@ -5,7 +5,7 @@
 #   - Python venv with requirements.txt (python3 -m venv .dbenv && .dbenv/bin/pip install -r requirements.txt google-cloud-bigquery)
 #   - az login (luca.bontempi@frontiersin.net) with access to staticsitesops10798
 #   - gcloud auth application-default login (BigQuery article context)
-#   - Either AUDIT_DB_CS in .env, or KIOSK_BEARER_TOKEN in .env + get_creds.py (git-ignored copy)
+#   - Either AUDIT_DB_CS in .env, or one-time ./scripts/setup_kiosk_browser.sh (recommended)
 #
 # Local cron example (Mon 06:00):
 #   crontab -e
@@ -50,7 +50,7 @@ if [[ -z "${AUDIT_DB_CS:-}" && -f "$ROOT/get_creds.py" ]]; then
 fi
 
 if [[ -z "${AUDIT_DB_CS:-}" ]]; then
-  echo "Set AUDIT_DB_CS in .env, or install get_creds.py and run one-time: az login --tenant ... --scope api://56a24d11-e229-47d6-ac7f-a32194373319/.default" >&2
+  echo "Set AUDIT_DB_CS in .env, or run one-time: ./scripts/setup_kiosk_browser.sh" >&2
   exit 1
 fi
 
@@ -60,29 +60,39 @@ echo "[refresh] incremental pull ($(date -u +%Y-%m-%dT%H:%M:%SZ))"
 echo "[deploy] uploading snapshot"
 az account set --subscription "$AZ_SUBSCRIPTION"
 OWNER="$(az account show --query user.name -o tsv)"
+META_FILE="audit-network/data/snapshot-meta.json"
+SNAP_FILE="audit-network/data/snapshot.json.gz"
+
+if [[ ! -f "$SNAP_FILE" ]]; then
+  echo "Missing $SNAP_FILE — audit_snapshot.py should have written it." >&2
+  exit 1
+fi
+if [[ ! -f "$META_FILE" ]]; then
+  echo "Missing $META_FILE — rebuild snapshot (audit_snapshot.py writes this sidecar)." >&2
+  exit 1
+fi
+
 az storage blob upload \
   --account-name "$AZ_ACCOUNT" \
   --container-name "$AZ_CONTAINER" \
   --name "$AZ_PREFIX/data/snapshot.json.gz" \
-  --file audit-network/data/snapshot.json.gz \
+  --file "$SNAP_FILE" \
   --auth-mode login \
   --overwrite true \
   --content-type "application/gzip" \
   --metadata "owner=$OWNER"
 
-if [[ -f audit-network/data/snapshot-meta.json ]]; then
-  az storage blob upload \
-    --account-name "$AZ_ACCOUNT" \
-    --container-name "$AZ_CONTAINER" \
-    --name "$AZ_PREFIX/data/snapshot-meta.json" \
-    --file audit-network/data/snapshot-meta.json \
-    --auth-mode login \
-    --overwrite true \
-    --content-type "application/json" \
-    --cache-control "no-cache, max-age=0" \
-    --metadata "owner=$OWNER"
-  echo "[deploy] uploaded snapshot-meta.json"
-fi
+az storage blob upload \
+  --account-name "$AZ_ACCOUNT" \
+  --container-name "$AZ_CONTAINER" \
+  --name "$AZ_PREFIX/data/snapshot-meta.json" \
+  --file "$META_FILE" \
+  --auth-mode login \
+  --overwrite true \
+  --content-type "application/json" \
+  --metadata "owner=$OWNER"
+
+echo "[deploy] uploaded snapshot + snapshot-meta sidecar"
 
 if [[ "${SYNC_CACHE:-1}" == "1" && -f audit-pipeline/raw_snapshot.pkl ]]; then
   az storage blob upload \

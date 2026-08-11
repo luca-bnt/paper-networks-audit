@@ -47,6 +47,7 @@ docs/                   # production planning (aira-checks/cluster-analysis-prd.
 audit-network/          # the static app (deploy this folder)
   index.html            #   single-file vanilla JS + Canvas UI
   data/snapshot.json.gz #   dictionary-encoded, columnar, gzipped snapshot
+  data/snapshot-meta.json # builtUtc sidecar for live auto-refresh (deploy with gzip)
 audit-network-demo/     # HyperFrames demo (narration.md = TTS script)
 audit_snapshot.py       # pipeline: fetch from service-aira -> build snapshot
 device_profile_id.py    # device fingerprint hashing (pipeline dep)
@@ -141,9 +142,10 @@ compute required.
 
 ## Scheduled refresh (cron / GitHub Actions)
 
-The app reads a pre-built `snapshot.json.gz`. Automate rebuild + deploy so reviewers
-always see fresh data. The snapshot records `meta.builtUtc`; the UI shows it as
-**“Data refreshed …”** in the header.
+The app reads a pre-built `snapshot.json.gz` and a lightweight
+`snapshot-meta.json` sidecar (same `builtUtc` — used for auto-refresh without
+re-downloading the gzip). Automate rebuild + deploy so reviewers always see
+fresh data. The snapshot records `meta.builtUtc`; the UI shows it in the header.
 
 ### Option A — GitHub Actions (recommended, runs even when your laptop is off)
 
@@ -166,20 +168,28 @@ the service principal or ask IT for one scoped to `prototypes/network-analysis/*
 The job also stores `audit-pipeline/raw_snapshot.pkl` in blob storage so incremental
 runs stay fast (~2 min vs ~20 min full pull).
 
-### Option B — Mac cron (works with your current login, machine must stay on)
+### Option B — Mac cron (machine must stay on)
+
+One-time Kiosk auth (**no daily connection string or DevTools paste**):
 
 ```bash
-cp .env.example .env          # add KIOSK_BEARER_TOKEN
-cp ../frontiers-mcp/get_creds.py .   # optional helper (git-ignored)
-python3 -m venv .dbenv && .dbenv/bin/pip install -r requirements.txt google-cloud-bigquery requests
-az login && gcloud auth application-default login   # refresh when cron starts failing
-chmod +x scripts/refresh_and_deploy.sh
-crontab -e
-# 0 6 * * 1  /Users/you/Code/network-analysis/scripts/refresh_and_deploy.sh >> /tmp/network-analysis-refresh.log 2>&1
+./scripts/setup_kiosk_browser.sh   # Chromium opens once; sign in with Frontiers SSO
 ```
 
-`KIOSK_BEARER_TOKEN` must be renewed occasionally (copy a fresh bearer from Kiosk UI).
-`az` / `gcloud` tokens also expire — re-login when the log shows auth errors.
+This saves `~/.cache/frontiers-kiosk/chromium-profile/`. Each cron run loads kiosk-ui
+headlessly, MSAL refreshes the access token, and `get_creds.py` calls the Kiosk API for a
+**new 24h SQL user**. Re-run setup only if the profile breaks or SSO forces re-login.
+
+```bash
+python3 -m venv .dbenv && .dbenv/bin/pip install -r requirements.txt google-cloud-bigquery
+az login && gcloud auth application-default login   # refresh when cron starts failing
+chmod +x scripts/refresh_and_deploy.sh scripts/setup_kiosk_browser.sh
+crontab -e
+# 0 6 * * 1  /Users/you/Code/paper-networks-audit/scripts/refresh_and_deploy.sh >> /tmp/network-analysis-refresh.log 2>&1
+```
+
+Fallback: `KIOSK_BEARER_TOKEN` in `.env` (see `.env.example`). `az` scoped login for the
+Kiosk API and MSAL device code **do not work** with the public Kiosk Entra app.
 
 ## Deploying
 
