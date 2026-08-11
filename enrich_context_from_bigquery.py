@@ -48,13 +48,12 @@ def main() -> None:
     if ctx.empty:
         sys.exit("BigQuery returned no article context — check BQ_PROJECT / ADC auth")
 
-    keep_ip = df[["ArticleId", "authorIp"]] if "authorIp" in df.columns else None
     drop = [c for c in CONTEXT_COLS if c in df.columns]
     if drop:
         df = df.drop(columns=drop)
+    # Drop legacy authorIp if present in older caches (no longer synced).
+    df = df.drop(columns=["authorIp"], errors="ignore")
     df = df.merge(ctx, on="ArticleId", how="left")
-    if keep_ip is not None:
-        df = df.drop(columns=["authorIp"], errors="ignore").merge(keep_ip, on="ArticleId", how="left")
 
     matched = int(df["authorEmail"].fillna("").astype(str).str.strip().astype(bool).sum())
     rej = int((df["stageName"] == "Rejected").sum())

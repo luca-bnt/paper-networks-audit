@@ -680,7 +680,7 @@
         <div class="help-feature-block">
           <h5>Connection types &amp; clustering</h5>
           <ul>
-            <li>Toggle attributes: email, IP, device fingerprint, locale, WD author / last edited / company, author-declared IP.</li>
+            <li>Toggle attributes: email, IP, device fingerprint, locale, WD author / last edited / company.</li>
             <li><b>Single-type clusters</b> — papers sharing one value (e.g. same hashed IP).</li>
             <li><b>Multi-type (AND) clusters</b> — papers sharing the same value on every selected type; shown in lime on the graph.</li>
             <li><b>Email regex</b> — filter to matching author emails; combines with other types as AND, or lists matches alone.</li>
@@ -1231,7 +1231,6 @@ const ATTR_META = {
   wdAuthor:   { label: "WD author",          pool: "wdAuthors",   color: "#f59e0b" },
   wdEditedBy: { label: "WD last edited",     pool: "wdEditedBys", color: "#fbbf24" },
   wdCompany:  { label: "WD company",         pool: "wdCompanies", color: "#fcd34d" },
-  authorIp:   { label: "Author-declared IP", pool: "authorIps",   color: "#c084fc" },
 };
 const ATTR_COL = { email: "authorEmail" };
 const col = (a) => ATTR_COL[a] || a;
@@ -1241,7 +1240,7 @@ const BAND_NAMES  = ["no score", "low", "medium", "high"];
 const STATUS_NAMES = ["", "green", "yellow", "red", "gold", "n/a", "unchecked"];
 const PATTERN_NAMES = ["", "all-digits", "name.surname", "all-alpha", "alpha+digits", "other"];
 const CMP_PRIORITY = ["status", "articleType", "authorName", "authorEmail", "nameEmailSim", "authorOrg", "editors", "reviewers", "wdAuthor", "wdEditedBy", "wdStatus", "journal", "section"];
-const CMP_REST = ["pmScore", "wdCompany", "device", "ip", "locale", "authorIp"];
+const CMP_REST = ["pmScore", "wdCompany", "device", "ip", "locale"];
 
 // -------- state --------
 let D = null, attrs = [];
@@ -2848,7 +2847,7 @@ const str = (pool, ref) => {
 const A = (c, r) => D.articles[c][r];
 const POOLS = { title:"titles", authorName:"names", authorEmail:"emails", authorOrg:"orgs",
   platform:"platforms", uaFamily:"uaFamilies", ip:"ips", device:"devices", locale:"locales",
-  wdAuthor:"wdAuthors", wdEditedBy:"wdEditedBys", wdCompany:"wdCompanies", authorIp:"authorIps",
+  wdAuthor:"wdAuthors", wdEditedBy:"wdEditedBys", wdCompany:"wdCompanies",
   status:"statuses", rejectionReason:"rejectionReasons", rejectionCode:"rejectionCodes",
   journal:"journals", section:"sections", articleType:"articleTypes",
   editors:"editors", reviewers:"reviewers" };
@@ -2940,7 +2939,7 @@ const cmpDisplay = (r, key) => {
 const CMP_TRUNC = {
   journal: 24, section: 22, authorName: 20, authorEmail: 24, authorOrg: 22,
   editors: 18, reviewers: 20,
-  wdAuthor: 16, wdEditedBy: 16, wdCompany: 16, locale: 14, authorIp: 12,
+  wdAuthor: 16, wdEditedBy: 16, wdCompany: 16, locale: 14,
 };
 const typeInitials = (s) => {
   if (!s) return "";
@@ -4280,7 +4279,7 @@ function showPaperDetail(r) {
     ["WD author", artStr("wdAuthor", r) || "—"], ["WD last edited", artStr("wdEditedBy", r) || "—"], ["WD company", artStr("wdCompany", r) || "—"],
     ["Device", artStr("device", r) || "—", artStr("device", r) !== strFull("devices", A("device", r)) ? strFull("devices", A("device", r)) : ""],
     ["IP", artStr("ip", r) || "—", artStr("ip", r) !== strFull("ips", A("ip", r)) ? strFull("ips", A("ip", r)) : ""], ["Locale", artStr("locale", r) || "—"],
-    ["Platform / UA", [artStr("platform", r), artStr("uaFamily", r)].filter(Boolean).join(" / ") || "—"], ["Submission IP (author record)", artStr("authorIp", r) || "—"],
+    ["Platform / UA", [artStr("platform", r), artStr("uaFamily", r)].filter(Boolean).join(" / ") || "—"],
   ];
   $("detail").innerHTML = trackStrip + flagControlHtml(r) + `<div class="section"><dl class="dl">${rows.map(([k, v, tip, html]) => {
     if (html) return `<div><dt>${k}</dt><dd>${html}</dd></div>`;

@@ -10,7 +10,6 @@ Data sources (see repo notes):
   - DeviceFingerprints            -> ip / asn / device profile / locale (full)
   - Indicators def 75 (Message)   -> Word-doc author / last-modified-by / company
   - Indicators def 80 (Message)   -> AIRA papermill risk score (%)
-  - PaperMillAuthorMetaData       -> author-declared IP only (~11%, no BQ source)
   - frontiers-ocean BigQuery      -> status / journal / section / title / author name+email+org
 
 ResourceModel is intentionally NOT read. Display/context fields (status, journal,
@@ -81,7 +80,7 @@ RAW_COLS = [
     "IpHash", "AsnHash", "DeviceId", "CanvasHash", "WebglHash", "HwIdHash", "UaFamilyHash",
     "Platform", "ScreenWidth", "ScreenHeight", "DevicePixelRatio", "Languages", "Timezone", "UaFamily",
     "wdStatus", "wdMessage", "pmStatus", "pmMessage",
-    "authorName", "authorEmail", "authorOrg", "authorIp", "ArticleTitle",
+    "authorName", "authorEmail", "authorOrg", "ArticleTitle",
     # article-level metadata (display / compare / optional filter — not connective).
     # Pulled from the latest ResourceVersion.ResourceModel (two-phase, JSON_VALUE by PK).
     "stageId", "stageName", "rejectionReason", "rejectionCode", "journal", "section", "articleType",
@@ -316,9 +315,6 @@ def fetch(cs: str, days: int) -> pd.DataFrame:
     pm = ind[ind.IndicatorDefinitionId == PAPERMILL_INDICATOR][["ArticleId", "Status", "Message"]].copy()
     pm.columns = ["ArticleId", "pmStatus", "pmMessage"]
 
-    # author-declared IP: only needed when author name/email come from BQ
-    author_ip = pd.DataFrame(columns=["ArticleId", "authorIp"])
-
     if META_SOURCE == "sql":
         # legacy: PaperMill author/title + ResourceModel JSON for status/journal/section
         t = time.time()
@@ -327,7 +323,7 @@ def fetch(cs: str, days: int) -> pd.DataFrame:
             idcsv = ",".join(map(str, batch))
             frames.append(
                 q(
-                    f"""SELECT ArticleId, FirstName, MiddleName, LastName, Email, Organisation, Role, IpAddress
+                    f"""SELECT ArticleId, FirstName, MiddleName, LastName, Email, Organisation, Role
                         FROM PaperMillAuthorMetaData WITH (NOLOCK) WHERE ArticleId IN ({idcsv})"""
                 )
             )
@@ -352,12 +348,7 @@ def fetch(cs: str, days: int) -> pd.DataFrame:
     else:
         author = pd.DataFrame()
         tt = pd.DataFrame()
-        t = time.time()
-        author_ip = _fetch_author_ip(q, art_ids)
-        print(f"[fetch] author IP (PaperMill subset): {len(author_ip):,} ({time.time()-t:.1f}s)", file=sys.stderr)
         ctx = fetch_article_context_bq(days)
-        if not author_ip.empty:
-            ctx = ctx.merge(author_ip, on="ArticleId", how="left")
 
     conn.close()
 
@@ -372,26 +363,6 @@ def _coalesce_json(paths: list[str], alias: str) -> str:
     vals = [f"JSON_VALUE(rv.ResourceModel,'{p}')" for p in paths]
     inner = vals[0] if len(vals) == 1 else f"COALESCE({','.join(vals)})"
     return f"{inner} AS {alias}"
-
-
-def _fetch_author_ip(q, art_ids: list[int]) -> pd.DataFrame:
-    """Author-declared submission IP from PaperMillAuthorMetaData (small subset, no JSON)."""
-    frames = []
-    for batch in chunks(art_ids, 2000):
-        idcsv = ",".join(map(str, batch))
-        frames.append(
-            q(
-                f"""SELECT ArticleId, IpAddress
-                    FROM PaperMillAuthorMetaData WITH (NOLOCK)
-                    WHERE ArticleId IN ({idcsv}) AND IpAddress IS NOT NULL AND IpAddress <> ''"""
-            )
-        )
-    amd = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
-    if amd.empty:
-        return pd.DataFrame(columns=["ArticleId", "authorIp"])
-    amd["ArticleId"] = amd["ArticleId"].astype("int64")
-    amd = amd.drop_duplicates("ArticleId", keep="first")
-    return amd.rename(columns={"IpAddress": "authorIp"})[["ArticleId", "authorIp"]]
 
 
 def _bq_str(v) -> str:
@@ -419,8 +390,6 @@ def _format_bq_context(df: pd.DataFrame) -> pd.DataFrame:
             out[c] = ""
     keep = ["ArticleId", "ArticleTitle", "stageId", "stageName", "rejectionReason", "rejectionCode",
             "journal", "section", "articleType", "authorName", "authorEmail", "authorOrg", "editors", "reviewers"]
-    if "authorIp" in out.columns:
-        keep.append("authorIp")
     return out.reindex(columns=[c for c in keep if c in out.columns])
 
 
@@ -597,7 +566,7 @@ def _archive_rows(aged: pd.DataFrame, archive_path: Path) -> None:
 
 def _pick_author(amd: pd.DataFrame) -> pd.DataFrame:
     if amd.empty:
-        return pd.DataFrame(columns=["ArticleId", "authorName", "authorEmail", "authorOrg", "authorIp"])
+        return pd.DataFrame(columns=["ArticleId", "authorName", "authorEmail", "authorOrg"])
     amd = amd.copy()
     amd["ArticleId"] = amd["ArticleId"].astype("int64")
     rank = {"submitting author": 0, "corresponding author": 1}
@@ -611,7 +580,6 @@ def _pick_author(amd: pd.DataFrame) -> pd.DataFrame:
     ]
     out["authorEmail"] = picked["Email"].fillna("").str.strip()
     out["authorOrg"] = picked["Organisation"].fillna("").str.strip()
-    out["authorIp"] = picked["IpAddress"].fillna("").str.strip()
     return out
 
 
@@ -678,16 +646,16 @@ def email_pattern(email: str) -> str:
 
 
 # All indexed attributes (drive edges/weight/filters in the UI).
-ATTRS = ["email", "ip", "device", "locale", "wdAuthor", "wdEditedBy", "wdCompany", "authorIp"]
+ATTRS = ["email", "ip", "device", "locale", "wdAuthor", "wdEditedBy", "wdCompany"]
 # Strong attributes that decide connectivity (keep an article in the snapshot).
 # Weak ones (locale) are indexed for weight + filtering but never keep an article
 # on their own, otherwise generic language/timezone overlaps dominate.
-COMPONENT_ATTRS = ["email", "ip", "device", "wdAuthor", "wdEditedBy", "wdCompany", "authorIp"]
+COMPONENT_ATTRS = ["email", "ip", "device", "wdAuthor", "wdEditedBy", "wdCompany"]
 
 # Per-attribute common-value cap. Identity attrs keep large (suspicious) rings;
 # word-doc + weak attrs are capped low because their generic values are noise.
 DEFAULT_CAPS = {
-    "email": 120, "ip": 120, "device": 120, "authorIp": 120,
+    "email": 120, "ip": 120, "device": 120,
     # WD caps high: papermill rings reuse the same doc props at scale (signal, not noise)
     "wdAuthor": 500, "wdEditedBy": 500, "wdCompany": 500,
     "locale": 25,
@@ -696,7 +664,7 @@ DEFAULT_CAPS = {
 ATTR_POOL = {
     "email": "emails", "ip": "ips", "device": "devices",
     "locale": "locales", "wdAuthor": "wdAuthors", "wdEditedBy": "wdEditedBys",
-    "wdCompany": "wdCompanies", "authorIp": "authorIps",
+    "wdCompany": "wdCompanies",
 }
 # Generic Word-doc author/company values that must never link manuscripts.
 # OS / auto-tool placeholders only — do NOT stoplist publisher or org-like strings;
@@ -782,7 +750,6 @@ def build(df: pd.DataFrame, cap: int, days: int, flag_ids: set | None = None) ->
             "wdAuthor": wd_a,
             "wdEditedBy": wd_e,
             "wdCompany": wd_c,
-            "authorIp": clean(r.get("authorIp")),
         }
         recs.append(rec)
 
@@ -866,7 +833,6 @@ def _encode(recs, keep, old_to_new, kept_index, caps, days, flag_ids=None) -> di
         "wdAuthor": "wdAuthors",
         "wdEditedBy": "wdEditedBys",
         "wdCompany": "wdCompanies",
-        "authorIp": "authorIps",
     }
     BAND = {"": 0, "low": 1, "medium": 2, "high": 3}
     STATUS = {"": 0, "green": 1, "yellow": 2, "red": 3, "gold": 4, "n/a": 5, "unchecked": 6}

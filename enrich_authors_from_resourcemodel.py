@@ -11,8 +11,7 @@ impractically slow (>19h for the set).
 The cheap path, benchmarked at ~14-15 ms/row, is server-side **scalar**
 ``JSON_VALUE`` on fixed author indices. The submitting author is authors[0] ~61%
 of the time, so we pull the first few indices and pick submitting >
-corresponding > first-named in Python. Author IP is not present in the model
-(only PaperMill has it), so it is left untouched.
+corresponding > first-named in Python.
 
 Two-phase per the service-aira notes: find the latest ``ResourceVersion.Id`` via
 the ``ResourceId`` index (no JSON), then extract JSON by PK for just those ids.
