@@ -1,3 +1,5 @@
 pandas>=2.0
+requests>=2.28
+msal>=1.24  # optional: device login cache; Azure CLI path works without it
 pymssql>=2.2
 azure-data-tables>=12.4  # optional: bake manufactured flags into the snapshot

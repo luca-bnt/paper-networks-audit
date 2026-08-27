@@ -10,6 +10,7 @@ Data sources (see repo notes):
   - DeviceFingerprints            -> ip / asn / device profile / locale (full)
   - Indicators def 75 (Message)   -> Word-doc author / last-modified-by / company
   - Indicators def 80 (Message)   -> AIRA papermill risk score (%)
+  - IndicatorTags + TagDefinitions -> AIRA check tags (incl. Manufactured research)
   - frontiers-ocean BigQuery      -> status / journal / section / title / author name+email+org
 
 ResourceModel is intentionally NOT read. Display/context fields (status, journal,
@@ -42,6 +43,7 @@ from __future__ import annotations
 
 import argparse
 import gzip
+import html
 import json
 import os
 import pickle
@@ -72,6 +74,11 @@ PLACEHOLDERS = {"", "na", "n/a", "none", "nan", "null", "unknown", "-"}
 # snapshot under the 8 MB budget once author/email/org are backfilled for the
 # full set (full titles alone add ~3 MB gz).
 TITLE_MAX = 60
+# Review Forum EOF/POF comments (display-only). Cap outliers so a few long FV
+# logs cannot blow the gzip budget; typical values are well under this.
+EOF_POF_MAX = 1500
+# AIRA UI tags on a manuscript (display-only). Distinct names, comma-separated.
+AIRA_TAGS_MAX = 400
 
 # Canonical raw-cache schema. fetch() always returns exactly these columns so
 # incremental slices and the cached remainder concat without misalignment.
@@ -84,7 +91,7 @@ RAW_COLS = [
     # article-level metadata (display / compare / optional filter — not connective).
     # Pulled from the latest ResourceVersion.ResourceModel (two-phase, JSON_VALUE by PK).
     "stageId", "stageName", "rejectionReason", "rejectionCode", "journal", "section", "articleType",
-    "editors", "reviewers",
+    "editors", "reviewers", "eofPofComments", "airaTags",
 ]
 
 # Article metadata (status/journal/section): prefer BigQuery editorial warehouse
@@ -100,6 +107,11 @@ STAGE_ID_PATH = "$.review.stage.id"
 STAGE_NAME_PATH = "$.review.stage.name"
 JOURNAL_PATHS = ["$.submission.manuscriptDetails.journalName"]
 SECTION_PATHS = ["$.submission.manuscriptDetails.sectionName"]
+EOF_POF_PATHS = [
+    "$.review.eofPofComments",
+    "$.review.notesEofToPof",
+    "$.review.notesToPof",
+]
 
 BQ_ARTICLE_CONTEXT_SQL = """
 WITH authors AS (
@@ -188,6 +200,7 @@ SELECT
   typ.name AS articleType,
   j.name AS journal,
   s.name AS section,
+  a.eofPofComments,
   p.firstName, p.middleName, p.lastName,
   p.email, p.orgName,
   ed.editors,
@@ -350,11 +363,12 @@ def fetch(cs: str, days: int) -> pd.DataFrame:
         tt = pd.DataFrame()
         ctx = fetch_article_context_bq(days)
 
+    tags = fetch_aira_tags_sql(conn, art_ids)
     conn.close()
 
     df = res[["ArticleId", "Created"]].merge(fp, on="ArticleId", how="left")
-    for extra in (wd, pm, author, tt, ctx):
-        if not extra.empty:
+    for extra in (wd, pm, author, tt, ctx, tags):
+        if extra is not None and not extra.empty:
             df = df.merge(extra, on="ArticleId", how="left")
     return df.reindex(columns=RAW_COLS)
 
@@ -370,6 +384,14 @@ def _bq_str(v) -> str:
         return ""
     s = str(v).strip()
     return "" if s.lower() in PLACEHOLDERS else s
+
+
+def _bq_comment(v) -> str:
+    s = html.unescape(_bq_str(v))
+    if not s:
+        return ""
+    s = re.sub(r"[ \t]+\n", "\n", s).strip()
+    return s[:EOF_POF_MAX]
 
 
 def _format_bq_context(df: pd.DataFrame) -> pd.DataFrame:
@@ -388,8 +410,10 @@ def _format_bq_context(df: pd.DataFrame) -> pd.DataFrame:
             out[c] = out[c].map(_bq_str)
         else:
             out[c] = ""
+    out["eofPofComments"] = out["eofPofComments"].map(_bq_comment) if "eofPofComments" in out.columns else ""
     keep = ["ArticleId", "ArticleTitle", "stageId", "stageName", "rejectionReason", "rejectionCode",
-            "journal", "section", "articleType", "authorName", "authorEmail", "authorOrg", "editors", "reviewers"]
+            "journal", "section", "articleType", "authorName", "authorEmail", "authorOrg", "editors", "reviewers",
+            "eofPofComments"]
     return out.reindex(columns=[c for c in keep if c in out.columns])
 
 
@@ -400,7 +424,8 @@ def fetch_article_context_bq(days: int) -> pd.DataFrame:
     Query jobs run in BQ_PROJECT; data is read cross-project from BQ_OCEAN_PROJECT.
     """
     empty = ["ArticleId", "ArticleTitle", "stageId", "stageName", "rejectionReason", "rejectionCode",
-             "journal", "section", "articleType", "authorName", "authorEmail", "authorOrg", "editors", "reviewers"]
+             "journal", "section", "articleType", "authorName", "authorEmail", "authorOrg", "editors", "reviewers",
+             "eofPofComments"]
     try:
         from google.cloud import bigquery
     except ImportError:
@@ -435,6 +460,78 @@ def fetch_status_journal_bq(days: int) -> pd.DataFrame:
     return ctx[["ArticleId", "stageId", "stageName", "journal", "section", "articleType"]]
 
 
+def fetch_aira_tags_sql(conn, article_ids: list[int] | None = None) -> pd.DataFrame:
+    """AIRA UI tags per article from IndicatorTags.
+
+    Tags are stored per check. This pulls every active tag on the manuscript so
+    Manufactured research tags appear alongside others added in AIRA (language,
+    data availability, escalation-to-eof, …).
+    """
+    empty = pd.DataFrame(columns=["ArticleId", "airaTags"])
+    cur = conn.cursor()
+    t = time.time()
+    frames = []
+    batches = list(chunks(article_ids, 2000)) if article_ids else [None]
+    for batch in batches:
+        clauses = ["ISNULL(td.IsActive, 1) = 1"]
+        if batch is not None:
+            arts = ",".join(str(int(a)) for a in batch)
+            clauses.append(f"r.ExternalId IN ({arts})")
+        where = "WHERE " + " AND ".join(clauses)
+        cur.execute(
+            f"""
+            SELECT r.ExternalId AS ArticleId, td.Name AS TagName
+            FROM dbo.IndicatorTags t WITH (NOLOCK)
+            JOIN dbo.Indicators i WITH (NOLOCK) ON i.Id = t.IndicatorId
+            JOIN dbo.TagDefinitions td WITH (NOLOCK) ON td.Id = t.TagDefinitionId
+            JOIN dbo.Resources r WITH (NOLOCK) ON r.Id = i.ResourceId
+            {where}
+            """
+        )
+        rows = cur.fetchall()
+        if rows:
+            if isinstance(rows[0], dict):
+                frames.append(pd.DataFrame(rows).rename(columns={"ArticleId": "ArticleId", "TagName": "TagName"}))
+            else:
+                frames.append(pd.DataFrame(rows, columns=["ArticleId", "TagName"]))
+    if not frames:
+        print(f"[fetch] AIRA tags: 0 articles ({time.time()-t:.1f}s)", file=sys.stderr)
+        return empty
+    raw = pd.concat(frames, ignore_index=True)
+    raw["ArticleId"] = raw["ArticleId"].astype("int64")
+    raw["TagName"] = raw["TagName"].map(lambda v: clean(v))
+    raw = raw[raw["TagName"].astype(bool)]
+    grouped = (
+        raw.drop_duplicates(["ArticleId", "TagName"])
+        .sort_values(["ArticleId", "TagName"])
+        .groupby("ArticleId")["TagName"]
+        .agg(lambda s: ", ".join(s)[:AIRA_TAGS_MAX])
+        .reset_index()
+        .rename(columns={"TagName": "airaTags"})
+    )
+    print(
+        f"[fetch] AIRA tags: {len(grouped):,} articles · {len(raw):,} tag rows "
+        f"({time.time()-t:.1f}s)",
+        file=sys.stderr,
+    )
+    return grouped
+
+
+def refresh_aira_tags(cs: str, df: pd.DataFrame) -> pd.DataFrame:
+    """Re-merge AIRA tags so --from-raw / cached rows pick up new MRC tags."""
+    if df.empty:
+        return df.reindex(columns=RAW_COLS)
+    conn = connect(cs)
+    try:
+        tags = fetch_aira_tags_sql(conn, df["ArticleId"].astype("int64").tolist())
+    finally:
+        conn.close()
+    out = df.drop(columns=["airaTags"], errors="ignore")
+    if tags is not None and not tags.empty:
+        out = out.merge(tags, on="ArticleId", how="left")
+    return out.reindex(columns=RAW_COLS)
+
+
 def refresh_bq_context(df: pd.DataFrame, days: int) -> pd.DataFrame:
     """Re-merge BQ article context so cached rows pick up metadata updates (e.g. article type)."""
     ctx = fetch_article_context_bq(days)
@@ -460,6 +557,7 @@ def fetch_status_journal(conn, res_ids: list[int], rid_to_aid: dict) -> pd.DataF
         f"JSON_VALUE(rv.ResourceModel,'{STAGE_NAME_PATH}') AS stageName",
         _coalesce_json(JOURNAL_PATHS, "journal"),
         _coalesce_json(SECTION_PATHS, "section"),
+        _coalesce_json(EOF_POF_PATHS, "eofPofComments"),
     ]
     sel = ",".join(cols)
     out = {}
@@ -489,10 +587,11 @@ def fetch_status_journal(conn, res_ids: list[int], rid_to_aid: dict) -> pd.DataF
                     "stageName": row[2],
                     "journal": row[3],
                     "section": row[4],
+                    "eofPofComments": row[5],
                 }
         if (bi + 1) % 10 == 0:
             print(f"[fetch]   status/journal batch {bi+1}", file=sys.stderr)
-    df = pd.DataFrame(list(out.values()), columns=["ArticleId", "stageId", "stageName", "journal", "section"])
+    df = pd.DataFrame(list(out.values()), columns=["ArticleId", "stageId", "stageName", "journal", "section", "eofPofComments"])
     if not df.empty:
         df["ArticleId"] = df["ArticleId"].astype("int64")
     print(f"[fetch] status/journal/section: {len(df):,} ({time.time()-t:.1f}s)", file=sys.stderr)
@@ -733,6 +832,8 @@ def build(df: pd.DataFrame, cap: int, days: int, flag_ids: set | None = None) ->
             "articleType": clean(r.get("articleType")),
             "editors": clean(r.get("editors")),
             "reviewers": clean(r.get("reviewers")),
+            "eofPofComments": _bq_comment(r.get("eofPofComments")),
+            "airaTags": clean(r.get("airaTags"))[:AIRA_TAGS_MAX],
             "authorOrg": clean(r.get("authorOrg")),
             "platform": clean(r.get("Platform")),
             "uaFamily": clean(r.get("UaFamily")),
@@ -824,6 +925,8 @@ def _encode(recs, keep, old_to_new, kept_index, caps, days, flag_ids=None) -> di
         "articleType": "articleTypes",
         "editors": "editors",
         "reviewers": "reviewers",
+        "eofPofComments": "eofPofComments",
+        "airaTags": "airaTags",
         "authorOrg": "orgs",
         "platform": "platforms",
         "uaFamily": "uaFamilies",
@@ -943,6 +1046,11 @@ def main() -> None:
         df = refresh_bq_context(df, args.days)
         raw_path.write_bytes(pickle.dumps(df))
         print(f"[raw] BQ context refreshed ({len(df):,} rows)", file=sys.stderr)
+
+    if args.connection_string:
+        df = refresh_aira_tags(args.connection_string, df)
+        raw_path.write_bytes(pickle.dumps(df))
+        print(f"[raw] AIRA tags refreshed ({int(df['airaTags'].fillna('').astype(bool).sum()):,} tagged)", file=sys.stderr)
 
     flag_ids = set()
     table_conn = os.environ.get("AUDIT_TABLE_CONN")

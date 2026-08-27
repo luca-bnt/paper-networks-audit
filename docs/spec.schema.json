@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/luca-bnt/paper-networks-audit/docs/spec.schema.json",
+  "title": "Frontiers product spec",
+  "description": "Stable contract fields for any check/PRD. Unknown keys allowed.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["id", "title", "kind", "status", "outcomes", "rules"],
+  "properties": {
+    "id": { "type": "string" },
+    "title": { "type": "string" },
+    "kind": { "type": "string" },
+    "status": { "type": "string" },
+    "outcomes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string" }
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["id", "outcome"],
+        "properties": {
+          "id": { "type": "string" },
+          "outcome": { "type": "string" }
+        }
+      }
+    },
+    "surface": { "type": "string" },
+    "category": { "type": "string" },
+    "tickets": { "type": "array", "items": { "type": "string" } },
+    "prototype": { "type": "string", "format": "uri" },
+    "refs": { "type": "array", "items": { "type": "string" } },
+    "lookup": { "type": "object", "additionalProperties": true },
+    "tokens": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["type"],
+        "properties": {
+          "type": { "type": "string" },
+          "role": { "type": "string" },
+          "cap": { "type": ["integer", "null"] },
+          "weight": { "type": ["number", "null"] }
+        }
+      }
+    },
+    "score": { "type": "object", "additionalProperties": true },
+    "result": { "type": "object", "additionalProperties": true },
+    "ui": { "type": "object", "additionalProperties": true },
+    "flags": { "type": "object", "additionalProperties": true },
+    "store": { "type": "object", "additionalProperties": true },
+    "forbidden": { "type": "array", "items": { "type": "string" } },
+    "tbd": { "type": "array", "items": { "type": "string" } }
+  }
+}

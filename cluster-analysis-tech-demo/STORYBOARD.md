@@ -1,10 +1,10 @@
 ---
 format: 1920x1080
 message: "Papermills scale by repeating themselves — Cluster Analysis turns that repetition into the thing that catches them, at the cost of a single-paper check"
-arc: Hook → Wrong model → The trick → Fingerprint → Keys → Ceiling → Shortlist → Math → Measured → Judgement → Block → Warn → Close → Outro
+arc: Hook → Wrong model → The trick → Fingerprint → Keys → Ceiling → Shortlist → Math → Measured → Judgement → Block → Close → Outro
 audience: integrity specialists and engineers — technical, but nobody should feel locked out
 mode: collaborative
-runtime: 205s · 14 frames · narrated (Kokoro af_heart 0.6 / af_nicole 0.4) over a music bed
+runtime: 195s · 13 frames · narrated (Kokoro af_heart 0.6 / af_nicole 0.4) over a music bed
 ---
 
 ## Layout system
@@ -13,15 +13,17 @@ Content sits on the background. A panel is an exception that has to earn itself,
 container — the title slide is the only frame that keeps its original treatment.
 
 - **Structure comes from type scale and hairlines**, not borders. Vertical rules run to 62% height so
-  they separate content instead of outlining empty space.
+they separate content instead of outlining empty space.
 - **Type scale:** `.title` 68 · `.md` 64 · `.sm` 40 · `.lead` 26 · `.note` 18 · `.eyebrow` 14 (uppercase, tracked).
-  Hero numbers use `.lg` 128 and `.xl` 176, pushed to 210 where a number is the entire point (frame 5).
+Hero numbers use `.lg` 128 and `.xl` 176, pushed to 210 where a number is the entire point (frame 5).
 - **One hero per frame.** Everything else steps down hard — a 176px number next to 18px support copy
-  reads instantly; two 60px elements fight.
+reads instantly; two 60px elements fight.
 - **Negative space is deliberate**, roughly a third of the frame, held below the content band so the
-  eye lands on the headline first.
+eye lands on the headline first.
 - Accents stay rationed: cyan `#7ee8ff` for the answer, coral `#ff7b9c` for the expensive alternative,
-  mint `#9dffb8` for a measured win, violet `#c4b5ff` for warn.
+mint `#9dffb8` for a measured win, violet `#c4b5ff` for warn.
+
+
 
 ## Voice
 
@@ -36,11 +38,11 @@ Full narration reads as one continuous script — see `voiceover` per frame, in 
 
 - status: animated
 - src: compositions/frames/00-title.html
-- duration: 15.4s (starts 0s)
+- duration: 14.4s (starts 0s)
 - poster: 0.5s
 - transition_in: cut
 - scene: Cluster Analysis — title
-- voiceover: Hi. [[0.85]] Let's take a look at how AIRA's Cluster Analysis works. [[0.70]] Papermills don't submit one paper. They submit hundreds, often from the same laptop. This is the check that notices.
+- voiceover: Hi! Let's take a look at how AIRA's Cluster Analysis works. Papermills don't submit one paper. They submit hundreds, often from the same laptop. This is the check that notices.
 - narrativeRole: open
 - blueprint: kinetic-title
 
@@ -48,17 +50,8 @@ Locked — do not restyle. The title and outro carry the Frontiers lockup inside
 the **Frontiers logo | AIRA · Cluster Analysis** bar rides the twelve interior frames only,
 so the two bookends never show two logos at once.
 
-The greeting is deliberately broken into three spoken segments with silence held between
-them: **"Hi."** — 0.85s — **"Let's take a look at how AIRA's Cluster Analysis works."** —
-0.70s — then the papermill lines. Punctuation alone will not buy this; Kokoro gives a period
-about 0.2s, which reads as ordinary sentence rhythm rather than an intentional beat, so the
-segments are synthesised separately, trimmed to their speech, and joined with explicit
-silence.
-
-The first pause is placed to coincide with the title words landing (~1.1-2.4s), so the beat
-is filled with movement rather than reading as dead air. The reveal finishes around 3.6s and
-then holds. The slot is sized to the narration, not the animation — K was left as authored,
-since a longer pause should not slow the reveal down.
+The reveal finishes around 3.6s and then holds while the greeting plays out. The slot is
+sized to the narration, not the animation.
 
 **Animation:** title settles, thesis line wipes in beneath it. Nothing fancy — the next frame does the work.
 
@@ -120,7 +113,7 @@ indexed in advance.*
 - duration: 16s (starts 36.5s)
 - transition_in: crossfade
 - scene: Seven signals → one 16-character code
-- voiceover: Seven signals from the browser and graphics card squeeze into one sixteen-character code. Same machine, same code. You can change your name and change your email. Most people don't change their laptop.
+- voiceover: Seven signals from the browser and graphics card collapse into one sixteen-character code. Same machine, same code. You can change your name and change your email. Most people don't change their laptop.
 - narrativeRole: mechanism evidence
 - blueprint: diagram-build
 
@@ -149,12 +142,14 @@ Human label first, field name second. Weights are deliberately absent — a bare
 next to a key reads as precision the viewer can't interpret, and the ranking maths isn't
 the point of this frame.
 
-| On screen | Field |
-| --- | --- |
-| The machine | device |
-| The network | ip |
-| The document | wd_* |
-| The document, again | wd_* |
+
+| On screen           | Field  |
+| ------------------- | ------ |
+| The machine         | device |
+| The network         | ip     |
+| The document        | wd_*   |
+| The document, again | wd_*   |
+
 
 The two document rows stay generic on purpose. Naming which property tends to survive a
 clean-up is the one detail that would let someone defeat the check, so the frame discloses
@@ -172,11 +167,12 @@ Struck through: email — too many people share a mail provider for it to mean a
 - duration: 17.2s (starts 66.1s)
 - transition_in: crossfade
 - scene: Popular values get ignored — same machine vs same internet
-- voiceover: Some values are just popular. One campus network can cover a hundred honest papers, so every key has a ceiling. Above it, we ignore the value completely. Same machine is a signal. Same internet is not.
+- voiceover: Some values are just popular. One campus network can cover a hundred honest papers, so every key has a ceiling — above it we ignore the value completely. Same machine is a signal. Same internet is not.
 - narrativeRole: proof
 - blueprint: big-number-hit
 
 Two numbers, one point:
+
 - **120** — device and network. Above this, the value is a crowd, not a clue.
 - **500** — the Word-file names. Deliberately generous: one name on hundreds of manuscripts is the whole point.
 
@@ -214,17 +210,19 @@ Footer: *a shortlist, not a hairball.*
 - duration: 17.9s (starts 97.9s)
 - transition_in: crossfade
 - scene: O(N²) vs O(N · t · c) — 2.03B vs 778k, gap widens with the corpus
-- voiceover: Here's the trade in one line. Compare every pair, and the work grows with the square of the archive. Look up shared keys, and it grows in a straight line. Two and a half thousand times less work today. And doubling the archive doubles the gap.
+- voiceover: Here's the trade in one line. Compare every pair, and the work grows with the square of the corpus. Look up shared keys, and it grows in a straight line. Two and a half thousand times less work today — and doubling the archive doubles the gap.
 - narrativeRole: efficiency proof — the math
 - blueprint: big-number-hit
 
 Notation appears here for the first time, immediately translated. Each symbol gets four words, no more.
 
-| | Compare every pair | Look up shared keys |
-| --- | --- | --- |
-| Notation | **O(N²)** — *grows with the square* | **O(N · t · c)** — *grows in a straight line* |
-| Comparisons | **2,034,677,736** | **778,262** |
-| At 1,000/sec | **23 days** | **13 minutes** |
+
+|              | Compare every pair                  | Look up shared keys                           |
+| ------------ | ----------------------------------- | --------------------------------------------- |
+| Notation     | **O(N²)** — *grows with the square* | **O(N · t · c)** — *grows in a straight line* |
+| Comparisons  | **2,034,677,736**                   | **778,262**                                   |
+| At 1,000/sec | **23 days**                         | **13 minutes**                                |
+
 
 The two clock figures assume the same rate, so they're a fair comparison — and they say the same thing
 as the ratio without anyone having to trust the notation.
@@ -244,19 +242,21 @@ Growth strip, three columns only — the point is the gap widening, not the tabl
 - src: compositions/frames/08-budget.html
 - duration: 21.1s (starts 115.3s)
 - transition_in: crossfade
-- scene: Measured — 13 candidates, 2.9s a quarter, 20 rows, 6.4% reach a human
-- voiceover: In practice it's smaller still. The typical submission has thirteen candidates worth scoring, out of sixty-three thousand. The whole quarter scores in under three seconds. And ninety-four percent of papers pass without anyone being interrupted, which is the real budget we're protecting.
+- scene: Measured — 13 candidates, 2.9s a quarter, 20 rows, 2.7% block
+- voiceover: In practice it's smaller still. The typical submission has thirteen candidates worth scoring, out of sixty-three thousand. The whole quarter scores in under three seconds. And ninety-seven percent of papers pass without a block — which is the real budget we're protecting.
 - narrativeRole: efficiency proof — what it buys
 - blueprint: big-number-hit
 
 Every number measured on a 63,792-paper snapshot. Four stats, nothing else competing:
 
-| Value | Label |
-| --- | --- |
-| **13** | candidates worth scoring — out of 63,791 |
-| **2.9s** | to score the entire quarter |
-| **20** | rows on the reviewer's card |
-| **6.4%** | ever reach a human — 3.7% warn, 2.7% block |
+
+| Value    | Label                                      |
+| -------- | ------------------------------------------ |
+| **13**   | candidates worth scoring — out of 63,791   |
+| **2.9s** | to score the entire quarter                |
+| **20**   | rows on the reviewer's card                |
+| **2.7%** | block — rest pass (measured on the same snapshot) |
+
 
 One comparison strip, three short lines — no paragraphs:
 *Word-file check reads 1 file · brute-force hunt reads 63,792 · Cluster Analysis indexes 63,792 and touches 13.*
@@ -264,12 +264,15 @@ One comparison strip, three short lines — no paragraphs:
 **Animation:** four counters land on a beat each; the distribution bar draws left to right and stops well short of the ceiling — the empty space to the right is the point.
 
 ### Provenance (not on screen)
+
 - `simulate_cluster_check.py` over `audit-network/data/snapshot.json.gz` — 63,792 articles, 90d, built 2026-07-23
 - Outcome rates from 20,000 articles; denominator is hub-connected articles, not all submissions
 - Snapshot caps device/IP 120, Word props 40 (PRD sets 500 — fanout rises, ceiling logic unchanged)
 - Pairwise baseline N(N−1)/2; lookup baseline mean fanout 24.4 ÷ 2
 - Clock figures assume 1,000 comparisons/sec for both sides: 2.03B ⇒ 23.5 days, 778k ⇒ 13.0 min
-  (the measured 2.9s runtime is a separate, real figure — don't mix the two on one frame)
+(the measured 2.9s runtime is a separate, real figure — don't mix the two on one frame)
+
+
 
 ## Frame 9 — Telling colleagues from collusion
 
@@ -299,47 +302,23 @@ Formula stays, small, at the bottom for the people who want it.
 - src: compositions/frames/10-block.html
 - duration: 16s (starts 152.6s)
 - transition_in: crossfade
-- scene: Three routes to BLOCK, plus the filters every cluster must clear
-- voiceover: Blocking needs more than a hunch. Either all four keys line up at once, or a peer we've already flagged shares both a network and a document trail, or the Word-file check has already said no on its own.
+- scene: Two routes to BLOCK — flagged-peer match or Word-file check
+- voiceover: Blocking needs more than a hunch. Either a peer we've already flagged shares both a network and a document trail, or the Word-file check has already said no on its own.
 - narrativeRole: decision proof
 - blueprint: decision-tree
 
 Human titles first, rule codes demoted to chips:
 
-1. **All four keys align** — machine, network, and both Word names *(B0)*
-2. **A known-bad neighbour** — an already-flagged peer sharing network *and* document evidence *(B1)*
-3. **Document check failed** — the Word-file check blocked it independently *(B2)*
+1. **A known-bad neighbour** — an integrity-flagged peer sharing network *and* Word metadata *(B1)*
+2. **Document check failed** — the Word-file check blocked it independently *(B2)*
 
-Filter strip, one line: a cluster only counts if it looks like a group — **2+ authors, 2+ institutions, no single name owning half of it.**
-
-**Animation:** three routes light up in turn and converge on one BLOCK stamp; the filter strip slides under as a gate the evidence passes through.
-
-## Frame 11 — The near-miss lane
-
-- status: animated
-- src: compositions/frames/11-warn.html
-- duration: 11.3s (starts 168.1s)
-- transition_in: crossfade
-- scene: PASS → WARN → BLOCK, and what warn actually means
-- voiceover: Everything strong but incomplete gets a warning instead. Not an accusation, an invitation to look. Same evidence, softer verdict.
-- narrativeRole: decision proof
-- blueprint: decision-tree
-
-Three-stop strip: **PASS** (quiet) → **WARN** (amber) → **BLOCK** (hard stop), with warn clearly the middle lane rather than a weak block.
-
-Two short cards only:
-- **Same evidence, less of it** — the pattern is real but doesn't clear a block rule
-- **The reviewer decides** — shortlist and evidence chips either way
-
-No threshold number on this frame. It isn't the story.
-
-**Animation:** a marker slides along the strip and settles on WARN with a soft pulse; the two cards fade up behind it.
+**Animation:** two routes light up in turn; no attached cluster filters — weak overlaps pass silently.
 
 ## Frame 12 — Close
 
 - status: animated
 - src: compositions/frames/12-close.html
-- duration: 9.2s (starts 181.7s)
+- duration: 9.2s (starts 178s)
 - transition_in: crossfade
 - scene: Repetition is how they scale — and how they're caught
 - voiceover: Index once. Ignore the crowds. Hand the reviewer twenty scored peers instead of two billion comparisons.
@@ -357,7 +336,7 @@ The last line is the whole pitch and should be the last thing on screen:
 
 - status: animated
 - src: compositions/frames/13-outro.html
-- duration: 8.5s (starts 190.4s)
+- duration: 8.5s (starts 186.7s)
 - transition_in: crossfade
 - scene: Papermills scale by repeating themselves
 - voiceover: Papermills scale by repeating themselves, which is exactly how they get caught.

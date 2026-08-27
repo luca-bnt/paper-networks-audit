@@ -2,7 +2,9 @@
 
 | Doc | Surface |
 |-----|---------|
-| [`cluster-analysis-prd.md`](./cluster-analysis-prd.md) | **Cluster Analysis** — in-review check (BLOCK / PASS) |
+| [`cluster-analysis.yaml`](./cluster-analysis.yaml) | **Cluster Analysis** — spec (source of truth) |
+| [`cluster-analysis-prd.md`](./cluster-analysis-prd.md) | Cluster Analysis — stakeholder PRD (do not implement from this) |
+| [`../spec.schema.json`](../spec.schema.json) | Shared spec field schema |
 
 ## Local tooling (this repo)
 

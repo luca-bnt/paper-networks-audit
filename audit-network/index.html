@@ -118,9 +118,10 @@
     background: #0f1115f2; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px;
     font-size: 11px; color: var(--text); box-shadow: 0 4px 14px #000a; }
   #cmpTip {
-    position: fixed; display: none; z-index: 120; pointer-events: none; max-width: 360px;
+    position: fixed; display: none; z-index: 120; pointer-events: none; max-width: 420px;
     background: #0f1115f5; border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px;
     font-size: 11px; color: var(--text); box-shadow: 0 6px 18px #000c; line-height: 1.35;
+    white-space: pre-wrap; overflow-wrap: break-word;
   }
   #cmpTip .cmp-tip-title { font-weight: 600; margin-bottom: 3px; }
   #cmpTip .cmp-tip-extra { color: var(--muted); font-size: 10px; margin-bottom: 3px; line-height: 1.4; }
@@ -175,6 +176,15 @@
     background: transparent; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1;
   }
   #watchToast .watch-toast-close:hover { color: var(--text); background: #ffffff10; }
+  #tableAuthBanner {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 95;
+    display: none; width: min(560px, calc(100vw - 24px)); padding: 10px 12px;
+    background: #FFF6EC; border: 1px solid #E87626; border-radius: 8px;
+    box-shadow: 0 8px 24px #0008; color: #282828; font-size: 13px; line-height: 1.4;
+  }
+  #tableAuthBanner.open { display: flex; align-items: center; gap: 10px; }
+  #tableAuthBanner .tab-auth-msg { flex: 1; min-width: 0; }
+  #tableAuthBanner .btn { flex: none; }
   .watch-alert-links { display: flex; flex-direction: column; gap: 4px; max-height: 180px; overflow-y: auto; }
   .watch-alert-link {
     display: flex; align-items: baseline; gap: 8px; width: 100%;
@@ -257,6 +267,8 @@
   table.cmp td[data-col="authorOrg"], table.cmp th[data-sort="authorOrg"] { min-width: 80px; max-width: 108px; }
   table.cmp td[data-col="editors"], table.cmp th[data-sort="editors"],
   table.cmp td[data-col="reviewers"], table.cmp th[data-sort="reviewers"] { min-width: 72px; max-width: 96px; }
+  table.cmp td[data-col="eofPofComments"], table.cmp th[data-sort="eofPofComments"] { min-width: 140px; max-width: 220px; }
+  table.cmp td[data-col="airaTags"], table.cmp th[data-sort="airaTags"] { min-width: 88px; max-width: 140px; }
   table.cmp th[data-sort="editors"], table.cmp th[data-sort="reviewers"] { min-width: 56px; }
   table.cmp td[data-col="wdAuthor"], table.cmp th[data-sort="wdAuthor"] { min-width: 72px; max-width: 96px; }
   table.cmp td[data-col="wdEditedBy"], table.cmp th[data-sort="wdEditedBy"] { min-width: 88px; max-width: 108px; }
@@ -665,7 +677,8 @@
         <li>Choose <b>connection types</b>, apply <b>filters</b>, then click a <b>cluster</b> in the list or graph.</li>
         <li>Open <b>Compare papers</b> to review the cluster side by side; click a paper node for the detail panel.</li>
         <li>Set your name under <b>Reviewer</b> so seen, checked, resolve, flag, and <b>Watch</b> alerts are attributed to you.</li>
-        <li>On small screens, scroll the left filter panels separately from the cluster list so nothing is cut off.</li>
+        <li>Connection type, Filters, and Reviewer sections collapse from their headers. On small screens, scroll those panels separately from the cluster list.</li>
+        <li><b>Escape</b> closes this guide, compare, Watch, and manager dialogs.</li>
       </ul>
       <h4>Features</h4>
       <div class="help-features">
@@ -673,7 +686,7 @@
           <h5>Data updates &amp; loading</h5>
           <ul>
             <li>On load, the app checks for a newer snapshot and shows a short splash while data decompresses.</li>
-            <li>While a tab stays open, it polls for newer data (and when you return to the tab). If a newer snapshot is available, it refreshes automatically.</li>
+            <li>While a tab stays open, it polls about every 5 minutes and again when you return to the tab. If a newer snapshot is available, it refreshes automatically.</li>
             <li>Snapshot date appears in the left header after load.</li>
           </ul>
         </div>
@@ -683,7 +696,7 @@
             <li>Toggle attributes: email, IP, device fingerprint, locale, WD author / last edited / company.</li>
             <li><b>Single-type clusters</b> — papers sharing one value (e.g. same hashed IP).</li>
             <li><b>Multi-type (AND) clusters</b> — papers sharing the same value on every selected type; shown in lime on the graph.</li>
-            <li><b>Email regex</b> — filter to matching author emails; combines with other types as AND, or lists matches alone.</li>
+            <li><b>Email regex</b> — filter to matching author emails; combines with other types as AND, or lists matches alone. Suggestions appear as you type.</li>
             <li>Cluster pills show paper count, distinct authors/orgs, and metadata (journal, status, etc.).</li>
           </ul>
         </div>
@@ -714,14 +727,31 @@
           </ul>
         </div>
         <div class="help-feature-block">
+          <h5>Compare table</h5>
+          <ul>
+            <li>All papers in the current cluster; shared connection values highlighted in type colours.</li>
+            <li>Columns include status, article type, author, email, name/email similarity, organisation, editor, reviewers, <b>EOF/POF comments</b>, <b>AIRA tags</b>, Word-doc fields, journal, section, papermill score, IP, device, and locale.</li>
+            <li>Cells are compact: article type as initials, journal without “Frontiers in …”, shortened IP/device hashes. Hover a header or cell for the full label or value.</li>
+            <li>Editor and reviewer show a name when known, otherwise the primary email.</li>
+            <li><b>EOF/POF comments</b> come from Review Forum (Notes EOF to POF). Hover for the full text.</li>
+            <li><b>AIRA tags</b> are chips added on AIRA checks, including Manufactured research. Hover for the full list.</li>
+            <li>Article IDs open Review Forum; opening a link records <b>checked</b>.</li>
+            <li>Click a header to sort; drag headers to reorder (saved in this browser); <b>reset columns</b> restores the default order.</li>
+            <li>Shift + scroll wheel or ← → for horizontal scroll.</li>
+            <li>Status column: short codes (REJ, IR, …) with risk colour on rejected rows; hover for the full rejection reason.</li>
+            <li><b>Copy</b> exports the visible table as TSV for spreadsheets.</li>
+            <li>Rejected rows sort to the bottom when sorting by papermill score.</li>
+            <li>Check a row for bulk actions (when configured): resolve, flag, unflag, clear resolve, mark unseen, mark unchecked.</li>
+          </ul>
+        </div>
+        <div class="help-feature-block">
           <h5>Rejection reasons</h5>
           <ul>
             <li>Rejected papers include a <b>rejection reason</b> from the editorial system (e.g. Ethical issues, Below Standard, Author request).</li>
-            <li>In the <b>compare table</b>, the status column uses short codes (REJ) with colour by risk:
+            <li>Status colour in the compare table:
               <b style="color:#D51A2C">red</b> high (ethical issues, rejected before review),
               <b style="color:#E87626">orange</b> mid (below standard, prescreening, out of scope, not sufficiently revised, other),
               <b style="color:#6B6B6B">grey</b> low (author or editorial withdrawal).</li>
-            <li>Hover the status cell for the full reason (e.g. “Rejected · Ethical issues”).</li>
             <li>The <b>detail panel</b> shows status and a separate rejection-reason row when recorded.</li>
             <li>Withdrawn papers appear as <b>Rejected</b> with reason Author request or EOF withdrawn — not a separate stage.</li>
           </ul>
@@ -729,28 +759,17 @@
         <div class="help-feature-block">
           <h5>Detail panel</h5>
           <ul>
-            <li>Paper metadata, papermill score, rejection reason (when rejected), connections to other papers in the cluster.</li>
+            <li>Same manuscript fields as the compare table, including editor, reviewers, <b>EOF/POF comments</b>, and <b>AIRA tags</b>.</li>
+            <li>Track icons for seen, checked, resolved, and flagged (when team tracking is configured).</li>
             <li>Click shared connection rows to focus that sub-cluster on the graph.</li>
             <li><b>Flag as manufactured</b> with optional comment; resolves and flags are mutually exclusive.</li>
             <li>Article IDs link to Frontiers review; opening a link records <b>checked</b>.</li>
           </ul>
         </div>
         <div class="help-feature-block">
-          <h5>Compare table</h5>
-          <ul>
-            <li>All papers in the current cluster; shared values highlighted in connection-type colours.</li>
-            <li>Sort by any column; drag headers to reorder (saved in this browser).</li>
-            <li>Shift + scroll wheel or ← → for horizontal scroll; hover for full cell/header text.</li>
-            <li>Status column: risk colour on rejected rows; hover for the full rejection reason.</li>
-            <li><b>Copy</b> exports the visible table as TSV for spreadsheets.</li>
-            <li>Rejected rows sort to the bottom when sorting by papermill score.</li>
-            <li>Bulk actions (when configured): resolve, flag, unflag, clear resolve, mark unseen, mark unchecked.</li>
-          </ul>
-        </div>
-        <div class="help-feature-block">
           <h5>Dataset field filter</h5>
           <ul>
-            <li>Select a row, then click a cell to filter the <b>entire snapshot</b> by that field value.</li>
+            <li>Select a compare-table row, then click a cell to filter the <b>entire snapshot</b> by that field value.</li>
             <li>Filter bar appears in Filters; clear it to return to the full dataset.</li>
             <li>Compare subtitle shows match count across the snapshot.</li>
           </ul>
@@ -773,7 +792,8 @@
           <ul>
             <li><b>⚑</b> toolbar — list all flagged papers in the snapshot.</li>
             <li><b>↓ CSV</b> — all flag records (active and removed): id, flagger, comment, timestamps.</li>
-            <li><b>⟳</b> reloads flags and workflow data from the server.</li>
+            <li><b>⟳</b> reloads flags and workflow data from the server (also retries the storage token if tracking failed).</li>
+            <li>If flags or activity stats vanish, an orange banner appears; the app reloads the storage token and retries — usually a rotated Azure key. Use <b>Retry now</b> or wait for the background remint.</li>
           </ul>
         </div>
         <div class="help-feature-block">
@@ -799,9 +819,10 @@
         <div class="help-feature-block">
           <h5>URL sharing</h5>
           <ul>
-            <li>URL updates live: connection types, filters (including hide all-seen), focused cluster, selected article, compare panel.</li>
+            <li>URL updates live: connection types, filters, focused cluster, selected article, and whether compare is open.</li>
             <li>Cluster ids in the URL are value-based (e.g. <code>ip=…</code> / <code>combo|ip=…|device=…|</code>) so they stay stable when papers join or leave a cluster and across snapshot rebuilds.</li>
             <li>Older dictionary-ref links (<code>ip:22</code> / <code>combo|ip#22|…</code>) still open against the current snapshot when those refs still match.</li>
+            <li>Assignment URLs from the cluster CSV omit the hide-all-seen filter so a shared link still opens after papers are marked seen.</li>
             <li>Bookmark or share the link to restore the same view for a colleague.</li>
           </ul>
         </div>
@@ -855,6 +876,11 @@
   </div>
   <p class="watch-toast-body" id="watchToastBody"></p>
   <div class="watch-alert-links" id="watchToastLinks"></div>
+</div>
+
+<div id="tableAuthBanner" role="alert" aria-live="assertive">
+  <span class="tab-auth-msg">Team tracking (flags, seen, activity stats) cannot reach storage — the access token was likely rotated. Reloading the token and retrying.</span>
+  <button type="button" class="btn" id="tableAuthRetry">Retry now</button>
 </div>
 
 <div id="watchInboxModal" class="submodal" aria-hidden="true">
@@ -1239,7 +1265,7 @@ const BAND_COLORS = ["#6b7280", "#65C161", "#E87626", "#D51A2C"];
 const BAND_NAMES  = ["no score", "low", "medium", "high"];
 const STATUS_NAMES = ["", "green", "yellow", "red", "gold", "n/a", "unchecked"];
 const PATTERN_NAMES = ["", "all-digits", "name.surname", "all-alpha", "alpha+digits", "other"];
-const CMP_PRIORITY = ["status", "articleType", "authorName", "authorEmail", "nameEmailSim", "authorOrg", "editors", "reviewers", "wdAuthor", "wdEditedBy", "wdStatus", "journal", "section"];
+const CMP_PRIORITY = ["status", "articleType", "authorName", "authorEmail", "nameEmailSim", "authorOrg", "editors", "reviewers", "eofPofComments", "airaTags", "wdAuthor", "wdEditedBy", "wdStatus", "journal", "section"];
 const CMP_REST = ["pmScore", "wdCompany", "device", "ip", "locale"];
 
 // -------- state --------
@@ -1260,11 +1286,100 @@ let globalFieldFilter = null;   // { col, matchKey, display, label } — dataset
 // -------- papermill flags (Azure Table Storage backend) --------
 const FC = (typeof window !== "undefined" && window.FLAGS_CONFIG) ? window.FLAGS_CONFIG : null;
 let flags = new Map();        // articleId -> { by, utc }
-const tableUrl = (suffix = "") => `https://${FC.account}.table.core.windows.net/${FC.table}${suffix}`;
+const TABLE_JSON = { Accept: "application/json;odata=nometadata" };
+let flagsConfigReloadInFlight = null;
+let tableAuthPollTimer = null;
+let tableAuthRecovering = false;
+
+function parseFlagsConfigJs(text) {
+  const account = /account:\s*"([^"]+)"/.exec(text);
+  const table = /table:\s*"([^"]+)"/.exec(text);
+  const sas = /sas:\s*"([^"]+)"/.exec(text);
+  if (!account || !table || !sas) return null;
+  return { account: account[1], table: table[1], sas: sas[1] };
+}
+async function reloadFlagsConfig() {
+  if (!FC) return false;
+  if (flagsConfigReloadInFlight) return flagsConfigReloadInFlight;
+  flagsConfigReloadInFlight = (async () => {
+    try {
+      const res = await fetch("flags-config.js?t=" + Date.now(), { cache: "no-store" });
+      if (!res.ok) return false;
+      const parsed = parseFlagsConfigJs(await res.text());
+      if (!parsed || !parsed.sas) return false;
+      const changed = parsed.sas !== FC.sas || parsed.account !== FC.account || parsed.table !== FC.table;
+      FC.account = parsed.account;
+      FC.table = parsed.table;
+      FC.sas = parsed.sas;
+      window.FLAGS_CONFIG = FC;
+      return changed;
+    } catch (_) {
+      return false;
+    }
+  })();
+  try { return await flagsConfigReloadInFlight; }
+  finally { flagsConfigReloadInFlight = null; }
+}
+function isTableAuthFailure(res) {
+  return res && (res.status === 401 || res.status === 403);
+}
+function showTableAuthBanner() {
+  const el = $("tableAuthBanner");
+  if (el) el.classList.add("open");
+}
+function hideTableAuthBanner() {
+  const el = $("tableAuthBanner");
+  if (el) el.classList.remove("open");
+}
+function stopTableAuthRecoveryPoll() {
+  if (tableAuthPollTimer) { clearInterval(tableAuthPollTimer); tableAuthPollTimer = null; }
+}
+async function recoverTableAuthAndReload() {
+  if (tableAuthRecovering) return;
+  tableAuthRecovering = true;
+  try {
+    await reloadFlagsConfig();
+    await loadFlags();
+    await loadWorkflow();
+    if ($("tableAuthBanner")?.classList.contains("open")) return;
+    updateHubFlags();
+    renderList();
+    if (mode === "overview") showOverview();
+    draw();
+    if ($("modal") && $("modal").classList.contains("open")) renderCompareTable();
+  } finally {
+    tableAuthRecovering = false;
+  }
+}
+function startTableAuthRecoveryPoll() {
+  if (tableAuthPollTimer || !FC) return;
+  tableAuthPollTimer = setInterval(() => { recoverTableAuthAndReload(); }, 60 * 1000);
+}
+const tableUrl = (pathAndQuery) => {
+  const join = pathAndQuery.includes("?") ? "&" : "?";
+  return `https://${FC.account}.table.core.windows.net/${FC.table}${pathAndQuery}${join}${FC.sas}`;
+};
+async function tableFetch(pathAndQuery, options = {}, retryOnAuth = true) {
+  const res = await fetch(tableUrl(pathAndQuery), options);
+  if (res.ok) {
+    hideTableAuthBanner();
+    stopTableAuthRecoveryPoll();
+    return res;
+  }
+  if (retryOnAuth && isTableAuthFailure(res) && FC) {
+    await reloadFlagsConfig();
+    return tableFetch(pathAndQuery, options, false);
+  }
+  if (isTableAuthFailure(res)) {
+    showTableAuthBanner();
+    startTableAuthRecoveryPoll();
+  }
+  return res;
+}
 async function loadFlags() {
   if (!FC) return;
   try {
-    const res = await fetch(tableUrl(`()?$filter=PartitionKey%20eq%20'flag'&${FC.sas}`), { headers: { Accept: "application/json;odata=nometadata" } });
+    const res = await tableFetch("()?$filter=PartitionKey%20eq%20'flag'", { headers: TABLE_JSON });
     if (!res.ok) throw new Error("HTTP " + res.status);
     const j = await res.json();
     flags = new Map(j.value.map(e => [+e.RowKey, { by: e.flaggedBy || "", utc: e.flaggedUtc || e.Timestamp || "", comment: e.comment || "" }]));
@@ -1273,7 +1388,8 @@ async function loadFlags() {
 }
 async function setFlag(id, on, comment) {
   if (!FC) return false;
-  const rk = String(id), ent = tableUrl(`(PartitionKey='flag',RowKey='${rk}')?${FC.sas}`);
+  const rk = String(id);
+  const flagPath = `(PartitionKey='flag',RowKey='${rk}')`;
   try {
     if (on) {
       const existing = flags.get(id);
@@ -1281,7 +1397,7 @@ async function setFlag(id, on, comment) {
       const utc = existing ? existing.utc : new Date().toISOString();
       const cmt = comment != null ? comment : (existing ? existing.comment || "" : "");
       const body = JSON.stringify({ PartitionKey: "flag", RowKey: rk, flaggedBy: by, flaggedUtc: utc, comment: cmt });
-      const res = await fetch(ent, { method: "PUT", headers: { "Content-Type": "application/json", Accept: "application/json;odata=nometadata" }, body });
+      const res = await tableFetch(flagPath, { method: "PUT", headers: { "Content-Type": "application/json", ...TABLE_JSON }, body });
       if (!res.ok) throw new Error("HTTP " + res.status);
       flags.set(id, { by, utc, comment: cmt });
       if (resolvedByArticle.has(+id)) {
@@ -1301,14 +1417,13 @@ async function setFlag(id, on, comment) {
         flaggedBy: existing?.by || "",
         comment: existing?.comment || "",
       };
-      const tombUrl = tableUrl(`(PartitionKey='unflag',RowKey='${rk}')?${FC.sas}`);
-      const tombRes = await fetch(tombUrl, {
+      const tombRes = await tableFetch(`(PartitionKey='unflag',RowKey='${rk}')`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Accept: "application/json;odata=nometadata" },
+        headers: { "Content-Type": "application/json", ...TABLE_JSON },
         body: JSON.stringify(tomb),
       });
       if (!tombRes.ok) throw new Error("HTTP " + tombRes.status);
-      const res = await fetch(ent, { method: "DELETE", headers: { "If-Match": "*" } });
+      const res = await tableFetch(flagPath, { method: "DELETE", headers: { "If-Match": "*" } });
       if (!res.ok && res.status !== 404) throw new Error("HTTP " + res.status);
       flags.delete(id);
     }
@@ -1682,18 +1797,19 @@ async function loadWorkflow() {
 
 async function tablePut(entity) {
   const rk = entity.RowKey, pk = entity.PartitionKey;
-  const url = tableUrl(`(PartitionKey='${pk}',RowKey='${encodeURIComponent(rk).replace(/'/g, "%27")}')?${FC.sas}`);
-  const res = await fetch(url, {
+  const res = await tableFetch(`(PartitionKey='${pk}',RowKey='${encodeURIComponent(rk).replace(/'/g, "%27")}')`, {
     method: "PUT",
-    headers: { "Content-Type": "application/json", Accept: "application/json;odata=nometadata" },
+    headers: { "Content-Type": "application/json", ...TABLE_JSON },
     body: JSON.stringify(entity),
   });
   if (!res.ok) throw new Error("HTTP " + res.status);
 }
 
 async function tableDelete(pk, rk) {
-  const url = tableUrl(`(PartitionKey='${pk}',RowKey='${encodeURIComponent(rk).replace(/'/g, "%27")}')?${FC.sas}`);
-  const res = await fetch(url, { method: "DELETE", headers: { "If-Match": "*" } });
+  const res = await tableFetch(`(PartitionKey='${pk}',RowKey='${encodeURIComponent(rk).replace(/'/g, "%27")}')`, {
+    method: "DELETE",
+    headers: { "If-Match": "*" },
+  });
   if (!res.ok && res.status !== 404) throw new Error("HTTP " + res.status);
 }
 
@@ -2429,14 +2545,29 @@ function showFlaggedList() {
 }
 const articleInSnapshot = (id) => D && D.articles && D.articles.id ? D.articles.id.indexOf(+id) >= 0 : false;
 async function fetchPartitionEntities(partitionKey) {
-  let url = tableUrl(`()?$filter=PartitionKey%20eq%20'${encodeURIComponent(partitionKey)}'&${FC.sas}`);
+  const path = `()?$filter=PartitionKey%20eq%20'${encodeURIComponent(partitionKey)}'`;
   const all = [];
-  while (url) {
-    const res = await fetch(url, { headers: { Accept: "application/json;odata=nometadata" } });
+  let nextUrl = null;
+  let restarted = false;
+  while (true) {
+    let res;
+    if (nextUrl) {
+      res = await fetch(nextUrl, { headers: TABLE_JSON });
+      if (isTableAuthFailure(res) && !restarted) {
+        await reloadFlagsConfig();
+        nextUrl = null;
+        all.length = 0;
+        restarted = true;
+        continue;
+      }
+    } else {
+      res = await tableFetch(path, { headers: TABLE_JSON });
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status} loading ${partitionKey} flags`);
     const j = await res.json();
     all.push(...(j.value || []));
-    url = j["@odata.nextLink"] || j.odata?.nextLink || null;
+    nextUrl = j["@odata.nextLink"] || j.odata?.nextLink || null;
+    if (!nextUrl) break;
   }
   return all;
 }
@@ -2850,7 +2981,8 @@ const POOLS = { title:"titles", authorName:"names", authorEmail:"emails", author
   wdAuthor:"wdAuthors", wdEditedBy:"wdEditedBys", wdCompany:"wdCompanies",
   status:"statuses", rejectionReason:"rejectionReasons", rejectionCode:"rejectionCodes",
   journal:"journals", section:"sections", articleType:"articleTypes",
-  editors:"editors", reviewers:"reviewers" };
+  editors:"editors", reviewers:"reviewers", eofPofComments:"eofPofComments",
+  airaTags:"airaTags" };
 const artStr = (f, r) => (D.articles[f] === undefined ? "" : str(POOLS[f], A(f, r)));
 const cmpCols = () => [...CMP_PRIORITY, ...CMP_REST].filter(f => D.articles[f] !== undefined);
 const defaultCmpColOrder = () => ["id", ...cmpCols()];
@@ -2881,7 +3013,7 @@ function resetCmpColOrder() {
 }
 const CMP_HEADER_ABBREV = new Set([
   "id", "status", "articleType", "nameEmailSim", "pmScore", "wdStatus",
-  "ip", "device", "locale", "platform", "uaFamily",
+  "ip", "device", "locale", "platform", "uaFamily", "eofPofComments", "airaTags",
 ]);
 const cmpColDefs = () => activeCmpColOrder().map(k => [k, cmpColHeaderLabel(k)]);
 const cmpFieldLabel = (f) => {
@@ -2894,7 +3026,8 @@ const cmpFieldLabel = (f) => {
   }
   return ({ authorName: "Author", authorEmail: "Email", authorOrg: "Org", status: "St",
     articleType: "Ty", journal: "Journal", section: "Sec", pmScore: "Sc", wdStatus: "WD",
-    editors: "Ed", reviewers: "Rev", nameEmailSim: "Sim" })[f] || f;
+    editors: "Ed", reviewers: "Rev", nameEmailSim: "Sim", eofPofComments: "EOF/POF",
+    airaTags: "Tags" })[f] || f;
 };
 const cmpColHeaderLabel = (f) => {
   if (f === "id") return "ID";
@@ -2912,7 +3045,8 @@ const cmpFieldFullLabel = (f) => {
     status: "Submission status", articleType: "Article type",
     journal: "Journal", section: "Section", pmScore: "Papermill score",
     wdStatus: "Word-doc status", editors: "Editor", reviewers: "Reviewers",
-    nameEmailSim: "Aut/Email Sim",
+    nameEmailSim: "Aut/Email Sim", eofPofComments: "EOF/POF comments",
+    airaTags: "AIRA tags",
   })[f] || f;
 };
 const cmpColExtraInfo = (f) => {
@@ -2923,6 +3057,8 @@ const cmpColExtraInfo = (f) => {
   if (f === "articleType") return "Short initials in cells; full type on row hover.";
   if (f === "journal") return "“Frontiers in …” prefix omitted in cells; full name on row hover.";
   if (f === "ip" || f === "device") return "Hashed identifiers; full value on row hover.";
+  if (f === "eofPofComments") return "Review Forum EOF/POF comments (Notes EOF to POF). Hover for the full text.";
+  if (f === "airaTags") return "Tags added on AIRA checks, including Manufactured research. Hover for the full list.";
   return "";
 };
 const cmpColTitle = (f) => cmpFieldFullLabel(f);
@@ -2939,7 +3075,7 @@ const cmpDisplay = (r, key) => {
 const CMP_TRUNC = {
   journal: 24, section: 22, authorName: 20, authorEmail: 24, authorOrg: 22,
   editors: 18, reviewers: 20,
-  wdAuthor: 16, wdEditedBy: 16, wdCompany: 16, locale: 14,
+  wdAuthor: 16, wdEditedBy: 16, wdCompany: 16, locale: 14, eofPofComments: 48, airaTags: 36,
 };
 const typeInitials = (s) => {
   if (!s) return "";
@@ -3328,14 +3464,9 @@ function bindUI() {
   $("btnFlagDownload").addEventListener("click", downloadFlaggedList);
   if ($("btnClustersCsv")) $("btnClustersCsv").addEventListener("click", downloadClustersCsv);
   $("btnFlagRefresh").addEventListener("click", async () => {
-    await loadFlags();
-    await loadWorkflow();
-    updateHubFlags();
-    renderList();
-    if (mode === "overview") showOverview();
-    draw();
-    if ($("modal").classList.contains("open")) renderCompareTable();
+    await recoverTableAuthAndReload();
   });
+  if ($("tableAuthRetry")) $("tableAuthRetry").addEventListener("click", recoverTableAuthAndReload);
   $("modalClose").addEventListener("click", closeModal);
   $("modalCopy").addEventListener("click", copyCompareTable);
   $("modalBackdrop").addEventListener("click", closeModal);
@@ -4270,6 +4401,8 @@ function showPaperDetail(r) {
     ["Section", artStr("section", r) || "—"],
     ["Editor", artStr("editors", r) || "—", personProxyTip(artStr("editors", r)) || ""],
     ["Reviewers", artStr("reviewers", r) || "—", personProxyTip(artStr("reviewers", r)) || ""],
+    ["EOF/POF comments", artStr("eofPofComments", r) || "—"],
+    ["AIRA tags", artStr("airaTags", r) || "—"],
     ["Author", artStr("authorName", r) || "—"], ["Email", artStr("authorEmail", r) || "—"],
     ["Organisation", artStr("authorOrg", r) || "—"],
     ["Aut/Email Sim", null, null, nameEmailSimHtml(A("nameEmailSim", r))],
@@ -4285,7 +4418,8 @@ function showPaperDetail(r) {
     if (html) return `<div><dt>${k}</dt><dd>${html}</dd></div>`;
     const titleAttr = tip ? ` title="${escapeHtml(tip)}"` : "";
     const mono = (k === "Editor" || k === "Reviewers") && looksLikeEmail(String(v)) ? ' class="val"' : "";
-    return `<div><dt>${k}</dt><dd${mono}${titleAttr}>${escapeHtml(String(v))}</dd></div>`;
+    const wrap = k === "EOF/POF comments" ? ' style="white-space:pre-wrap;overflow-wrap:break-word"' : "";
+    return `<div><dt>${k}</dt><dd${mono}${titleAttr}${wrap}>${escapeHtml(String(v))}</dd></div>`;
   }).join("")}</dl></div>
     <div class="section"><h2>Shared connections</h2>${connectionsHtml(r)}</div>`;
   bindAidClicks();
@@ -4679,6 +4813,15 @@ function renderCompareTable() {
         const tipCls = tip ? " cmp-tip" : "";
         const dataFull = tip ? ` data-full="${escapeHtml(tip)}"` : "";
         return `<td data-col="${k}" class="${tipCls}" style="${colorStyle}"${dataFull}>${inner}</td>`;
+      }
+      if (k === "eofPofComments" || k === "airaTags") {
+        const v = cmpDisplay(r, k);
+        const shown = cmpDisplayShort(r, k);
+        const tip = v || "";
+        const tipCls = tip ? " cmp-tip" : "";
+        const dataFull = tip ? ` data-full="${escapeHtml(tip)}"` : "";
+        const inner = shown ? escapeHtml(shown) : '<span class="muted">—</span>';
+        return `<td data-col="${k}" class="${tipCls}"${dataFull}>${inner}</td>`;
       }
       if (k === "editors" || k === "reviewers") {
         const v = cmpDisplay(r, k);

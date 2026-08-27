@@ -1,0 +1,180 @@
+id: cluster-analysis
+title: Cluster Analysis
+kind: aira-check
+status: ready
+surface: in-review
+category: Integrity
+beta_after_release: true
+replaces: [fingerprinting, metadata-analysis]
+outcomes: [BLOCK, PASS]
+copy_priority: [B1, B2]
+tickets: [QM-2480, QM-2481, QM-2278]
+prototype: https://aira-external.temporary-static-webapp.frontiersin.net/prototypes/papermill-assessment.html?version=optimized
+refs:
+  - device_profile_id.py
+  - audit_snapshot.py
+
+rules:
+  - id: B1
+    outcome: BLOCK
+    peer:
+      flagged: active
+      age: any
+      shares_any: [ip, device]
+      and_shares_any: [wd_author, wd_edited_by]
+    never_network: [locale, asn, subnet]
+  - id: B2
+    outcome: BLOCK
+    check: C1G27I3
+    when: BLOCK
+
+lookup:
+  peers: flagged
+  window: none
+  exclude_self: true
+  skip_over_cap: true
+  skip_generic_wd: true
+  return: b1_matches_only
+  discard: weak_flagged_hits
+
+tokens:
+  - type: device
+    role: decision
+    cap: 120
+    weight: 10
+    source: device_profile_id
+    not: DeviceId
+  - type: ip
+    role: decision
+    cap: 120
+    weight: 8
+    source: IpHash
+    truncate: 16
+  - type: wd_author
+    role: decision
+    cap: 500
+    weight: 8
+    source: indicator_75
+  - type: wd_edited_by
+    role: decision
+    cap: 500
+    weight: 8
+    source: indicator_75
+  - type: wd_company
+    role: rank
+    cap: 500
+    weight: 6
+    source: indicator_75
+  - type: locale
+    role: rank
+    cap: 25
+    weight: 1
+    source: "{Languages}|{Timezone}"
+  - type: asn
+    role: off
+    cap: null
+    weight: null
+  - type: subnet
+    role: planned
+    cap: null
+    weight: null
+    nest_under: ip
+  - type: email
+    role: display
+    indexed: false
+  - type: authorIp
+    role: display
+    indexed: false
+
+device_profile_id:
+  from: DeviceFingerprints.latest
+  hash: SHA-256
+  parts: [CanvasHash, WebglHash, HwIdHash, UaFamilyHash, Platform, "{W}x{H}", DevicePixelRatio]
+  require: full_64_hex
+  store: first_16_hex
+
+generic_wd:
+  kind: os_tooling_placeholders
+  examples: [administrator, microsoft office user, python-docx, un-named]
+  not: org_or_publisher_strings
+
+cap_df: whole_corpus
+
+flags:
+  table: dedicated
+  source: network_ui_api
+  field: is_flagged
+  active_only: true
+  unflag_clears_match: true
+  unflag_clears_block_if_sole_reason: true
+  no_rebuild: true
+  flagged_by: audit_only
+  flagged_utc: audit_only
+
+score:
+  purpose: rank
+  decides_outcome: false
+  k: 15
+  ui_visible: 5
+  show_more: "{N} more results"
+  match_total: uncapped_b1_count
+  sort: [score_desc, decision_overlap_desc, created_utc_desc]
+  network: 8 if same ip else proximity_weight if same subnet else 0
+  time_boost:
+    le_7d: 1
+    le_30d: 0.5
+    else: 0
+  affiliation_adjust:
+    orgs_differ_and_decision_token: 2
+    same_org_and_device_or_ip: -2
+  combo_bonus: 4 if (device or ip) and (wd_author or wd_edited_by)
+
+result:
+  outcome: [BLOCK, PASS]
+  reasons: [B1, B2]
+  match_total: all_b1_any_age
+  matches: top_k
+  match_signals: [device, ip, wd_author, wd_edited_by, locale, time_proximity, affiliation_conflict]
+  b2_only_matches: empty
+
+ui:
+  heading: Flagged Article Matches
+  sub_caption: false
+  per_row_flagged_chip: false
+  blocks: [Identity, File metadata, Flagged Article Matches]
+  x: match_total
+  x_singular: paper
+  copy:
+    B1: This manuscript shares {network_phrase} and {file_phrase} with {X} flagged paper(s)
+    B2: Has file metadata that was previously flagged
+  network_phrase:
+    device: device
+    ip: network
+    both: device and network
+  file_phrase:
+    one: some file metadata
+    both: file metadata
+
+store:
+  retain: all
+  purge_on_age: false
+  names: logical
+  tables:
+    submission_features: one_row_per_article
+    feature_lookup: one_row_per_token
+  write: on_fingerprint_or_wd_enrich
+  reconcile_deletes_old: false
+  late_flag_retrievable_without_rebuild: true
+
+forbidden:
+  - WARN
+  - B0
+  - attached_filters
+  - lookup_window_90d
+  - unflagged_retrieval
+  - asn_enabled
+
+tbd:
+  - deep_link_url
+  - production_table_names
+  - subnet_ingest

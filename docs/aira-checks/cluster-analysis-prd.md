@@ -1,5 +1,7 @@
 # Cluster Analysis — AIRA in-review check
 
+**Implement from:** [`cluster-analysis.yaml`](./cluster-analysis.yaml) — this PRD is the stakeholder narrative, not the contract.
+
 **Status:** Ready for implementation  
 **Surface:** AIRA in-review check (replaces fingerprinting / metadata-analysis for this use case)  
 **Outcomes:** `BLOCK` | `PASS`

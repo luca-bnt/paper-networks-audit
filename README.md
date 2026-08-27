@@ -117,13 +117,17 @@ compute required.
 - **CSV export:** **↓ CSV** downloads all rows from both partitions (paginated, all time — not limited to the 90-day snapshot). Columns: `articleId`, `status` (`active`|`removed`), `comment`, `flaggedAt`, `removedAt`, `flaggedBy`, `removedBy`, `inSnapshot`
 - **Config:** the app reads `flags-config.js` (git-ignored) which sets
   `window.FLAGS_CONFIG = { account, table, sas }`. If absent, the flag UI is
-  hidden and any baked flags show read-only. Regenerate the SAS periodically:
+  hidden and any baked flags show read-only. Storage account keys can rotate
+  without notice and invalidate the SAS. Remint from the *current* key (Azure AD)
+  and deploy:
 
   ```bash
-  az storage table generate-sas --name pmflags --permissions raud \
-    --expiry <ISO8601> --https-only \
-    --account-name staticsitesops10798 --account-key <key> -o tsv
+  ./scripts/refresh_flags_sas.sh
   ```
+
+  Snapshot deploy and `kiosk_keepalive.sh` also run this. On HTTP 403 the UI
+  reloads `flags-config.js` and retries (recovers as soon as a remint has been
+  uploaded). Optional hourly cron: `20 * * * *  …/scripts/refresh_flags_sas.sh`.
 
   Table CORS must allow the site origin (set once with the account key via
   `az storage cors add --services t ...`).

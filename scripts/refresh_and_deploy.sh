@@ -94,6 +94,11 @@ az storage blob upload \
 
 echo "[deploy] uploaded snapshot + snapshot-meta sidecar"
 
+# Remint table SAS from the current account key so tracking survives key rotations.
+if ! "$ROOT/scripts/refresh_flags_sas.sh"; then
+  echo "[deploy] warning: flags SAS refresh failed — tracking may 403 until it succeeds" >&2
+fi
+
 if [[ "${SYNC_CACHE:-1}" == "1" && -f audit-pipeline/raw_snapshot.pkl ]]; then
   az storage blob upload \
     --account-name "$AZ_ACCOUNT" \
