@@ -8,6 +8,7 @@ venv/
 # Pipeline cache (large DB pull — never commit)
 *.pkl
 raw_snapshot.pkl
+*.pkl.*
 
 # Credentials / secrets
 .env

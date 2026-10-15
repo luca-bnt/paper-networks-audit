@@ -777,26 +777,85 @@ GENERIC_WD = {
 }
 
 
-def fetch_flags(conn_str: str, table: str = "pmflags") -> set:
-    """Read manufactured-article flags from Azure Table Storage (RowKey = articleId)."""
+FLAGS_CONFIG_DEFAULT = REPO / "audit-network" / "flags-config.js"
+
+
+def _read_pickle(path: Path):
+    """Load a DataFrame pickle; return None if the file is missing or unreadable."""
+    if not path.exists():
+        return None
+    try:
+        return pickle.loads(path.read_bytes())
+    except Exception as ex:
+        print(f"[raw] cache unreadable ({ex.__class__.__name__}: {ex}); ignoring {path}", file=sys.stderr)
+        return None
+
+
+def _parse_flags_config(path: Path) -> dict | None:
+    text = path.read_text(encoding="utf-8")
+    account = re.search(r'account:\s*"([^"]+)"', text)
+    table = re.search(r'table:\s*"([^"]+)"', text)
+    sas = re.search(r'sas:\s*"([^"]+)"', text)
+    if not (account and table and sas):
+        return None
+    return {"account": account.group(1), "table": table.group(1), "sas": sas.group(1).lstrip("?")}
+
+
+def _flag_ids_from_client(tc, table: str) -> set:
+    ids = set()
+    for e in tc.query_entities("PartitionKey eq 'flag'", select=["RowKey"]):
+        try:
+            ids.add(int(e["RowKey"]))
+        except (ValueError, TypeError):
+            pass
+    print(f"[flags] baked {len(ids):,} manufactured flags from table '{table}'", file=sys.stderr)
+    return ids
+
+
+def fetch_flags(table: str = "pmflags") -> set:
+    """Read active manufactured-article flags (PartitionKey=flag, RowKey=articleId).
+
+    Credential order: AUDIT_TABLE_CONN → flags-config.js SAS → Azure AD.
+    Does not require storage account listKeys.
+    """
     try:
         from azure.data.tables import TableClient
     except ImportError:
         print("[flags] azure-data-tables not installed; skipping bake (pip install azure-data-tables)", file=sys.stderr)
         return set()
+
+    conn_str = os.environ.get("AUDIT_TABLE_CONN")
+    if conn_str:
+        try:
+            return _flag_ids_from_client(TableClient.from_connection_string(conn_str, table_name=table), table)
+        except Exception as ex:
+            print(f"[flags] AUDIT_TABLE_CONN failed: {ex}", file=sys.stderr)
+
+    cfg_path = Path(os.environ.get("AUDIT_FLAGS_CONFIG", FLAGS_CONFIG_DEFAULT))
+    cfg = _parse_flags_config(cfg_path) if cfg_path.exists() else None
+    if cfg and cfg.get("sas"):
+        tbl = cfg.get("table") or table
+        try:
+            url = f"https://{cfg['account']}.table.core.windows.net/{tbl}?{cfg['sas']}"
+            return _flag_ids_from_client(TableClient.from_table_url(url), tbl)
+        except Exception as ex:
+            print(f"[flags] flags-config.js SAS failed: {ex}", file=sys.stderr)
+
+    account = (cfg or {}).get("account") or os.environ.get("AZURE_STORAGE_ACCOUNT", "staticsitesops10798")
     try:
-        tc = TableClient.from_connection_string(conn_str, table_name=table)
-        ids = set()
-        for e in tc.list_entities(select=["RowKey"]):
-            try:
-                ids.add(int(e["RowKey"]))
-            except (ValueError, TypeError):
-                pass
-        print(f"[flags] baked {len(ids):,} manufactured flags from table '{table}'", file=sys.stderr)
-        return ids
+        from azure.identity import DefaultAzureCredential
+
+        tc = TableClient(
+            endpoint=f"https://{account}.table.core.windows.net",
+            table_name=table,
+            credential=DefaultAzureCredential(exclude_interactive_browser_credential=True),
+        )
+        return _flag_ids_from_client(tc, table)
     except Exception as ex:
-        print(f"[flags] could not read table: {ex}", file=sys.stderr)
-        return set()
+        print(f"[flags] Azure AD table read failed: {ex}", file=sys.stderr)
+
+    print("[flags] no usable credentials; snapshot will have pmFlag=0", file=sys.stderr)
+    return set()
 
 
 def build(df: pd.DataFrame, cap: int, days: int, flag_ids: set | None = None) -> dict:
@@ -877,6 +936,14 @@ def build(df: pd.DataFrame, cap: int, days: int, flag_ids: set | None = None) ->
     for attr in COMPONENT_ATTRS:
         for idxs in kept_index.get(attr, {}).values():
             connected.update(idxs)
+    n_flag_isolates = 0
+    if flag_ids:
+        for i, rec in enumerate(recs):
+            if rec["id"] in flag_ids and i not in connected:
+                connected.add(i)
+                n_flag_isolates += 1
+        if n_flag_isolates:
+            print(f"[build] retained {n_flag_isolates:,} flagged isolates", file=sys.stderr)
     keep = sorted(connected)
     old_to_new = {old: new for new, old in enumerate(keep)}
 
@@ -1017,26 +1084,27 @@ def main() -> None:
                     help="local-only file where rows aged out of the window are appended for later retrieval")
     ap.add_argument("--no-archive", action="store_true", help="do not archive aged-out rows during --incremental")
     ap.add_argument("--flags-table", default="pmflags", help="Azure Table with manufactured flags to bake into the snapshot")
-    ap.add_argument("--no-flags", action="store_true", help="do not bake manufactured flags (set AUDIT_TABLE_CONN to enable)")
+    ap.add_argument("--no-flags", action="store_true", help="do not bake manufactured flags from Azure Table / flags-config.js")
     args = ap.parse_args()
 
     raw_path = Path(args.raw)
     if args.from_raw:
-        if not raw_path.exists():
-            sys.exit(f"No raw cache at {raw_path}; run once without --from-raw")
-        df = _within_window(pickle.loads(raw_path.read_bytes()), args.days)
+        df = _read_pickle(raw_path)
+        if df is None:
+            sys.exit(f"No usable raw cache at {raw_path}; run once without --from-raw")
+        df = _within_window(df, args.days)
         print(f"[raw] loaded {len(df):,} in-window rows from cache", file=sys.stderr)
     else:
         if not args.connection_string:
             sys.exit("Provide --connection-string or AUDIT_DB_CS env var")
-        if args.incremental and not args.full and raw_path.exists():
-            cache = pickle.loads(raw_path.read_bytes())
+        cache = _read_pickle(raw_path) if args.incremental and not args.full else None
+        if args.incremental and not args.full and cache is not None:
             df, aged = fetch_incremental(args.connection_string, args.days, args.refresh_days, cache)
             if not args.no_archive:
                 _archive_rows(aged, Path(args.archive))
         else:
-            if args.incremental and not raw_path.exists():
-                print("[incremental] no cache found -> full pull this run", file=sys.stderr)
+            if args.incremental and cache is None:
+                print("[incremental] no usable cache -> full pull this run", file=sys.stderr)
             df = fetch(args.connection_string, args.days)
         raw_path.parent.mkdir(parents=True, exist_ok=True)
         raw_path.write_bytes(pickle.dumps(df))
@@ -1052,10 +1120,7 @@ def main() -> None:
         raw_path.write_bytes(pickle.dumps(df))
         print(f"[raw] AIRA tags refreshed ({int(df['airaTags'].fillna('').astype(bool).sum()):,} tagged)", file=sys.stderr)
 
-    flag_ids = set()
-    table_conn = os.environ.get("AUDIT_TABLE_CONN")
-    if table_conn and not args.no_flags:
-        flag_ids = fetch_flags(table_conn, args.flags_table)
+    flag_ids = set() if args.no_flags else fetch_flags(args.flags_table)
 
     snapshot = build(df, cap=args.cap, days=args.days, flag_ids=flag_ids)
     snapshot["meta"]["flags"] = len(flag_ids)

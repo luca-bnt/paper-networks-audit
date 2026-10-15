@@ -25,9 +25,28 @@ CFG="$ROOT/audit-network/flags-config.js"
 
 az account set --subscription "$AZ_SUBSCRIPTION"
 
-KEY="$(az storage account keys list --account-name "$AZ_ACCOUNT" --query '[0].value' -o tsv)"
+probe_sas() {
+  local sas="$1"
+  curl -sS -o /dev/null -w '%{http_code}' \
+    "https://${AZ_ACCOUNT}.table.core.windows.net/${TABLE}()?%24top=1&${sas}" \
+    -H 'Accept: application/json;odata=nometadata'
+}
+
+EXISTING_SAS=""
+if [[ -f "$CFG" ]]; then
+  EXISTING_SAS="$(python3 -c 'import re,sys; t=open(sys.argv[1]).read(); m=re.search(r"sas:\s*\"([^\"]+)\"",t); print(m.group(1) if m else "")' "$CFG" 2>/dev/null || true)"
+fi
+
+KEY="$(az storage account keys list --account-name "$AZ_ACCOUNT" --query '[0].value' -o tsv 2>/dev/null || true)"
 if [[ -z "$KEY" ]]; then
-  echo "[flags-sas] could not read storage account key (az login / RBAC?)" >&2
+  if [[ -n "$EXISTING_SAS" ]]; then
+    PROBE="$(probe_sas "$EXISTING_SAS")"
+    if [[ "$PROBE" == "200" ]]; then
+      echo "[flags-sas] listKeys denied; existing SAS still valid (HTTP ${PROBE}) — not reminting"
+      exit 0
+    fi
+  fi
+  echo "[flags-sas] could not read storage account key (az login / RBAC?) and no working SAS" >&2
   exit 1
 fi
 

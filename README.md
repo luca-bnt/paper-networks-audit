@@ -133,15 +133,9 @@ compute required.
   `az storage cors add --services t ...`).
 - **Access model:** the site is IP-restricted, so the embedded write SAS is only
   reachable from allowed networks.
-- **Baking into the snapshot:** set `AUDIT_TABLE_CONN` (a storage connection
-  string) when running the pipeline to materialise flags into a `pmFlag` column
-  so they persist in the versioned snapshot:
-
-  ```bash
-  AUDIT_DB_CS='...' AUDIT_TABLE_CONN='DefaultEndpointsProtocol=...' \
-    python audit_snapshot.py --incremental
-  ```
-
+- **Baking into the snapshot:** the pipeline materialises active `pmflags` rows
+  into a `pmFlag` column. Credential order: `AUDIT_TABLE_CONN`, then
+  `audit-network/flags-config.js` SAS (no `listKeys` needed), then Azure AD.
   Requires `azure-data-tables`. Use `--no-flags` to skip.
 
 ## Scheduled refresh (cron / GitHub Actions)

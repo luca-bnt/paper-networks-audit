@@ -15,8 +15,30 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-PY="${PYTHON:-$ROOT/.dbenv/bin/python}"
-if [[ ! -x "$PY" ]]; then PY="$(command -v python3)"; fi
+pick_python() {
+  local c
+  for c in \
+    "${PYTHON:-}" \
+    "$(cd "$ROOT/.." && pwd)/frontiers-mcp/.dbenv/bin/python" \
+    "$ROOT/.dbenv/bin/python"
+  do
+    [[ -n "$c" && -x "$c" ]] || continue
+    if "$c" -c "import google.cloud.bigquery, azure.data.tables" >/dev/null 2>&1; then
+      printf '%s' "$c"
+      return
+    fi
+  done
+  for c in \
+    "${PYTHON:-}" \
+    "$(cd "$ROOT/.." && pwd)/frontiers-mcp/.dbenv/bin/python" \
+    "$ROOT/.dbenv/bin/python"
+  do
+    [[ -n "$c" && -x "$c" ]] && { printf '%s' "$c"; return; }
+  done
+  command -v python3
+}
+PY="$(pick_python)"
+echo "[env] python=$PY"
 
 # Optional secrets file (never commit)
 if [[ -f "$ROOT/.env" ]]; then set -a; source "$ROOT/.env"; set +a; fi

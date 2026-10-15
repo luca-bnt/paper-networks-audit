@@ -4,6 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Paper Networks Audit</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
 <style>
   :root {
     --bg: #0f1115; --panel: #171a21; --panel2: #1e222b; --line: #2a2f3a;
@@ -1137,17 +1138,16 @@ async function initFromSnapshot() {
     try { localStorage.setItem(LS_SNAPSHOT_BUILT, m.builtUtc); } catch (_) {}
   }
   buildAttrToggles(); bindUI(); buildMetaFilters(); renderList(); setupCanvas(); buildLegend();
-  if (D.articles.pmFlag) for (let r = 0; r < D.articles.pmFlag.length; r++) if (D.articles.pmFlag[r]) flags.set(A("id", r), { by: "baked", utc: "" });
+  applyBakedFlags();
   updateFlagCount();
+  if ($("btnFlagged")) $("btnFlagged").style.display = "";
   if (FC) {
-    ["btnFlagged", "btnFlagDownload", "btnFlagRefresh"].forEach(id => $(id).style.display = "");
+    ["btnFlagDownload", "btnFlagRefresh"].forEach(id => { if ($(id)) $(id).style.display = ""; });
     if ($("hideAllSeenRow")) $("hideAllSeenRow").style.display = "";
     $("secReviewer").style.display = "";
     $("fReviewer").value = localStorage.getItem(LS_NAME) || localStorage.getItem("auditReviewer") || "";
     renderReviewerDisplay();
     bindWorkflowUI();
-    await loadFlags();
-    await loadWorkflow();
     pruneCmpBulkPickStorage();
     if (!userName()) promptForName();
   } else if ($("cmpBulkBar")) {
@@ -1155,7 +1155,6 @@ async function initFromSnapshot() {
   }
   applyShareParams();
   updateGlobalFieldFilterUI();
-  if (FC && userName()) refreshWatchAlerts({ announce: true });
 }
 
 function startSnapshotPolling() {
@@ -1233,6 +1232,20 @@ async function boot() {
 
   hideBootScreen();
   startSnapshotPolling();
+  hydrateFlagsAndWorkflow();
+}
+
+async function hydrateFlagsAndWorkflow() {
+  try {
+    if (FC) await Promise.all([loadFlags(), loadWorkflow()]);
+  } catch (e) {
+    console.warn("[hydrate] table load failed:", e);
+  }
+  updateFlagCount();
+  updateHubFlags();
+  renderList();
+  draw();
+  if (FC && userName()) refreshWatchAlerts({ announce: true });
 }
 
 /** Compact cache-bust token from an ISO builtUtc (or fallback). */
@@ -1286,7 +1299,7 @@ let globalFieldFilter = null;   // { col, matchKey, display, label } — dataset
 // -------- papermill flags (Azure Table Storage backend) --------
 const FC = (typeof window !== "undefined" && window.FLAGS_CONFIG) ? window.FLAGS_CONFIG : null;
 let flags = new Map();        // articleId -> { by, utc }
-const TABLE_JSON = { Accept: "application/json;odata=nometadata" };
+const TABLE_JSON = { Accept: "application/json;odata=nometadata", "x-ms-version": "2019-02-02" };
 let flagsConfigReloadInFlight = null;
 let tableAuthPollTimer = null;
 let tableAuthRecovering = false;
@@ -1359,8 +1372,14 @@ const tableUrl = (pathAndQuery) => {
   const join = pathAndQuery.includes("?") ? "&" : "?";
   return `https://${FC.account}.table.core.windows.net/${FC.table}${pathAndQuery}${join}${FC.sas}`;
 };
+function tableFetchSignal(ms) {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") return AbortSignal.timeout(ms);
+  const c = new AbortController();
+  setTimeout(() => c.abort(), ms);
+  return c.signal;
+}
 async function tableFetch(pathAndQuery, options = {}, retryOnAuth = true) {
-  const res = await fetch(tableUrl(pathAndQuery), options);
+  const res = await fetch(tableUrl(pathAndQuery), { signal: tableFetchSignal(20000), ...options });
   if (res.ok) {
     hideTableAuthBanner();
     stopTableAuthRecoveryPoll();
@@ -1376,13 +1395,29 @@ async function tableFetch(pathAndQuery, options = {}, retryOnAuth = true) {
   }
   return res;
 }
+function applyBakedFlags() {
+  const baked = new Map();
+  if (D && D.articles && D.articles.pmFlag) {
+    for (let r = 0; r < D.articles.pmFlag.length; r++) {
+      if (D.articles.pmFlag[r]) baked.set(A("id", r), { by: "snapshot", utc: "", comment: "" });
+    }
+  }
+  flags = baked;
+}
 async function loadFlags() {
-  if (!FC) return;
+  applyBakedFlags();
+  if (!FC) { updateFlagCount(); return; }
   try {
-    const res = await tableFetch("()?$filter=PartitionKey%20eq%20'flag'", { headers: TABLE_JSON });
-    if (!res.ok) throw new Error("HTTP " + res.status);
-    const j = await res.json();
-    flags = new Map(j.value.map(e => [+e.RowKey, { by: e.flaggedBy || "", utc: e.flaggedUtc || e.Timestamp || "", comment: e.comment || "" }]));
+    const entities = await fetchPartitionEntities("flag");
+    if (entities.length) {
+      const live = new Map();
+      for (const e of entities) {
+        const id = +e.RowKey;
+        if (!Number.isFinite(id)) continue;
+        live.set(id, { by: e.flaggedBy || "", utc: e.flaggedUtc || e.Timestamp || "", comment: e.comment || "" });
+      }
+      flags = live;
+    }
   } catch (e) { console.warn("[flags] load failed:", e); }
   updateFlagCount();
 }
@@ -2527,7 +2562,7 @@ function flagControlHtml(r) {
     ${on && f ? `<div class="muted" style="font-size:11px;margin-top:5px">by ${escapeHtml(f.by || "?")} · ${(f.utc || "").slice(0, 10)}</div>` : ""}</div>`;
 }
 function showFlaggedList() {
-  const rows = [...flags.keys()].map(id => D.articles.id.indexOf(id)).filter(r => r >= 0);
+  const rows = [...flags.keys()].map(id => D.articles.id.indexOf(+id)).filter(r => r >= 0);
   rows.sort((a, b) => (A("pmScore", b) || 0) - (A("pmScore", a) || 0));
   $("listTitle").textContent = "Flagged papers";
   $("bucketCount").textContent = `(${flags.size.toLocaleString()})`;
@@ -2566,7 +2601,13 @@ async function fetchPartitionEntities(partitionKey) {
     if (!res.ok) throw new Error(`HTTP ${res.status} loading ${partitionKey} flags`);
     const j = await res.json();
     all.push(...(j.value || []));
-    nextUrl = j["@odata.nextLink"] || j.odata?.nextLink || null;
+    const np = res.headers.get("x-ms-continuation-NextPartitionKey");
+    const nr = res.headers.get("x-ms-continuation-NextRowKey");
+    if (np) {
+      nextUrl = tableUrl(`${path}&NextPartitionKey=${encodeURIComponent(np)}&NextRowKey=${encodeURIComponent(nr || "")}`);
+    } else {
+      nextUrl = j["@odata.nextLink"] || (j.odata && j.odata.nextLink) || null;
+    }
     if (!nextUrl) break;
   }
   return all;
@@ -4705,6 +4746,7 @@ function closeModal() {
   if ($("cmpBulkBar")) $("cmpBulkBar").classList.remove("visible");
   hideCmpFieldFilterPop();
   const tipEl = $("cmpTip"); if (tipEl) tipEl.style.display = "none";
+  if (globalFieldFilter) clearGlobalFieldFilter();
   applyCompareSelectionToGraph();
   syncShare();
 }
